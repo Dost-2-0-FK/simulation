@@ -1,6 +1,11 @@
 mod error;
+mod military;
+mod money;
+mod placement;
+mod politics;
 mod simulation;
 mod state;
+mod trust;
 
 use actix_web::{App, HttpResponse, HttpServer, Responder, get, middleware::Logger, web};
 use tokio::sync::mpsc;
