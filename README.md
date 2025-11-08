@@ -66,6 +66,7 @@ Logic:
 - If two units of different blocs meet, always roll the dice for *both* units to decide which unit is destroyed: each bloc has a chance (0-1) (can be set by: `POST /api/bloc/chance?id=<bloc_id: str>&chance=<value: float>`)
 - If a unit is killed, increase the `production_count` of the base of the enemy unit by half the amount of money spent to create the unit
 - If a unit meets an enemy base/trust, it stays there until at least X units "attack" the base/trust, and no enemy units are in a radius of Y -> in that case, the base/trust is destroyed
+- If enemy units are in radius of Y, the unity prioritizes attacking those units.
 - If a base/trust is destroyed, increase the `production_count` of the base of the enemy unit by half the amount of money spent to create the base/trust
 
 API: 
