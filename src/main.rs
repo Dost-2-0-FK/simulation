@@ -1,4 +1,5 @@
 mod error;
+mod geometry;
 mod military;
 mod money;
 mod placement;
