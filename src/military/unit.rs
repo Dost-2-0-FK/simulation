@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     military::base::MilitaryBase,
     money::{Money, ResourceValue},
