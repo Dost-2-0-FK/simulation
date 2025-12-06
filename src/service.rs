@@ -6,30 +6,24 @@ use crate::{
     error::{Result, UserError},
 };
 
-#[get("/")]
-pub(super) async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
-}
-
-/// PoC: query simualted state
-#[get("/count")]
-async fn count(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+#[get("/units")]
+async fn get_units(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
     // This channel is one-shot: it is only used once and gets re-created on every request
-    let (get_count_tx, get_count_rx) = tokio::sync::oneshot::channel();
+    let (get_units_tx, get_units_rx) = tokio::sync::oneshot::channel();
 
     // Via the global channel, send a command to the state loop to query the count. The command includes the one-shot
     // channel sender from which we're going to get the response.
-    tx.send(Command::GetCount(get_count_tx)).await.map_err(|e| {
+    tx.send(Command::GetUnits(get_units_tx)).await.map_err(|e| {
         log::error!("Error sending command: {e}");
         UserError::InternalError
     })?;
 
     // Receive the response from the state.
-    let count_value = get_count_rx.await.map_err(|e| {
+    let units = get_units_rx.await.map_err(|e| {
         log::error!("Error receiving count: {e}");
         UserError::InternalError
     })?;
 
-    let response = HttpResponse::Ok().body(format!("{count_value}"));
+    let response = HttpResponse::Ok().json(units.as_slice());
     Ok(response)
 }

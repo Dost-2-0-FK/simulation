@@ -42,8 +42,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(tx.clone()))
             .service(
                 web::scope("/api")
-                .service(service::hello)
-                .service(service::count)
+                .service(service::get_units)
             )
     })
     .bind(("127.0.0.1", 8080))?
