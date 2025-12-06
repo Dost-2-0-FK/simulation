@@ -1,7 +1,15 @@
-#[derive(Debug, Clone, Copy)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Copy, Serialize)]
 pub(crate) struct Point {
     x: f64,
     y: f64,
+}
+
+impl Point {
+    pub(crate) fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
 }
 
 impl Positioned for Point {
