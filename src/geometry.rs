@@ -4,6 +4,12 @@ pub(crate) struct Point {
     y: f64,
 }
 
+impl Positioned for Point {
+    fn position(&self) -> Point {
+        *self
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub(crate) struct Distance(f64);
 
@@ -20,4 +26,16 @@ pub(crate) trait Positioned {
 
         Distance(distance)
     }
+}
+
+/// Generate a pass-through [Positioned] implementation for a struct which has a field that implements [Positioned].
+#[macro_export]
+macro_rules! impl_positioned {
+    ($struct:path => $field:ident) => {
+        impl Positioned for $struct {
+            fn position(&self) -> Point {
+                Positioned::position(&self.$field)
+            }
+        }
+    };
 }

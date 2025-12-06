@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
+    geometry::{Point, Positioned},
     money::{Money, ResourceValue},
     placement::Placement,
 };
@@ -12,6 +13,8 @@ struct Trust {
     placement: Placement,
     income: TrustIncome,
 }
+
+crate::impl_positioned!(Trust => placement);
 
 #[derive(Debug, Clone)]
 struct TrustCost {

@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
+    geometry::{Point, Positioned},
     money::{Money, ResourceValue},
     placement::Placement,
     politics::Zone,
@@ -14,6 +15,8 @@ pub(crate) struct MilitaryBase {
     /// How much credit has been produced since the last full hour?
     production_count: Money,
 }
+
+crate::impl_positioned!(MilitaryBase => placement);
 
 pub(crate) struct MilitaryBaseCost {
     money: Money,
