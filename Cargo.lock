@@ -1167,6 +1167,7 @@ dependencies = [
  "derive_more",
  "env_logger",
  "log",
+ "serde",
  "tokio",
 ]
 
