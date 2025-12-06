@@ -40,8 +40,11 @@ async fn main() -> std::io::Result<()> {
             .wrap(logger)
             // The API also sends commands
             .app_data(web::Data::new(tx.clone()))
-            .service(service::hello)
-            .service(service::count)
+            .service(
+                web::scope("/api")
+                .service(service::hello)
+                .service(service::count)
+            )
     })
     .bind(("127.0.0.1", 8080))?
     .run()
