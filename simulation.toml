@@ -1,0 +1,6 @@
+resources = [""]
+[costs.trust]
+[costs.base]
+[server]
+[env]
+credit_exchange_url = "http://127.0.0.1:12345"
