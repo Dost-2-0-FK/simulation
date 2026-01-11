@@ -1,5 +1,4 @@
 mod error;
-mod string_normalization;
 
 use std::{collections::HashMap, path::Path};
 
@@ -8,7 +7,10 @@ use tokio::fs;
 
 use self::{
     error::{Error, Result},
-    string_normalization::{LowercaseString, VecLowercaseString},
+};
+use crate::{
+    military::MilitaryUnitCost,
+    money::{Costs, Money},
 };
 
 const CONFIG_FILE_NAME: &str = "simulation.toml";
@@ -38,8 +40,16 @@ struct ServerConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CostsConfig {
-    trust: HashMap<LowercaseString, f64>,
-    base: HashMap<LowercaseString, f64>,
+    trust: CostConfig,
+    base: CostConfig,
+    unit: CostConfig,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CostConfig {
+    money: Money,
+    resources: HashMap<LowercaseString, f64>,
 }
 
 impl Config {
@@ -51,7 +61,13 @@ impl Config {
     fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<Config>(config).map_err(Error::Toml)?;
 
-        let resources_in_costs = config.costs.trust.keys().chain(config.costs.base.keys());
+        let resources_in_costs = config
+            .costs
+            .trust
+            .resources
+            .keys()
+            .chain(config.costs.base.resources.keys())
+            .chain(config.costs.unit.resources.keys());
 
         for resource in resources_in_costs {
             // TODO collect all errors in a vector and properly build the error
@@ -64,6 +80,16 @@ impl Config {
         }
 
         Ok(config)
+    }
+
+    pub(crate) fn costs(&self) -> Costs {
+        let military_unit_cost = MilitaryUnitCost {
+            money: self.costs.unit.money,
+            resource: HashMap::new(),
+        };
+        Costs {
+            military_unit: military_unit_cost,
+        }
     }
 }
 
@@ -86,11 +112,15 @@ mod tests {
         credit_exchange_url = "http://0.0.0.0:4534"
 
         [costs]
-        base = { lithium = 5.2, iron = 10.5 }
+        base = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }
+        unit = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }
         
-        [costs.trust]
+        [costs.trust.resources]
         lithium = 1.5
         iron = 2.5
+
+        [costs.trust]
+        money = 1.2
 
         "#;
 
