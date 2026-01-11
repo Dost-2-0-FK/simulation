@@ -17,20 +17,22 @@ use tokio::sync::mpsc;
 use crate::{
     config::Config,
     simulation::simulation,
-    state::{Command, state_loop},
+    state::{Command, State},
 };
 
 async fn setup() -> Result<mpsc::Sender<Command>> {
     env_logger::init();
-    let _c = Config::parse().await.context("parsing config file".to_string())?;
+    let config = Config::parse().await.context("parsing config file".to_string())?;
     const MAX_MESSAGE_COUNT: usize = 100;
     // Create a channel to query or mutate state from the state loop
     let (tx, rx) = mpsc::channel(MAX_MESSAGE_COUNT);
 
+    // The state loop receives commands
+    let state = State::builder().config(config).receiver(rx).build();
+
     // Spawn state loop and simulation separately so they never block each other.
 
-    // The state loop receives commands
-    tokio::spawn(state_loop(rx));
+    tokio::spawn(state.run());
 
     // The simulation sends commands
     tokio::spawn(simulation(tx.clone()));

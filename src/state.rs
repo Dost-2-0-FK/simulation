@@ -2,13 +2,23 @@
 
 use std::sync::Arc;
 
-use tokio::sync::{OwnedRwLockReadGuard, RwLock, oneshot::Sender};
+use tokio::sync::{OwnedRwLockReadGuard, RwLock, mpsc::Receiver, oneshot::Sender};
+use typed_builder::TypedBuilder;
 
 use crate::{
+    config::Config,
     geometry::Point,
     military::{BaseId, MilitaryUnit, MilitaryUnitCost},
     money::Payment,
 };
+
+#[derive(TypedBuilder)]
+pub(crate) struct State {
+    config: Config,
+    // units,
+    // etc,
+    receiver: Receiver<Command>,
+}
 
 /// Type alias for a one shot sender with an RwLockReadGuard, used to send the response for a read command.
 type ReadCommand<T> = Sender<OwnedRwLockReadGuard<T>>;
@@ -24,30 +34,32 @@ pub(super) enum Command {
     GetUnits(ReadCommand<Vec<MilitaryUnit>>),
 }
 
-/// Spawn a state loop and wait for [Command]s to query the state or mutate it.
-///
-/// Returns when the channel is closed and when there are no more messages in the channels buffer, i.e., no more
-/// messages are going to be received.
-pub(super) async fn state_loop(mut rx: tokio::sync::mpsc::Receiver<Command>) {
-    // Load units from database
-    let units = Arc::new(RwLock::new(vec![]));
+impl State {
+    /// Spawn a state loop and wait for [Command]s to query the state or mutate it.
+    ///
+    /// Returns when the channel is closed and when there are no more messages in the channels buffer, i.e., no more
+    /// messages are going to be received.
+    pub(super) async fn run(mut self) {
+        // Load units from database
+        let units = Arc::new(RwLock::new(vec![]));
 
-    while let Some(cmd) = rx.recv().await {
-        match cmd {
-            Command::GetUnits(resp) => {
-                let units_guard = units.clone().read_owned().await;
-                let _ = resp.send(units_guard);
-            }
-            Command::CreateUnit {
-                payment,
-                base_id,
-                position,
-            } => {
-                let cost = payment.cost();
-                log::debug!("creating unit... paid {cost:?}");
-                let unit = MilitaryUnit::new(payment, base_id, position);
-                let mut units_guard = units.write().await;
-                units_guard.push(unit);
+        while let Some(cmd) = self.receiver.recv().await {
+            match cmd {
+                Command::GetUnits(resp) => {
+                    let units_guard = units.clone().read_owned().await;
+                    let _ = resp.send(units_guard);
+                }
+                Command::CreateUnit {
+                    payment,
+                    base_id,
+                    position,
+                } => {
+                    let cost = payment.cost();
+                    log::debug!("creating unit... paid {cost:?}");
+                    let unit = MilitaryUnit::new(payment, base_id, position);
+                    let mut units_guard = units.write().await;
+                    units_guard.push(unit);
+                }
             }
         }
     }
