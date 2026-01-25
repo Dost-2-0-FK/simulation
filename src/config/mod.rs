@@ -8,9 +8,11 @@ use tokio::fs;
 
 use self::error::{Error, Result};
 use crate::{
+    geometry::Point,
     military::{MilitaryBase, MilitaryUnit},
     payment_service::{Cost, VecResourceName},
-    placement::Placement,
+    placement::{Placement, PlacementId},
+    politics::{BlocName, Chance, ZoneName},
     trust::Trust,
 };
 
@@ -27,9 +29,12 @@ pub(crate) struct Config {
     resources: VecResourceName,
     time: TimeConfig,
     costs: CostsConfig,
-    // TODO
-    #[serde(skip)]
-    placements: Vec<Placement>,
+    #[serde(rename = "bloc")]
+    blocs: Vec<BlocConfig>,
+    #[serde(rename = "zone")]
+    zones: Vec<ZoneConfig>,
+    #[serde(rename = "placement")]
+    placements: Vec<PlacementConfig>,
 }
 
 impl Config {
@@ -59,6 +64,28 @@ struct TimeConfig {
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     main_loop_tick: Duration,
     combat_loop_tick_factor: u8,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlacementConfig {
+    id: PlacementId,
+    zone: ZoneName,
+    position: Point,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BlocConfig {
+    name: BlocName,
+    chance: Chance,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ZoneConfig {
+    name: ZoneName,
+    bloc: BlocName,
 }
 
 #[derive(Debug, Deserialize)]
@@ -141,6 +168,24 @@ mod tests {
 
         [costs.trust]
         money = 1.2
+
+        [[bloc]]
+        name = "bloc_1"
+        chance = 12
+
+        [[zone]]
+        name = "zone_1"
+        bloc = "bloc_2"
+
+        [[placement]]
+        id = "placement_1"
+        zone = "zone_name"
+        position = { x = 23.2, y = 29.1 }
+
+        [[placement]]
+        id = "placement_2"
+        zone = "zone_name"
+        position = { x = 23.2, y = 29.1 }
 
         "#;
 
