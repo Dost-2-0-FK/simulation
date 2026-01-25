@@ -2,7 +2,7 @@ mod config;
 mod error;
 mod geometry;
 mod military;
-mod money;
+mod payment_service;
 mod placement;
 mod politics;
 mod service;
