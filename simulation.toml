@@ -1,6 +1,16 @@
 resources = [""]
 [costs.trust]
+money = 2
+resources = {}
+
 [costs.base]
+money = 12
+resources = {}
+
+[costs.unit]
+money = 12
+resources = {}
+
 [server]
 [env]
 credit_exchange_url = "http://127.0.0.1:12345"
