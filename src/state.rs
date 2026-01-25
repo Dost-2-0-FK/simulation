@@ -8,8 +8,8 @@ use typed_builder::TypedBuilder;
 use crate::{
     config::Config,
     geometry::Point,
-    military::{BaseId, MilitaryUnit, MilitaryUnitCost},
-    money::Payment,
+    military::{BaseId, MilitaryUnit},
+    payment_service::PaymentService,
 };
 
 #[derive(TypedBuilder)]
@@ -26,11 +26,7 @@ type ReadCommand<T> = Sender<OwnedRwLockReadGuard<T>>;
 /// Used to query or mutate the state of the [state_loop].
 #[derive(Debug)]
 pub(super) enum Command {
-    CreateUnit {
-        payment: Payment<MilitaryUnitCost>,
-        base_id: BaseId,
-        position: Point,
-    },
+    CreateUnit { base_id: BaseId, position: Point },
     GetUnits(ReadCommand<Vec<MilitaryUnit>>),
 }
 
@@ -43,19 +39,18 @@ impl State {
         // Load units from database
         let units = Arc::new(RwLock::new(vec![]));
 
+        let payment_service = PaymentService {
+            military_unit: self.config.costs().unit(),
+        };
+
         while let Some(cmd) = self.receiver.recv().await {
             match cmd {
                 Command::GetUnits(resp) => {
                     let units_guard = units.clone().read_owned().await;
                     let _ = resp.send(units_guard);
                 }
-                Command::CreateUnit {
-                    payment,
-                    base_id,
-                    position,
-                } => {
-                    let cost = payment.cost();
-                    log::debug!("creating unit... paid {cost:?}");
+                Command::CreateUnit { base_id, position } => {
+                    let payment = payment_service.pay_for_military_unit();
                     let unit = MilitaryUnit::new(payment, base_id, position);
                     let mut units_guard = units.write().await;
                     units_guard.push(unit);
