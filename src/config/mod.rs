@@ -1,16 +1,13 @@
 mod error;
 
-use std::{collections::HashMap, path::Path};
-
 use serde::Deserialize;
 use tokio::fs;
 
-use self::{
-    error::{Error, Result},
-};
+use self::error::{Error, Result};
 use crate::{
-    military::MilitaryUnitCost,
-    money::{Costs, Money},
+    military::{MilitaryBase, MilitaryUnit},
+    payment_service::{Cost, VecResourceName},
+    trust::Trust,
 };
 
 const CONFIG_FILE_NAME: &str = "simulation.toml";
@@ -20,8 +17,14 @@ const CONFIG_FILE_NAME: &str = "simulation.toml";
 pub(crate) struct Config {
     server: Option<ServerConfig>,
     env: EnvConfig,
-    resources: VecLowercaseString,
+    resources: VecResourceName,
     costs: CostsConfig,
+}
+
+impl Config {
+    pub(crate) fn costs(&self) -> &CostsConfig {
+        &self.costs
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -39,17 +42,20 @@ struct ServerConfig {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct CostsConfig {
-    trust: CostConfig,
-    base: CostConfig,
-    unit: CostConfig,
+pub(crate) struct CostsConfig {
+    trust: Cost<Trust>,
+    base: Cost<MilitaryBase>,
+    unit: Cost<MilitaryUnit>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct CostConfig {
-    money: Money,
-    resources: HashMap<LowercaseString, f64>,
+impl CostsConfig {
+    pub(crate) fn base(&self) -> &Cost<MilitaryBase> {
+        &self.base
+    }
+
+    pub(crate) fn unit(&self) -> &Cost<MilitaryUnit> {
+        &self.unit
+    }
 }
 
 impl Config {
@@ -64,32 +70,21 @@ impl Config {
         let resources_in_costs = config
             .costs
             .trust
-            .resources
-            .keys()
-            .chain(config.costs.base.resources.keys())
-            .chain(config.costs.unit.resources.keys());
+            .resources()
+            .chain(config.costs.base.resources())
+            .chain(config.costs.unit.resources());
 
-        for resource in resources_in_costs {
+        for resource_value in resources_in_costs {
             // TODO collect all errors in a vector and properly build the error
             assert!(
-                config.resources.contains(resource),
+                config.resources.contains(resource_value.name()),
                 "all resources occuring in costs must be added as resources.
-                \"{resource}\" is not contained in {resources}",
+                \"{resource_value}\" is not contained in {resources}",
                 resources = config.resources
             );
         }
 
         Ok(config)
-    }
-
-    pub(crate) fn costs(&self) -> Costs {
-        let military_unit_cost = MilitaryUnitCost {
-            money: self.costs.unit.money,
-            resource: HashMap::new(),
-        };
-        Costs {
-            military_unit: military_unit_cost,
-        }
     }
 }
 
