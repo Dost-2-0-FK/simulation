@@ -1,6 +1,9 @@
 mod error;
 
+use std::time::Duration;
+
 use serde::Deserialize;
+use serde_with::{DurationSecondsWithFrac, serde_as};
 use tokio::fs;
 
 use self::error::{Error, Result};
@@ -18,6 +21,7 @@ pub(crate) struct Config {
     server: Option<ServerConfig>,
     env: EnvConfig,
     resources: VecResourceName,
+    time: TimeConfig,
     costs: CostsConfig,
 }
 
@@ -38,6 +42,16 @@ struct EnvConfig {
 struct ServerConfig {
     #[serde(default)]
     port: u64,
+}
+
+#[serde_as]
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TimeConfig {
+    #[serde(rename = "main_loop_tick_seconds")]
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    main_loop_tick: Duration,
+    combat_loop_tick_factor: u8,
 }
 
 #[derive(Debug, Deserialize)]
@@ -105,6 +119,10 @@ mod tests {
         
         [env]
         credit_exchange_url = "http://0.0.0.0:4534"
+
+        [time]
+        main_loop_tick_seconds = 1.2
+        combat_loop_tick_factor = 2
 
         [costs]
         base = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }
