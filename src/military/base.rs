@@ -1,12 +1,9 @@
-use std::collections::HashSet;
-
 use serde::Serialize;
 
 use crate::{
     geometry::{Point, Positioned},
-    money::{Money, ResourceValue},
+    payment_service::Money,
     placement::Placement,
-    politics::Zone,
 };
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -24,8 +21,3 @@ pub(crate) struct MilitaryBase {
 }
 
 crate::impl_positioned!(MilitaryBase => placement);
-
-pub(crate) struct MilitaryBaseCost {
-    money: Money,
-    resources: HashSet<ResourceValue>,
-}
