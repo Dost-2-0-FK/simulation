@@ -10,10 +10,14 @@ use self::error::{Error, Result};
 use crate::{
     military::{MilitaryBase, MilitaryUnit},
     payment_service::{Cost, VecResourceName},
+    placement::Placement,
     trust::Trust,
 };
 
 const CONFIG_FILE_NAME: &str = "simulation.toml";
+
+// TODO Placements must be part of config
+// TODO World bounds must be part of config
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -23,6 +27,9 @@ pub(crate) struct Config {
     resources: VecResourceName,
     time: TimeConfig,
     costs: CostsConfig,
+    // TODO
+    #[serde(skip)]
+    placements: Vec<Placement>,
 }
 
 impl Config {

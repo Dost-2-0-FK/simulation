@@ -47,3 +47,16 @@ macro_rules! impl_positioned {
         }
     };
 }
+
+/// Generate a pass-through [Positioned] implementation for a struct which has a field which is AsRef<T> where T
+/// implements [Positioned].
+#[macro_export]
+macro_rules! impl_positioned_as_ref {
+    ($struct:path => $field:ident) => {
+        impl Positioned for $struct {
+            fn position(&self) -> Point {
+                Positioned::position(self.$field.as_ref())
+            }
+        }
+    };
+}

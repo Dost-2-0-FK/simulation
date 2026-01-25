@@ -9,7 +9,10 @@ pub(crate) use self::{
     money::Money,
     resources::{ResourceValue, Resources, VecResourceName},
 };
-use crate::military::MilitaryUnit;
+use crate::{
+    military::{MilitaryBase, MilitaryUnit},
+    service::PaymentInfo,
+};
 
 /// Produced by the payment service when a cost was paid.
 #[derive(Debug)]
@@ -26,11 +29,27 @@ impl<'a, T> Payment<'a, T> {
 // to enable constructing the `CostPaid` to instantiate a `MilitaryUnit`.
 pub(crate) struct PaymentService<'a> {
     pub(crate) military_unit: &'a Cost<MilitaryUnit>,
+    pub(crate) military_base: &'a Cost<MilitaryBase>,
 }
 
 impl PaymentService<'_> {
+    #[inline]
+    fn log_payment<T: std::fmt::Debug>(&self, cost: &Cost<T>) {
+        log::debug!("issuing payment of {:?}", cost);
+    }
+
     pub(crate) fn pay_for_military_unit(&self) -> Payment<'_, MilitaryUnit> {
-        log::debug!("issuing payment of {:?}", self.military_unit);
+        self.log_payment(self.military_unit);
         Payment(self.military_unit)
+    }
+
+    pub(crate) async fn pay_for_militray_base(&self, payment_info: &PaymentInfo) -> Payment<'_, MilitaryBase> {
+        log::info!(
+            "booking military base payment with {:?} and {:?}",
+            payment_info.financier_id,
+            payment_info.percentage,
+        );
+        self.log_payment(self.military_base);
+        Payment(self.military_base)
     }
 }
