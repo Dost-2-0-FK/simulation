@@ -18,3 +18,22 @@ credit_exchange_url = "http://127.0.0.1:12345"
 [time]
 main_loop_tick_seconds = 1.5
 combat_loop_tick_factor = 2
+
+[[bloc]]
+name = "bloc_1"
+chance = 12
+
+[[zone]]
+name = "zone_1"
+bloc = "bloc_1"
+
+[[placement]]
+id = "placement_1"
+zone = "zone_1"
+position = { x = 23.2, y = 29.1 }
+
+[[placement]]
+id = "placement_2"
+zone = "zone_1"
+position = { x = 23.2, y = 29.1 }
+

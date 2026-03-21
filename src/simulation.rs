@@ -14,7 +14,7 @@ pub(super) async fn simulation(tx: mpsc::Sender<Command>) {
         tokio::time::sleep(Duration::from_secs(1)).await;
         // TODO: in the future, we'd get this id from the existing base that produces the unit. Taking a shortcut here
         // for now.
-        let base_id = BaseId(0);
-        let _ = tx.send(Command::CreateUnit { base_id, position }).await;
+        // let base_id = BaseId(0);
+        // let _ = tx.send(Command::CreateUnit { base_id, position }).await;
     }
 }

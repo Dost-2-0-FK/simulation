@@ -1,18 +1,18 @@
 mod error;
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use serde::Deserialize;
 use serde_with::{DurationSecondsWithFrac, serde_as};
-use tokio::fs;
+use tokio::{fs, net::TcpListener};
 
 use self::error::{Error, Result};
 use crate::{
     geometry::Point,
     military::{MilitaryBase, MilitaryUnit},
-    payment_service::{Cost, VecResourceName},
+    payment_service::{Cost, PaymentService, VecResourceName},
     placement::{Placement, PlacementId},
-    politics::{BlocName, Chance, ZoneName},
+    politics::{Bloc, BlocName, Chance, Zone, ZoneName},
     trust::Trust,
 };
 
@@ -23,7 +23,7 @@ const CONFIG_FILE_NAME: &str = "simulation.toml";
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct Config {
+struct TomlConfig {
     server: Option<ServerConfig>,
     env: EnvConfig,
     resources: VecResourceName,
@@ -37,10 +37,15 @@ pub(crate) struct Config {
     placements: Vec<PlacementConfig>,
 }
 
-impl Config {
-    pub(crate) fn costs(&self) -> &CostsConfig {
-        &self.costs
-    }
+#[expect(unused)]
+pub(crate) struct Config {
+    placements: Vec<Arc<Placement>>,
+    zones: Vec<Arc<Zone>>,
+    main_loop_tick: Duration,
+    combat_loop_tick_factor: u8,
+    blocs: Vec<Arc<Bloc>>,
+    port: TcpListener,
+    payment_service: PaymentService,
 }
 
 #[derive(Debug, Deserialize)]
@@ -49,11 +54,11 @@ struct EnvConfig {
     credit_exchange_url: url::Url,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ServerConfig {
     #[serde(default)]
-    port: u64,
+    port: u16,
 }
 
 #[serde_as]
@@ -68,10 +73,10 @@ struct TimeConfig {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct PlacementConfig {
-    id: PlacementId,
-    zone: ZoneName,
-    position: Point,
+pub(crate) struct PlacementConfig {
+    pub(crate) id: PlacementId,
+    pub(crate) zone: ZoneName,
+    pub(crate) position: Point,
 }
 
 #[derive(Debug, Deserialize)]
@@ -96,24 +101,22 @@ pub(crate) struct CostsConfig {
     unit: Cost<MilitaryUnit>,
 }
 
-impl CostsConfig {
-    pub(crate) fn base(&self) -> &Cost<MilitaryBase> {
-        &self.base
-    }
-
-    pub(crate) fn unit(&self) -> &Cost<MilitaryUnit> {
-        &self.unit
-    }
-}
-
 impl Config {
     pub(crate) async fn parse() -> Result<Self> {
         let config = fs::read_to_string(CONFIG_FILE_NAME).await.map_err(Error::Io)?;
-        Self::parse_from_str(&config)
+        Self::parse_from_str(&config).await
     }
 
-    fn parse_from_str(config: &str) -> Result<Self> {
-        let config = toml::from_str::<Config>(config).map_err(Error::Toml)?;
+    pub(crate) fn payment_service(&self) -> &PaymentService {
+        &self.payment_service
+    }
+
+    pub(crate) fn placements(&self) -> impl Iterator<Item = Arc<Placement>> + '_ {
+        self.placements.iter().cloned()
+    }
+
+    async fn parse_from_str(config: &str) -> Result<Self> {
+        let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
 
         let resources_in_costs = config
             .costs
@@ -123,16 +126,83 @@ impl Config {
             .chain(config.costs.unit.resources());
 
         for resource_value in resources_in_costs {
-            // TODO collect all errors in a vector and properly build the error
-            assert!(
-                config.resources.contains(resource_value.name()),
-                "all resources occuring in costs must be added as resources.
-                \"{resource_value}\" is not contained in {resources}",
-                resources = config.resources
-            );
+            if !config.resources.contains(resource_value.name()) {
+                return Err(Error::ConfigValidation(format!(
+                    "resource value {resource_value} is used in costs but is not listed in resources {resources}",
+                    resources = &config.resources,
+                )));
+            }
         }
 
-        Ok(config)
+        let blocs = config
+            .blocs
+            .iter()
+            .map(|bloc_config| Arc::new(Bloc::new(bloc_config.name.clone(), bloc_config.chance.clone())))
+            .collect::<Vec<_>>();
+
+        let zones = config
+            .zones
+            .iter()
+            .map(|zone_config| {
+                let bloc = blocs
+                    .iter()
+                    .find(|bloc| bloc.name() == &zone_config.bloc)
+                    .cloned()
+                    .ok_or_else(|| {
+                        Error::ConfigValidation(format!(
+                            "zone {zone} references unknown bloc {bloc}",
+                            zone = &zone_config.name,
+                            bloc = &zone_config.bloc,
+                        ))
+                    })?;
+
+                let zone = Arc::new(Zone::new(zone_config.name.clone(), bloc));
+
+                Ok(zone)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        let placements: Vec<_> = config
+            .placements
+            .iter()
+            .map(|placement_config| {
+                let zone = zones
+                    .iter()
+                    .find(|zone| zone.name() == &placement_config.zone)
+                    .cloned()
+                    .ok_or_else(|| {
+                        Error::ConfigValidation(format!(
+                            "placement references unknown zone {zone}",
+                            zone = &placement_config.zone,
+                        ))
+                    })?;
+
+                let placement = Arc::new(Placement::new(
+                    placement_config.id.clone(),
+                    zone,
+                    placement_config.position,
+                ));
+
+                Ok(placement)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(Self {
+            placements,
+            zones,
+            main_loop_tick: config.time.main_loop_tick,
+            combat_loop_tick_factor: config.time.combat_loop_tick_factor,
+            blocs,
+            port: TcpListener::bind(format!("127.0.0.1:{}", config.server.unwrap_or_default().port))
+                .await
+                .map_err(Error::Io)?,
+            payment_service: PaymentService::new(
+                config.env.credit_exchange_url,
+                config.costs.unit,
+                config.costs.base,
+                config.costs.trust,
+            ),
+        })
     }
 }
 
@@ -140,9 +210,8 @@ impl Config {
 mod tests {
     use super::*;
 
-    #[test]
-    fn parse() {
-        let toml_str = r#"
+    fn base_toml() -> &'static str {
+        r#"
         resources = [
             "Lithium",
             "Iron",
@@ -150,7 +219,7 @@ mod tests {
 
         [server]
         # No port: defaults to 0.
-        
+
         [env]
         credit_exchange_url = "http://0.0.0.0:4534"
 
@@ -161,7 +230,7 @@ mod tests {
         [costs]
         base = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }
         unit = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }
-        
+
         [costs.trust.resources]
         lithium = 1.5
         iron = 2.5
@@ -175,22 +244,64 @@ mod tests {
 
         [[zone]]
         name = "zone_1"
-        bloc = "bloc_2"
+        bloc = "bloc_1"
 
         [[placement]]
         id = "placement_1"
-        zone = "zone_name"
+        zone = "zone_1"
         position = { x = 23.2, y = 29.1 }
 
         [[placement]]
         id = "placement_2"
-        zone = "zone_name"
+        zone = "zone_1"
         position = { x = 23.2, y = 29.1 }
+        "#
+    }
 
-        "#;
+    #[tokio::test]
+    async fn parse() {
+        Config::parse_from_str(base_toml()).await.expect("config can be parsed");
+    }
 
-        let decoded = Config::parse_from_str(toml_str).expect("config can be parsed");
+    #[tokio::test]
+    async fn parse_rejects_unknown_zone_bloc() {
+        let toml_str = base_toml().replace("bloc = \"bloc_1\"", "bloc = \"bloc_2\"");
 
-        assert_eq!(decoded.server.expect("config string contains server").port, 0);
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(error, "zone zone_1 references unknown bloc bloc_2");
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("config with unknown zone bloc must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_unknown_placement_zone() {
+        let toml_str = base_toml().replace("zone = \"zone_1\"", "zone = \"zone_name\"");
+
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(error, "placement references unknown zone zone_name");
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("config with unknown placement zone must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_unknown_cost_resource() {
+        let toml_str = base_toml().replace("        iron = 2.5", "        iron = 2.5\n        copper = 3.5");
+
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(
+                    error,
+                    "resource value ResourceValue(copper, 3.5) is used in costs but is not listed in resources [\"lithium\", \"iron\"]"
+                );
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("config with unknown cost resource must fail"),
+        }
     }
 }
