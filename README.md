@@ -1,10 +1,22 @@
-# Simulation
+# Simulation<a name="simulation"></a>
 
 Economy and military simulation
 
-## Installation
+<!-- mdformat-toc start --slug=github --maxlevel=6 --minlevel=1 -->
 
-## Specification
+- [Simulation](#simulation)
+  - [Installation](#installation)
+  - [Specification](#specification)
+    - [Trusts](#trusts)
+    - [Bases](#bases)
+    - [Logic](#logic)
+    - [API](#api)
+
+<!-- mdformat-toc end -->
+
+## Installation<a name="installation"></a>
+
+## Specification<a name="specification"></a>
 
 There are four fundamental types:
 
@@ -13,7 +25,7 @@ There are four fundamental types:
 - Base (associated with a zone and a bloc)
 - military unit (associated with a base and a bloc) *note: each zone is associated with a bloc*.
 
-### Trusts
+### Trusts<a name="trusts"></a>
 
 - Are created on a placement
 - Cost "money" (`Float`) and "resources" (`Dict<str, Float>`)
@@ -41,7 +53,7 @@ There are four fundamental types:
   - Trust can be disabled or removed
   - Trusts can be destroyed by enemy targets
 
-### Bases
+### Bases<a name="bases"></a>
 
 - Are created on a placement
 - Cost "money" (`Float`) and "resources" (`Dict<str, Float>`)
@@ -63,7 +75,7 @@ There are four fundamental types:
 - Bases can be prioritised (`POST /api/base/prioritise?id=<base_id: str>&value=<true|false>`)
 - Bases can define a target (`POST /api/base/target?id=<base_id>&target=<trust|base|unit>`)
 
-### Logic
+### Logic<a name="logic"></a>
 
 - Every hour, credit-/resource-production of trusts and bases is updated (see above)
 - Every hour, military units are produced in bases:
@@ -87,7 +99,7 @@ There are four fundamental types:
 - If a base/trust is destroyed, increase the `production_count` of the base of the enemy unit by half the amount of
   money spent to create the base/trust
 
-### API
+### API<a name="api"></a>
 
 Every request is issued by a user, and a map defines which requests are allowed for that user or whether f.e. *all*
 trusts are returned or only a subset (only associated by block/zone financed by individual)
