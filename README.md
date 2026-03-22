@@ -90,7 +90,7 @@ There are four fundamental types:
 - Every minute, units move towards their target: closet enemy trust, base or unit (depending on the target defined in
   the base the unit was created at)
 - If two units of different blocs meet, always roll the dice for *both* units to decide which unit is destroyed: each
-  bloc has a chance (0-1) (can be set by: `POST /api/bloc/chance?id=<bloc_id: str>&chance=<value: float>`)
+  bloc has a chance (0-1) (can be set by calling the corresponding endpoint, see below)
 - If a unit is killed, increase the `production_count` of the base of the enemy unit by half the amount of money spent
   to create the unit
 - If a unit meets an enemy base/trust, it stays there until at least X units "attack" the base/trust, and no enemy units
@@ -104,18 +104,21 @@ There are four fundamental types:
 Every request is issued by a user, and a map defines which requests are allowed for that user or whether f.e. *all*
 trusts are returned or only a subset (only associated by block/zone financed by individual)
 
-- `GET /api/units` (returns units and associated Bloc and Base)
+- `GET /api/bases` (returns bases and associated bloc and financier and the percentage the base was financed by the
+  financier)
+- `GET /api/bases/{id}`
+- `POST /api/bases` (payload:
+  `{placementId: <placement id>,  payment: {financierId: <financier_id (str)>, percentage: <value (int)>}`)
+- `PATCH /api/bases/{id}` (payload: `{(optional) prioritized: <true|false>, (optional) target: <trust|base|unit>}`)
+- `GET /api/blocs`
+- `GET /api/blocs/{id}` -> response should contain chance and military expense
+- `PATCH /api/blocs/{id}` payload: `{(optional) chance: <value (float)>, (optional) militaryExpense: <value (int)>}`
 - `GET /api/placements` (returns placements and associated zone)
+- `GET /api/placements/{id}`
 - `GET /api/trusts` (returns trusts and associated zone and financier and the percentage the trust was financed by the
   financier)
-- `GET /api/bases` (returns bases and associated bloc and financier and the percentage the trust was financed by the
-  financier)
-- `GET /api/bloc/military_expense`
-- `GET /api/bloc/chance`
-- `POST /api/trust?placement=<placement_id>` (JSON payload:
-  `{financier: <financier_id: str>, percentage: <value: int>}`)
-- `POST /api/base?placement=<placement_id>` (JSON payload: `{financier: <financier_id: str>, percentage: <value: int>}`)
-- `POST /api/bloc/military_expense?id=<bloc_id: str>`
-- `POST /api/bloc/chance?id=<bloc_id: str>`
-- `POST /api/base/prioritise?id=<base_id: str>&value=<true|false>`
-- `POST /api/base/target?id=<base_id>&target=<trust|base|unit>`
+- `GET /api/trusts/{id}`
+- `POST /api/trusts` (payload:
+  `{placementId: <placement id>,  payment: {financierId: <financier_id (str)>, percentage: <value (int)>}`)
+- `GET /api/units` (returns units and associated Bloc and Base)
+- `GET /api/zones`
