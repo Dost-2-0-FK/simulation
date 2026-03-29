@@ -13,7 +13,7 @@ pub(crate) use self::{
 };
 use crate::{
     military::{MilitaryBase, MilitaryUnit},
-    service::PaymentInfo,
+    service::bases::PaymentInfo,
     trust::Trust,
 };
 
