@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 
 use crate::{
@@ -12,8 +14,23 @@ pub(crate) struct PlacementId(String);
 #[derive(Debug, Clone)]
 pub(crate) struct Placement {
     id: PlacementId,
-    zone: Zone,
+    zone: Arc<Zone>,
     position: Point,
+}
+
+impl Placement {
+    pub(crate) fn new(id: PlacementId, zone: Arc<Zone>, position: Point) -> Self {
+        Self { id, zone, position }
+    }
+
+    pub(crate) fn id(&self) -> &PlacementId {
+        &self.id
+    }
+
+    #[expect(dead_code)]
+    pub(crate) fn zone(&self) -> &Zone {
+        &self.zone
+    }
 }
 
 crate::impl_positioned!(Placement => position);
