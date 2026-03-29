@@ -1,10 +1,12 @@
-use std::marker::PhantomData;
+use std::{any::type_name, marker::PhantomData};
 
+use derive_more::Display;
 use serde::Deserialize;
 
 use crate::payment_service::{Money, ResourceValue, Resources};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Display)]
+#[display("{}: {} ({})", type_name::<T>(), money, resources)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Cost<T> {
     #[serde(skip)]

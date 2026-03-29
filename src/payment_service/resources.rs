@@ -1,5 +1,6 @@
 use std::{borrow::Cow, collections::HashMap};
 
+use derive_more::Display;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Deserializer};
 
@@ -43,7 +44,13 @@ impl ResourceValue<'_> {
 }
 
 /// A set of resources with corresponding amounts
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Display)]
+#[display("{}", 
+    _0.iter()
+        .map(|(k, v)| format!("{k}: {}", v.0))
+        .collect::<Vec<_>>()
+        .join(", ")
+)]
 pub(crate) struct Resources(HashMap<ResourceName, OrderedFloat<f32>>);
 
 impl<'r> IntoIterator for &'r Resources {
