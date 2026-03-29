@@ -10,7 +10,8 @@ pub type Result<T> = core::result::Result<T, UserError>;
 pub enum UserError {
     #[display("An internal error occurred. Please try again later.")]
     InternalError,
-    NotFound,
+    #[display("Not found: {_0}")]
+    NotFound(#[error(not(source))] &'static str),
 }
 
 impl error::ResponseError for UserError {
@@ -23,7 +24,7 @@ impl error::ResponseError for UserError {
     fn status_code(&self) -> StatusCode {
         match *self {
             UserError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
-            UserError::NotFound => StatusCode::NOT_FOUND,
+            UserError::NotFound(_) => StatusCode::NOT_FOUND,
         }
     }
 }
