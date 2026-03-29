@@ -19,6 +19,7 @@ use crate::{
 pub(crate) struct Payment<'a, T>(&'a Cost<T>);
 
 impl<'a, T> Payment<'a, T> {
+    #[expect(dead_code)]
     pub(crate) fn cost(&self) -> &Cost<T> {
         self.0
     }

@@ -14,6 +14,7 @@ pub(crate) struct Cost<T> {
 }
 
 impl<T> Cost<T> {
+    #[expect(dead_code)]
     pub(crate) fn money(&self) -> Money {
         self.money
     }

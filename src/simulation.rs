@@ -4,11 +4,10 @@ use std::time::Duration;
 
 use tokio::sync::mpsc;
 
-use crate::{geometry::Point, military::BaseId, state::Command};
+use crate::state::Command;
 
 /// Run the simulation, allow it to send [Command]s via a channel.
-pub(super) async fn simulation(tx: mpsc::Sender<Command>) {
-    let position = Point::new(3.0, 4.0);
+pub(super) async fn simulation(_tx: mpsc::Sender<Command>) {
     loop {
         // Just create a military unit every second.
         tokio::time::sleep(Duration::from_secs(1)).await;

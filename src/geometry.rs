@@ -7,6 +7,7 @@ pub(crate) struct Point {
 }
 
 impl Point {
+    #[expect(dead_code)]
     pub(crate) fn new(x: f64, y: f64) -> Self {
         Self { x, y }
     }
@@ -21,6 +22,7 @@ impl Positioned for Point {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub(crate) struct Distance(f64);
 
+#[expect(dead_code)]
 pub(crate) trait Positioned {
     fn position(&self) -> Point;
 

@@ -18,6 +18,7 @@ pub(crate) struct BaseId(pub(crate) u64);
 /// A [MilitaryBase] is built on a placement, and associated with a [Zone] and a [Bloc]. The associations are given
 /// implicitly via the [Placement], as well as its the position/coordinates.
 #[derive(Debug, Clone)]
+#[expect(dead_code)]
 pub(crate) struct MilitaryBase {
     id: BaseId,
     placement: Arc<Placement>,
