@@ -1,5 +1,3 @@
-pub(crate) mod bases;
-
 use actix_web::{HttpResponse, Responder, get, web};
 use tokio::sync::mpsc;
 
@@ -9,12 +7,12 @@ use crate::{
 };
 
 #[get("/units")]
-async fn get_units(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+async fn get(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
     // This channel is one-shot: it is only used once and gets re-created on every request
     let (get_units_tx, get_units_rx) = tokio::sync::oneshot::channel();
 
-    // Via the global channel, send a command to the state loop to query the count. The command includes the one-shot
-    // channel sender from which we're going to get the response.
+    // Via the global channel, send a command to the state loop to query the count. The command includes the
+    // one-shot channel sender from which we're going to get the response.
     tx.send(Command::GetUnits(get_units_tx)).await.map_err(|e| {
         log::error!("Error sending command: {e}");
         UserError::InternalError

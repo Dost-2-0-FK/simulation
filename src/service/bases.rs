@@ -2,8 +2,11 @@ use actix_web::{HttpResponse, Responder, post, web};
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
-use super::Result;
-use crate::{Command, error::UserError, placement::PlacementId};
+use crate::{
+    Command,
+    error::{Result, UserError},
+    placement::PlacementId,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Percentage(f32);

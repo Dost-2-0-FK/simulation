@@ -55,7 +55,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(tx.clone()))
             .service(
                 web::scope("/api")
-                .service(service::get_units)
+                .service(service::units::get)
                 .service(service::bases::post)
             )
     })
