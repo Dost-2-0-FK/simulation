@@ -40,6 +40,7 @@ pub(super) enum Command {
         financing: Financing,
         response: Sender<core::result::Result<(), UserError>>,
     },
+    GetBases(ReadCommand<Vec<MilitaryBase>>),
 }
 
 impl State {
@@ -81,6 +82,10 @@ impl State {
                     bases_guard.push(base);
 
                     let _ = response.send(Ok(()));
+                }
+                Command::GetBases(resp) => {
+                    let baeses_guard = bases.clone().read_owned().await;
+                    let _ = resp.send(baeses_guard);
                 }
             }
         }

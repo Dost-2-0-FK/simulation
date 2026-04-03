@@ -57,6 +57,7 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/api")
                 .service(service::units::get)
                 .service(service::bases::post)
+                .service(service::bases::get)
             )
     })
     .bind(("127.0.0.1", 8080))?

@@ -1,5 +1,5 @@
-use actix_web::{HttpResponse, Responder, post, web};
-use serde::Deserialize;
+use actix_web::{HttpResponse, Responder, get, post, web};
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
     placement::PlacementId,
 };
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize)]
 pub struct Percentage(f32);
 
 #[expect(dead_code)]
@@ -33,10 +33,10 @@ impl<'de> Deserialize<'de> for Percentage {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct UserId(String);
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct Financing {
     #[serde(rename = "financierId")]
     pub(crate) financier: UserId,
@@ -89,4 +89,21 @@ async fn post(body: web::Json<PostBaseBody>, tx: web::Data<mpsc::Sender<Command>
             UserError::NotFound(err) => log::info!("not found: {err}"),
         })
         .map(|()| HttpResponse::Ok())
+}
+
+#[get("/bases")]
+async fn get(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    tx.send(Command::GetBases(sender)).await.map_err(|e| {
+        log::error!("Error sending command: {e}");
+        UserError::InternalError
+    })?;
+
+    let bases = receiver.await.map_err(|e| {
+        log::error!("Error receiving bases: {e}");
+        UserError::InternalError
+    })?;
+
+    let response = HttpResponse::Ok().json(bases.as_slice());
+    Ok(response)
 }

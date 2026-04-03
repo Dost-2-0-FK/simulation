@@ -3,7 +3,7 @@ use std::sync::{
     atomic::{AtomicU64, Ordering::SeqCst},
 };
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     geometry::{Point, Positioned},
@@ -12,16 +12,16 @@ use crate::{
     service::bases::Financing,
 };
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 // TODO make this inner field private (just for now it's not to enable a shortcut to create a unit)
 pub(crate) struct BaseId(pub(crate) u64);
 
 /// A [MilitaryBase] is built on a placement, and associated with a [Zone] and a [Bloc]. The associations are given
 /// implicitly via the [Placement], as well as its the position/coordinates.
-#[derive(Debug, Clone)]
-#[expect(dead_code)]
+#[derive(Debug, Clone, Serialize)]
 pub(crate) struct MilitaryBase {
     id: BaseId,
+    #[serde(skip)]
     placement: Arc<Placement>,
     financing: Financing,
     /// How much credit has been produced since the last full hour?
