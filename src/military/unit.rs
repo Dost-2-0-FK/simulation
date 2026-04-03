@@ -3,7 +3,7 @@ use serde::Serialize;
 use crate::{
     geometry::{Point, Positioned},
     military::base::BaseId,
-    payment_service::Payment,
+    payment_service::{Payment, SinglePayer},
 };
 
 /// Associated with a [MilitaryBase] and a [Bloc]. The [Bloc] association is implicit.
@@ -16,7 +16,7 @@ pub(crate) struct MilitaryUnit {
 crate::impl_positioned!(MilitaryUnit => position);
 
 impl MilitaryUnit {
-    pub(crate) fn new(_payment: Payment<Self>, base_id: BaseId, position: Point) -> Self {
+    pub(crate) fn new(_payment: Payment<Self, SinglePayer>, base_id: BaseId, position: Point) -> Self {
         Self { base_id, position }
     }
 }

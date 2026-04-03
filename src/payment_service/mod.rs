@@ -13,18 +13,46 @@ pub(crate) use self::{
 };
 use crate::{
     military::{MilitaryBase, MilitaryUnit},
-    service::bases::PaymentInfo,
+    service::bases::Financing,
     trust::Trust,
 };
 
+pub(crate) struct SinglePayer;
+
+pub(crate) struct AdditionalPayer {
+    financing: Financing,
+}
+
 /// Produced by the payment service when a cost was paid.
 #[derive(Debug)]
-pub(crate) struct Payment<'a, T>(&'a Cost<T>);
+pub(crate) struct Payment<'a, T, P> {
+    policy: P,
+    cost: &'a Cost<T>,
+}
 
-impl<'a, T> Payment<'a, T> {
+impl<'a, T, P> Payment<'a, T, P> {
     #[expect(dead_code)]
     pub(crate) fn cost(&self) -> &Cost<T> {
-        self.0
+        self.cost
+    }
+}
+
+impl<'a, T> Payment<'a, T, SinglePayer> {
+    pub(crate) fn new(cost: &'a Cost<T>) -> Self {
+        Self {
+            cost,
+            policy: SinglePayer,
+        }
+    }
+}
+
+impl<'a, T> Payment<'a, T, AdditionalPayer> {
+    pub(crate) fn new(cost: &'a Cost<T>, policy: AdditionalPayer) -> Self {
+        Self { cost, policy }
+    }
+
+    pub(crate) fn consume(self) -> Financing {
+        self.policy.financing
     }
 }
 
@@ -59,18 +87,21 @@ impl PaymentService {
         log::debug!("issuing payment of {}", cost);
     }
 
-    pub(crate) fn pay_for_military_unit(&self) -> Payment<'_, MilitaryUnit> {
+    pub(crate) fn pay_for_military_unit(&self) -> Payment<'_, MilitaryUnit, SinglePayer> {
         self.log_payment(&self.military_unit);
-        Payment(&self.military_unit)
+        Payment::<_, SinglePayer>::new(&self.military_unit)
     }
 
-    pub(crate) async fn pay_for_militray_base(&'_ self, payment_info: &PaymentInfo) -> Payment<'_, MilitaryBase> {
+    pub(crate) async fn pay_for_militray_base(
+        &'_ self,
+        financing: Financing,
+    ) -> Payment<'_, MilitaryBase, AdditionalPayer> {
         log::info!(
             "booking military base payment with {:?} and {:?}",
-            payment_info.financier_id,
-            payment_info.percentage,
+            financing.financier,
+            financing.percentage,
         );
         self.log_payment(&self.military_base);
-        Payment(&self.military_base)
+        Payment::<_, AdditionalPayer>::new(&self.military_base, AdditionalPayer { financing })
     }
 }

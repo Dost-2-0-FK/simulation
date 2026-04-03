@@ -33,9 +33,13 @@ impl<'de> Deserialize<'de> for Percentage {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct PaymentInfo {
-    pub(crate) financier_id: String,
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct UserId(String);
+
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct Financing {
+    #[serde(rename = "financierId")]
+    pub(crate) financier: UserId,
     pub(crate) percentage: Percentage,
 }
 
@@ -43,7 +47,7 @@ pub(crate) struct PaymentInfo {
 #[serde(rename_all = "camelCase")]
 struct PostBaseBody {
     placement_id: PlacementId,
-    payment: PaymentInfo,
+    financing: Financing,
 }
 
 /// Create a base on a placement
@@ -51,7 +55,7 @@ struct PostBaseBody {
 /// ````
 /// {
 ///    placementId: <placement id>,
-///    payment: {
+///    financier: {
 ///       financierId: <financier_id (str)>,
 ///       percentage: <value (int)>
 ///    }
@@ -64,7 +68,7 @@ async fn post(body: web::Json<PostBaseBody>, tx: web::Data<mpsc::Sender<Command>
 
     tx.send(Command::CreateBase {
         placement_id: body.placement_id,
-        payment_info: body.payment,
+        financing: body.financing,
         response: create_base_tx,
     })
     .await

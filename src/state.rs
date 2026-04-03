@@ -12,7 +12,7 @@ use crate::{
     military::{BaseId, MilitaryBase, MilitaryUnit},
     payment_service::PaymentService,
     placement::{Placement, PlacementId},
-    service::bases::PaymentInfo,
+    service::bases::Financing,
 };
 
 #[derive(TypedBuilder)]
@@ -37,7 +37,7 @@ pub(super) enum Command {
     GetUnits(ReadCommand<Vec<MilitaryUnit>>),
     CreateBase {
         placement_id: PlacementId,
-        payment_info: PaymentInfo,
+        financing: Financing,
         response: Sender<core::result::Result<(), UserError>>,
     },
 }
@@ -66,11 +66,11 @@ impl State {
                 }
                 Command::CreateBase {
                     placement_id,
-                    payment_info,
+                    financing,
                     response,
                 } => {
                     log::debug!("received command to create base on placement with id {placement_id:?}");
-                    let payment = self.payment_service().pay_for_militray_base(&payment_info).await;
+                    let payment = self.payment_service().pay_for_militray_base(financing).await;
                     let Some(placement) = self.placements().find(|placement| placement.id() == &placement_id) else {
                         let _ = response.send(Err(UserError::NotFound("Placement")));
                         continue;
