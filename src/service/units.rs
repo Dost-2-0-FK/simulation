@@ -6,6 +6,15 @@ use crate::{
     error::{Result, UserError},
 };
 
+const UNITS: &str = "units";
+
+/// List all units.
+#[utoipa::path(
+    tag = UNITS,
+    responses(
+        (status = 200, description = "All existing units")
+    )
+)]
 #[get("/units")]
 async fn get(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
     // This channel is one-shot: it is only used once and gets re-created on every request

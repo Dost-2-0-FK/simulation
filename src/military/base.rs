@@ -12,13 +12,13 @@ use crate::{
     service::bases::Financing,
 };
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema)]
 // TODO make this inner field private (just for now it's not to enable a shortcut to create a unit)
 pub(crate) struct BaseId(pub(crate) u64);
 
 /// A [MilitaryBase] is built on a placement, and associated with a [Zone] and a [Bloc]. The associations are given
 /// implicitly via the [Placement], as well as its the position/coordinates.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub(crate) struct MilitaryBase {
     id: BaseId,
     #[serde(skip)]

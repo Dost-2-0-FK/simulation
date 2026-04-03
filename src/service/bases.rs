@@ -8,7 +8,9 @@ use crate::{
     placement::PlacementId,
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Serialize)]
+const BASES: &str = "bases";
+
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, utoipa::ToSchema)]
 pub struct Percentage(f32);
 
 #[expect(dead_code)]
@@ -33,34 +35,30 @@ impl<'de> Deserialize<'de> for Percentage {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub(crate) struct UserId(String);
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub(crate) struct Financing {
     #[serde(rename = "financierId")]
     pub(crate) financier: UserId,
     pub(crate) percentage: Percentage,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 struct PostBaseBody {
     placement_id: PlacementId,
     financing: Financing,
 }
 
-/// Create a base on a placement
-/// - `POST /api/bases` (payload:
-/// ````
-/// {
-///    placementId: <placement id>,
-///    financier: {
-///       financierId: <financier_id (str)>,
-///       percentage: <value (int)>
-///    }
-/// ```
-///)
+/// Create a base on a placement.
+#[utoipa::path(
+    tag = BASES,
+    responses(
+        (status = 200, description = "Base created successfully")
+    ),
+)]
 #[post("/bases")]
 async fn post(body: web::Json<PostBaseBody>, tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
     let (create_base_tx, result_rx) = tokio::sync::oneshot::channel();
@@ -91,8 +89,15 @@ async fn post(body: web::Json<PostBaseBody>, tx: web::Data<mpsc::Sender<Command>
         .map(|()| HttpResponse::Ok())
 }
 
+/// List all bases.
+#[utoipa::path(
+    tag = BASES,
+    responses(
+        (status = 200, description = "All existing bases")
+    )
+)]
 #[get("/bases")]
-async fn get(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetBases(sender)).await.map_err(|e| {
         log::error!("Error sending command: {e}");

@@ -13,6 +13,9 @@ mod trust;
 use actix_web::{App, HttpServer, middleware::Logger, web};
 use anyhow::{Context, Result};
 use tokio::sync::mpsc;
+use utoipa::OpenApi;
+use utoipa_actix_web::{AppExt, scope};
+use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
     config::Config,
@@ -39,6 +42,15 @@ async fn setup() -> Result<mpsc::Sender<Command>> {
     Ok(tx)
 }
 
+#[derive(OpenApi)]
+#[openapi(
+        tags(
+            (name = "units", description = "Endpoints related to military units."),
+            (name = "bases", description = "Endpoints related to military bases.")
+        ),
+    )]
+struct ApiDoc;
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let tx = setup().await.map_err(|e| {
@@ -50,15 +62,18 @@ async fn main() -> std::io::Result<()> {
         let logger = Logger::default();
 
         App::new()
-            .wrap(logger)
-            // The API also sends commands
+            .into_utoipa_app()
+            .openapi(ApiDoc::openapi())
+            .map(|app| app.wrap(logger))
             .app_data(web::Data::new(tx.clone()))
             .service(
-                web::scope("/api")
-                .service(service::units::get)
-                .service(service::bases::post)
-                .service(service::bases::get)
+                scope::scope("/api")
+                    .service(service::units::get)
+                    .service(service::bases::post)
+                    .service(service::bases::list),
             )
+            .openapi_service(|api| SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", api))
+            .into_app()
     })
     .bind(("127.0.0.1", 8080))?
     .run()

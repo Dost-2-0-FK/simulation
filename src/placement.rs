@@ -7,7 +7,7 @@ use crate::{
     politics::Zone,
 };
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Hash, utoipa::ToSchema)]
 pub(crate) struct PlacementId(String);
 
 /// A [Placement] is associated with a [Zone] and has a position/coordinates.
