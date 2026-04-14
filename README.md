@@ -11,6 +11,8 @@ Economy and military simulation
     - [Bases](#bases)
     - [Logic](#logic)
     - [API](#api)
+    - [JSONs](#jsons)
+  - [Open Questions](#questions)
 
 <!-- mdformat-toc end -->
 
@@ -104,7 +106,7 @@ There are four fundamental types:
 Every request is issued by a user, and a map defines which requests are allowed for that user or whether f.e. *all*
 trusts are returned or only a subset (only associated by block/zone financed by individual)
 
-- `GET /api/bases` (returns bases and associated bloc and financier and the percentage the base was financed by the
+- `GET /api/bases` (returns bases and associated bloc, financier and the percentage the base was financed by the
   financier)
 - `GET /api/bases/{id}`
 - `POST /api/bases` (payload:
@@ -122,3 +124,91 @@ trusts are returned or only a subset (only associated by block/zone financed by 
   `{placementId: <placement id>,  payment: {financierId: <financier_id (str)>, percentage: <value (int)>}`)
 - `GET /api/units` (returns units and associated Bloc and Base)
 - `GET /api/zones`
+
+### JSONs<a name="jsons"></a>
+These are suggestions for JSON formats that are returned via the API, especially `Placements`, `Trusts`, `Bases` and `Units`.
+(Relevant information for the [simulation-frontend](https://github.com/Dost-2-0-FK/simulation-frontend)
+
+#### Zone 
+```
+{
+    "name": <String>,
+    "bloc": <String>
+}
+```
+
+#### Placements 
+```
+{
+  "id": <String>,
+  "zone": <Zone>
+  "position": {
+    "x": <float>,
+    "y": <float>
+  }
+}
+```
+
+#### Trusts 
+```
+{
+  "placement": <Placement> // see above
+  "income": {
+    "cash": <float>,  // only if "own" zone
+    "resources": {
+      "<resource_1_name>": <float>,
+      "<resource_2_name>": <float>,
+      ...
+    }
+  }
+}
+```
+
+#### Bases 
+```
+{
+  "baseId": String, 
+  "placement": <Placement>,
+  "prioritised": <bool>
+  "disabled": <bool>
+  "target": <String (baseId|trustId)> // only "own" bloc; NOT YET IMPLEMENTED
+}
+```
+
+#### Unit
+```
+{
+  "baseId": String,
+  "position": {
+    "x": <float>,
+    "y": <float>
+  }
+  "target": { // only for "own" bloc, NOT YET IMPLEMENTED
+    "x": <float>,
+    "y": <float>
+  },
+}
+```
+
+## Open Questions<a name="questions"></a>
+- Since every hour, multiple `Units` are created at the same `Base`, share the same path, and their positions should not diverge, would it be useful to only create only *one* `Unit`, and add a "counter".
+- Would it be possible to add the following information to a `Unit`: `in_combat: bool`, `just_died: bool`
+- Why do `Bases` have an ID, but `Trusts` don't? 
+- How do we handle Login/Auth? I could provide a small Service that receives a `user-key` and provides a minimal `User`: 
+  ```
+  {
+    "user_key": <String>, 
+    "bloc": {
+      "name": <String> 
+      "write": <bool> // if true, can create and modify `Bases`
+    }, 
+    "zone": {
+      "name": <String> 
+      "write": <bool> // if true, can create and modify `Trusts`
+    }
+  }
+  ```
+  Suggestion: For now, *read* is true for *everything*, except: Enemy's Bases targets, Enemy's trusts and bases incomes (resources and cash)
+- Does a `Unit`'s target change together with its base target? (Technically, the best would be: Base target can be set to trust/base, but the unit can decide to "attack" an enemy's unit rather than focus on the building as a target. However, this might imply adding a `target` field to `unit`?)
+
+
