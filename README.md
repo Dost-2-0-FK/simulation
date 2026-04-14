@@ -127,7 +127,8 @@ trusts are returned or only a subset (only associated by block/zone financed by 
 
 ### JSONs<a name="jsons"></a>
 These are suggestions for JSON formats that are returned via the API, especially `Placements`, `Trusts`, `Bases` and `Units`.
-(Relevant information for the [simulation-frontend](https://github.com/Dost-2-0-FK/simulation-frontend)
+
+NOTE: These formats are mainly relevant for the [simulation-frontend](https://github.com/Dost-2-0-FK/simulation-frontend)! These might change for another service requesting this data!
 
 #### Zone 
 ```
