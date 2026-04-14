@@ -211,5 +211,6 @@ NOTE: These formats are mainly relevant for the [simulation-frontend](https://gi
   ```
   Suggestion: For now, *read* is true for *everything*, except: Enemy's Bases targets, Enemy's trusts and bases incomes (resources and cash)
 - Does a `Unit`'s target change together with its base target? (Technically, the best would be: Base target can be set to trust/base, but the unit can decide to "attack" an enemy's unit rather than focus on the building as a target. However, this might imply adding a `target` field to `unit`?)
+- Can we store the financiers' names in the Trust/Blocks?
 
 
