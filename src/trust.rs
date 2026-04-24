@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     geometry::{Point, Positioned},
-    payment_service::{AdditionalPayer, Payment},
+    payment_service::{Financiers, Payment},
     placement::Placement,
     service::bases::Financing,
 };
@@ -22,14 +22,14 @@ pub(crate) struct Trust {
     id: TrustId,
     #[serde(skip)]
     placement: Arc<Placement>,
-    financing: Financing,
+    financing: Vec<Financing>,
 }
 
 crate::impl_positioned_as_ref!(Trust => placement);
 
 impl Trust {
     /// Create a new trust. Panics if the total count of trusts becomes > [u64::MAX].
-    pub(crate) fn new(payment: Payment<'_, Self, AdditionalPayer>, placement: Arc<Placement>) -> Self {
+    pub(crate) fn new(payment: Payment<'_, Self, Financiers>, placement: Arc<Placement>) -> Self {
         static INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
         let id = INSTANCE_COUNT.fetch_add(1, SeqCst);
         assert_ne!(id, u64::MAX, "ID counter has overflowed and is no longer unique");
@@ -49,7 +49,7 @@ impl Trust {
         &self.placement
     }
 
-    pub(crate) fn financing(&self) -> &Financing {
+    pub(crate) fn financing(&self) -> &[Financing] {
         &self.financing
     }
 }

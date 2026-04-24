@@ -13,8 +13,10 @@ use crate::{
     payment_service::PaymentService,
     placement::{Placement, PlacementId},
     politics::{Bloc, Chance, Zone},
-    service::bases::Financing,
-    service::{bases::base_response_by_id, units::UnitResponse},
+    service::{
+        bases::{Financing, base_response_by_id},
+        units::UnitResponse,
+    },
     trust::{Trust, TrustId},
 };
 
@@ -40,7 +42,7 @@ pub(super) enum Command {
     GetUnits(Sender<Vec<UnitResponse>>),
     CreateBase {
         placement_id: PlacementId,
-        financing: Financing,
+        financing: Vec<Financing>,
         response: Sender<core::result::Result<(), UserError>>,
     },
     GetBases(ReadCommand<Vec<MilitaryBase>>),
@@ -53,7 +55,7 @@ pub(super) enum Command {
     },
     CreateTrust {
         placement_id: PlacementId,
-        financing: Financing,
+        financing: Vec<Financing>,
         response: Sender<core::result::Result<(), UserError>>,
     },
     GetTrusts(ReadCommand<Vec<Trust>>),
@@ -103,7 +105,7 @@ impl State {
                     response,
                 } => {
                     log::debug!("received command to create base on placement with id {placement_id:?}");
-                    let payment = self.payment_service().pay_for_militray_base(financing).await;
+                    let payment = self.payment_service().pay_for_military_base(financing).await;
                     let Some(placement) = self.placements().find(|placement| placement.id() == &placement_id) else {
                         let _ = response.send(Err(UserError::NotFound("Placement")));
                         continue;

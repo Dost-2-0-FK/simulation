@@ -18,7 +18,7 @@ const TRUSTS: &str = "trusts";
 #[serde(rename_all = "camelCase")]
 struct PostTrustBody {
     placement_id: PlacementId,
-    payment: Financing,
+    payment: Vec<Financing>,
 }
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
@@ -27,7 +27,7 @@ pub(crate) struct TrustResponse {
     id: TrustId,
     placement_id: PlacementId,
     zone: ZoneName,
-    payment: Financing,
+    payment: Vec<Financing>,
     position: Point,
 }
 
@@ -38,7 +38,7 @@ impl From<&Trust> for TrustResponse {
             id: trust.id(),
             placement_id: placement.id().clone(),
             zone: placement.zone().name().clone(),
-            payment: trust.financing().clone(),
+            payment: trust.financing().to_vec(),
             position: trust.position(),
         }
     }

@@ -61,7 +61,7 @@ pub(crate) struct Financing {
 #[serde(rename_all = "camelCase")]
 struct PostBaseBody {
     placement_id: PlacementId,
-    payment: Financing,
+    payment: Vec<Financing>,
 }
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
@@ -71,7 +71,7 @@ pub(crate) struct BaseResponse {
     pub(crate) placement_id: PlacementId,
     pub(crate) zone: ZoneName,
     pub(crate) bloc: BlocName,
-    pub(crate) payment: Financing,
+    pub(crate) payment: Vec<Financing>,
     pub(crate) prioritized: bool,
     pub(crate) target: Target,
     pub(crate) position: Point,
@@ -86,7 +86,7 @@ impl From<&MilitaryBase> for BaseResponse {
             placement_id: placement.id().clone(),
             zone: zone.name().clone(),
             bloc: zone.bloc().name().clone(),
-            payment: base.financing().clone(),
+            payment: base.financiers().to_vec(),
             prioritized: base.prioritized(),
             target: base.target(),
             position: base.position(),
