@@ -104,4 +104,14 @@ impl PaymentService {
         self.log_payment(&self.military_base);
         Payment::<_, AdditionalPayer>::new(&self.military_base, AdditionalPayer { financing })
     }
+
+    pub(crate) async fn pay_for_trust(&'_ self, financing: Financing) -> Payment<'_, Trust, AdditionalPayer> {
+        log::info!(
+            "booking trust payment with {:?} and {:?}",
+            financing.financier,
+            financing.percentage,
+        );
+        self.log_payment(&self.trust);
+        Payment::<_, AdditionalPayer>::new(&self.trust, AdditionalPayer { financing })
+    }
 }
