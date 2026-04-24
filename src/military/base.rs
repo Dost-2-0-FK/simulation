@@ -16,6 +16,14 @@ use crate::{
 // TODO make this inner field private (just for now it's not to enable a shortcut to create a unit)
 pub(crate) struct BaseId(pub(crate) u64);
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum Target {
+    Trust,
+    Base,
+    Unit,
+}
+
 /// A [MilitaryBase] is built on a placement, and associated with a [Zone] and a [Bloc]. The associations are given
 /// implicitly via the [Placement], as well as its the position/coordinates.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
@@ -24,6 +32,8 @@ pub(crate) struct MilitaryBase {
     #[serde(skip)]
     placement: Arc<Placement>,
     financing: Financing,
+    prioritized: bool,
+    target: Target,
     /// How much credit has been produced since the last full hour?
     production_count: Money,
 }
@@ -42,7 +52,37 @@ impl MilitaryBase {
             id: BaseId(id),
             financing: payment.consume(),
             placement,
+            prioritized: false,
+            target: Target::Trust,
             production_count: Default::default(),
         }
+    }
+
+    pub(crate) fn id(&self) -> BaseId {
+        self.id
+    }
+
+    pub(crate) fn placement(&self) -> &Placement {
+        &self.placement
+    }
+
+    pub(crate) fn financing(&self) -> &Financing {
+        &self.financing
+    }
+
+    pub(crate) fn prioritized(&self) -> bool {
+        self.prioritized
+    }
+
+    pub(crate) fn target(&self) -> Target {
+        self.target
+    }
+
+    pub(crate) fn set_prioritized(&mut self, prioritized: bool) {
+        self.prioritized = prioritized;
+    }
+
+    pub(crate) fn set_target(&mut self, target: Target) {
+        self.target = target;
     }
 }
