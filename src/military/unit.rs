@@ -19,4 +19,8 @@ impl MilitaryUnit {
     pub(crate) fn new(_payment: Payment<Self, SinglePayer>, base_id: BaseId, position: Point) -> Self {
         Self { base_id, position }
     }
+
+    pub(crate) fn base_id(&self) -> BaseId {
+        self.base_id
+    }
 }

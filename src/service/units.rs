@@ -1,22 +1,49 @@
 use actix_web::{HttpResponse, Responder, get, web};
+use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
     Command,
     error::{Result, UserError},
+    geometry::{Point, Positioned},
+    military::{BaseId, MilitaryUnit},
+    politics::BlocName,
+    service::bases::BaseResponse,
 };
 
 const UNITS: &str = "units";
 
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UnitResponse {
+    base_id: BaseId,
+    base: Option<BaseResponse>,
+    bloc: Option<BlocName>,
+    position: Point,
+}
+
+impl UnitResponse {
+    pub(crate) fn new(unit: &MilitaryUnit, base: Option<BaseResponse>) -> Self {
+        let bloc = base.as_ref().map(|base| base.bloc.clone());
+        Self {
+            base_id: unit.base_id(),
+            base,
+            bloc,
+            position: unit.position(),
+        }
+    }
+}
+
 /// List all units.
 #[utoipa::path(
+    operation_id = "listUnits",
     tag = UNITS,
     responses(
         (status = 200, description = "All existing units")
     )
 )]
 #[get("/units")]
-async fn get(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn get(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
     // This channel is one-shot: it is only used once and gets re-created on every request
     let (get_units_tx, get_units_rx) = tokio::sync::oneshot::channel();
 
@@ -33,6 +60,6 @@ async fn get(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
         UserError::InternalError
     })?;
 
-    let response = HttpResponse::Ok().json(units.as_slice());
+    let response = HttpResponse::Ok().json(units);
     Ok(response)
 }
