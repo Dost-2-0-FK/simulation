@@ -19,8 +19,8 @@ use crate::{
 
 pub(crate) struct SinglePayer;
 
-pub(crate) struct AdditionalPayer {
-    financing: Financing,
+pub(crate) struct Financiers {
+    financiers: Vec<Financing>,
 }
 
 /// Produced by the payment service when a cost was paid.
@@ -46,13 +46,13 @@ impl<'a, T> Payment<'a, T, SinglePayer> {
     }
 }
 
-impl<'a, T> Payment<'a, T, AdditionalPayer> {
-    pub(crate) fn new(cost: &'a Cost<T>, policy: AdditionalPayer) -> Self {
+impl<'a, T> Payment<'a, T, Financiers> {
+    pub(crate) fn new(cost: &'a Cost<T>, policy: Financiers) -> Self {
         Self { cost, policy }
     }
 
-    pub(crate) fn consume(self) -> Financing {
-        self.policy.financing
+    pub(crate) fn consume(self) -> Vec<Financing> {
+        self.policy.financiers
     }
 }
 
@@ -94,24 +94,16 @@ impl PaymentService {
 
     pub(crate) async fn pay_for_militray_base(
         &'_ self,
-        financing: Financing,
-    ) -> Payment<'_, MilitaryBase, AdditionalPayer> {
-        log::info!(
-            "booking military base payment with {:?} and {:?}",
-            financing.financier,
-            financing.percentage,
-        );
+        financiers: Vec<Financing>,
+    ) -> Payment<'_, MilitaryBase, Financiers> {
+        log::info!("booking military base payment with {:?}", financiers,);
         self.log_payment(&self.military_base);
-        Payment::<_, AdditionalPayer>::new(&self.military_base, AdditionalPayer { financing })
+        Payment::<_, Financiers>::new(&self.military_base, Financiers { financiers })
     }
 
-    pub(crate) async fn pay_for_trust(&'_ self, financing: Financing) -> Payment<'_, Trust, AdditionalPayer> {
-        log::info!(
-            "booking trust payment with {:?} and {:?}",
-            financing.financier,
-            financing.percentage,
-        );
+    pub(crate) async fn pay_for_trust(&'_ self, financiers: Vec<Financing>) -> Payment<'_, Trust, Financiers> {
+        log::info!("booking trust payment with {:?}", financiers,);
         self.log_payment(&self.trust);
-        Payment::<_, AdditionalPayer>::new(&self.trust, AdditionalPayer { financing })
+        Payment::<_, Financiers>::new(&self.trust, Financiers { financiers })
     }
 }

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     geometry::{Point, Positioned},
-    payment_service::{AdditionalPayer, Money, Payment},
+    payment_service::{Financiers, Money, Payment},
     placement::Placement,
     service::bases::Financing,
 };
@@ -31,7 +31,7 @@ pub(crate) struct MilitaryBase {
     id: BaseId,
     #[serde(skip)]
     placement: Arc<Placement>,
-    financing: Financing,
+    financiers: Vec<Financing>,
     prioritized: bool,
     target: Target,
     /// How much credit has been produced since the last full hour?
@@ -42,7 +42,7 @@ crate::impl_positioned_as_ref!(MilitaryBase => placement);
 
 impl MilitaryBase {
     /// Create a new base. Panics if the total count of bases becomes > [u64::MAX].
-    pub(crate) fn new(payment: Payment<'_, Self, AdditionalPayer>, placement: Arc<Placement>) -> Self {
+    pub(crate) fn new(payment: Payment<'_, Self, Financiers>, placement: Arc<Placement>) -> Self {
         /// Count of total base instances
         static INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
         let id = INSTANCE_COUNT.fetch_add(1, SeqCst);
@@ -50,7 +50,7 @@ impl MilitaryBase {
 
         Self {
             id: BaseId(id),
-            financing: payment.consume(),
+            financiers: payment.consume(),
             placement,
             prioritized: false,
             target: Target::Trust,
@@ -66,8 +66,8 @@ impl MilitaryBase {
         &self.placement
     }
 
-    pub(crate) fn financing(&self) -> &Financing {
-        &self.financing
+    pub(crate) fn financiers(&self) -> &[Financing] {
+        &self.financiers
     }
 
     pub(crate) fn prioritized(&self) -> bool {
