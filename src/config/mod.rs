@@ -84,6 +84,8 @@ pub(crate) struct PlacementConfig {
 struct BlocConfig {
     name: BlocName,
     chance: Chance,
+    #[serde(default, rename = "militaryExpense")]
+    military_expense: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -115,6 +117,14 @@ impl Config {
         self.placements.iter().cloned()
     }
 
+    pub(crate) fn zones(&self) -> impl Iterator<Item = Arc<Zone>> + '_ {
+        self.zones.iter().cloned()
+    }
+
+    pub(crate) fn blocs(&self) -> impl Iterator<Item = Arc<Bloc>> + '_ {
+        self.blocs.iter().cloned()
+    }
+
     async fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
 
@@ -137,7 +147,13 @@ impl Config {
         let blocs = config
             .blocs
             .iter()
-            .map(|bloc_config| Arc::new(Bloc::new(bloc_config.name.clone(), bloc_config.chance.clone())))
+            .map(|bloc_config| {
+                Arc::new(Bloc::new(
+                    bloc_config.name.clone(),
+                    bloc_config.chance,
+                    bloc_config.military_expense,
+                ))
+            })
             .collect::<Vec<_>>();
 
         let zones = config
