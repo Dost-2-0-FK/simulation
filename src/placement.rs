@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     geometry::{Point, Positioned},
     politics::Zone,
 };
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Hash, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
 pub(crate) struct PlacementId(String);
 
 /// A [Placement] is associated with a [Zone] and has a position/coordinates.
@@ -27,7 +27,6 @@ impl Placement {
         &self.id
     }
 
-    #[expect(dead_code)]
     pub(crate) fn zone(&self) -> &Zone {
         &self.zone
     }
