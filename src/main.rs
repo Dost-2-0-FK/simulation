@@ -46,7 +46,11 @@ async fn setup() -> Result<mpsc::Sender<Command>> {
 #[openapi(
         tags(
             (name = "units", description = "Endpoints related to military units."),
-            (name = "bases", description = "Endpoints related to military bases.")
+            (name = "bases", description = "Endpoints related to military bases."),
+            (name = "placements", description = "Endpoints related to placements."),
+            (name = "trusts", description = "Endpoints related to trusts."),
+            (name = "blocs", description = "Endpoints related to blocs."),
+            (name = "zones", description = "Endpoints related to zones.")
         ),
     )]
 struct ApiDoc;
@@ -70,7 +74,18 @@ async fn main() -> std::io::Result<()> {
                 scope::scope("/api")
                     .service(service::units::get)
                     .service(service::bases::post)
-                    .service(service::bases::list),
+                    .service(service::bases::list)
+                    .service(service::bases::get)
+                    .service(service::bases::patch)
+                    .service(service::placements::list)
+                    .service(service::placements::get)
+                    .service(service::trusts::post)
+                    .service(service::trusts::list)
+                    .service(service::trusts::get)
+                    .service(service::blocs::list)
+                    .service(service::blocs::get)
+                    .service(service::blocs::patch)
+                    .service(service::zones::list),
             )
             .openapi_service(|api| SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", api))
             .into_app()
