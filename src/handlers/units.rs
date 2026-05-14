@@ -42,7 +42,7 @@ impl UnitResponse {
     )
 )]
 #[get("/units")]
-pub(crate) async fn get(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
     // This channel is one-shot: it is only used once and gets re-created on every request
     let (get_units_tx, get_units_rx) = tokio::sync::oneshot::channel();
 
