@@ -20,3 +20,4 @@ serde_with = { version = "3", features = ["time_0_3"] }
 utoipa-actix-web = "0.1.2"
 utoipa = { version = "5.4.0", features = ["actix_extras"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
+futures-util = "0.3.32"
