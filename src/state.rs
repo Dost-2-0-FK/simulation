@@ -7,17 +7,14 @@ use typed_builder::TypedBuilder;
 
 use crate::{
     config::Config,
+    domain::{BaseId, Bloc, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust, TrustId, Zone},
     error::UserError,
     geometry::Point,
-    military::{BaseId, MilitaryBase, MilitaryUnit, Target},
-    payment_service::PaymentService,
-    placement::{Placement, PlacementId},
-    politics::{Bloc, Chance, Zone},
-    service::{
+    handlers::{
         bases::{Financing, base_response_by_id},
         units::UnitResponse,
     },
-    trust::{Trust, TrustId},
+    services::payment_service::PaymentService,
 };
 
 #[derive(TypedBuilder)]
@@ -33,7 +30,7 @@ type ReadCommand<T> = Sender<OwnedRwLockReadGuard<T>>;
 
 /// Used to query or mutate the state of the [state_loop].
 #[derive(Debug)]
-pub(super) enum Command {
+pub(crate) enum Command {
     #[expect(dead_code)]
     CreateUnit {
         base_id: BaseId,
@@ -76,7 +73,7 @@ impl State {
     ///
     /// Returns when the channel is closed and when there are no more messages in the channels buffer, i.e., no more
     /// messages are going to be received.
-    pub(super) async fn run(mut self) {
+    pub(crate) async fn run(mut self) {
         // Load data from database
         let units = Arc::new(RwLock::new(vec![]));
         let bases = Arc::new(RwLock::new(Vec::<MilitaryBase>::new()));

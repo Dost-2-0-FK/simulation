@@ -3,13 +3,11 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
-    Command,
+    domain::{PlacementId, Trust, TrustId, ZoneName},
     error::{Result, UserError},
     geometry::{Point, Positioned},
-    placement::PlacementId,
-    politics::ZoneName,
-    service::bases::Financing,
-    trust::{Trust, TrustId},
+    handlers::bases::Financing,
+    state::Command,
 };
 
 const TRUSTS: &str = "trusts";

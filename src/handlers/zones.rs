@@ -3,9 +3,9 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
-    Command,
+    domain::{BlocName, Zone, ZoneName},
     error::{Result, UserError},
-    politics::{BlocName, Zone, ZoneName},
+    state::Command,
 };
 
 const ZONES: &str = "zones";

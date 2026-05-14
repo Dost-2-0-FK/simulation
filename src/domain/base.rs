@@ -6,10 +6,10 @@ use std::sync::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    domain::Placement,
     geometry::{Point, Positioned},
-    payment_service::{Financiers, Money, Payment},
-    placement::Placement,
-    service::bases::Financing,
+    handlers::bases::Financing,
+    services::payment_service::{Financiers, Money, Payment},
 };
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema)]

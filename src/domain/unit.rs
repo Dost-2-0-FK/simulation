@@ -1,9 +1,9 @@
 use serde::Serialize;
 
 use crate::{
+    domain::BaseId,
     geometry::{Point, Positioned},
-    military::base::BaseId,
-    payment_service::{Payment, SinglePayer},
+    services::payment_service::{Payment, SinglePayer},
 };
 
 /// Associated with a [MilitaryBase] and a [Bloc]. The [Bloc] association is implicit.

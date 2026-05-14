@@ -3,11 +3,10 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
-    Command,
+    domain::{Placement, PlacementId, ZoneName},
     error::{Result, UserError},
     geometry::{Point, Positioned},
-    placement::{Placement, PlacementId},
-    politics::ZoneName,
+    state::Command,
 };
 
 const PLACEMENTS: &str = "placements";

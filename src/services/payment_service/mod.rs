@@ -12,9 +12,8 @@ pub(crate) use self::{
     resources::{ResourceValue, Resources, VecResourceName},
 };
 use crate::{
-    military::{MilitaryBase, MilitaryUnit},
-    service::bases::Financing,
-    trust::Trust,
+    domain::{MilitaryBase, MilitaryUnit, Trust},
+    handlers::bases::Financing,
 };
 
 pub(crate) struct SinglePayer;

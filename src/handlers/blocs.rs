@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
-    Command,
+    domain::{Bloc, BlocName, Chance},
     error::{Result, UserError},
-    politics::{Bloc, BlocName, Chance},
+    state::Command,
 };
 
 const BLOCS: &str = "blocs";

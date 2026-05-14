@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 use crate::state::Command;
 
 /// Run the simulation, allow it to send [Command]s via a channel.
-pub(super) async fn simulation(_tx: mpsc::Sender<Command>) {
+pub(crate) async fn simulation(_tx: mpsc::Sender<Command>) {
     loop {
         // Just create a military unit every second.
         tokio::time::sleep(Duration::from_secs(1)).await;

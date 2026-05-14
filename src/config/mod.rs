@@ -8,12 +8,9 @@ use tokio::{fs, net::TcpListener};
 
 use self::error::{Error, Result};
 use crate::{
+    domain::{Bloc, BlocName, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone, ZoneName},
     geometry::Point,
-    military::{MilitaryBase, MilitaryUnit},
-    payment_service::{Cost, PaymentService, VecResourceName},
-    placement::{Placement, PlacementId},
-    politics::{Bloc, BlocName, Chance, Zone, ZoneName},
-    trust::Trust,
+    services::payment_service::{Cost, PaymentService, VecResourceName},
 };
 
 const CONFIG_FILE_NAME: &str = "simulation.toml";

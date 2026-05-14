@@ -3,12 +3,11 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
-    Command,
+    domain::{BaseId, BlocName, MilitaryUnit},
     error::{Result, UserError},
     geometry::{Point, Positioned},
-    military::{BaseId, MilitaryUnit},
-    politics::BlocName,
-    service::bases::BaseResponse,
+    handlers::bases::BaseResponse,
+    state::Command,
 };
 
 const UNITS: &str = "units";
