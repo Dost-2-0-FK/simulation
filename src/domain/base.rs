@@ -6,11 +6,13 @@ use std::sync::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    domain::Placement,
+    domain::{Placement, PlacementId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
     services::payment_service::{Financiers, Money, Payment},
 };
+
+static BASE_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema)]
 // TODO make this inner field private (just for now it's not to enable a shortcut to create a unit)
@@ -43,9 +45,7 @@ crate::impl_positioned_as_ref!(MilitaryBase => placement);
 impl MilitaryBase {
     /// Create a new base. Panics if the total count of bases becomes > [u64::MAX].
     pub(crate) fn new(payment: Payment<'_, Self, Financiers>, placement: Arc<Placement>) -> Self {
-        /// Count of total base instances
-        static INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
-        let id = INSTANCE_COUNT.fetch_add(1, SeqCst);
+        let id = BASE_INSTANCE_COUNT.fetch_add(1, SeqCst);
         assert_ne!(id, u64::MAX, "ID counter has overflowed and is no longer unique");
 
         Self {
@@ -58,12 +58,36 @@ impl MilitaryBase {
         }
     }
 
+    pub(crate) fn from_persisted(
+        id: BaseId,
+        placement: Arc<Placement>,
+        financiers: Vec<Financing>,
+        prioritized: bool,
+        target: Target,
+    ) -> Self {
+        assert_ne!(id.0, u64::MAX, "ID counter has overflowed and is no longer unique");
+        BASE_INSTANCE_COUNT.fetch_max(id.0 + 1, SeqCst);
+
+        Self {
+            id,
+            placement,
+            financiers,
+            prioritized,
+            target,
+            production_count: Default::default(),
+        }
+    }
+
     pub(crate) fn id(&self) -> BaseId {
         self.id
     }
 
     pub(crate) fn placement(&self) -> &Placement {
         &self.placement
+    }
+
+    pub(crate) fn placement_id(&self) -> &PlacementId {
+        self.placement.id()
     }
 
     pub(crate) fn financiers(&self) -> &[Financing] {

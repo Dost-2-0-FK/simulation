@@ -20,6 +20,10 @@ impl MilitaryUnit {
         Self { base_id, position }
     }
 
+    pub(crate) fn from_persisted(base_id: BaseId, position: Point) -> Self {
+        Self { base_id, position }
+    }
+
     pub(crate) fn base_id(&self) -> BaseId {
         self.base_id
     }

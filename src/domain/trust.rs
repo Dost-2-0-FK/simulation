@@ -6,11 +6,13 @@ use std::sync::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    domain::Placement,
+    domain::{Placement, PlacementId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
     services::payment_service::{Financiers, Payment},
 };
+
+static TRUST_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema)]
 pub(crate) struct TrustId(pub(crate) u64);
@@ -30,13 +32,23 @@ crate::impl_positioned_as_ref!(Trust => placement);
 impl Trust {
     /// Create a new trust. Panics if the total count of trusts becomes > [u64::MAX].
     pub(crate) fn new(payment: Payment<'_, Self, Financiers>, placement: Arc<Placement>) -> Self {
-        static INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
-        let id = INSTANCE_COUNT.fetch_add(1, SeqCst);
+        let id = TRUST_INSTANCE_COUNT.fetch_add(1, SeqCst);
         assert_ne!(id, u64::MAX, "ID counter has overflowed and is no longer unique");
 
         Self {
             id: TrustId(id),
             financing: payment.consume(),
+            placement,
+        }
+    }
+
+    pub(crate) fn from_persisted(id: TrustId, placement: Arc<Placement>, financing: Vec<Financing>) -> Self {
+        assert_ne!(id.0, u64::MAX, "ID counter has overflowed and is no longer unique");
+        TRUST_INSTANCE_COUNT.fetch_max(id.0 + 1, SeqCst);
+
+        Self {
+            id,
+            financing,
             placement,
         }
     }
@@ -47,6 +59,10 @@ impl Trust {
 
     pub(crate) fn placement(&self) -> &Placement {
         &self.placement
+    }
+
+    pub(crate) fn placement_id(&self) -> &PlacementId {
+        self.placement.id()
     }
 
     pub(crate) fn financing(&self) -> &[Financing] {
