@@ -4,6 +4,7 @@ use utoipa::OpenApi;
 
 use crate::{
     config::Config,
+    persistence::MongoPersistence,
     simulation::simulation,
     state::{Command, State},
 };
@@ -13,8 +14,20 @@ pub(crate) async fn setup_state() -> Result<mpsc::Sender<Command>> {
     let config = Config::parse().await.context("parsing config file".to_string())?;
     const MAX_MESSAGE_COUNT: usize = 100;
     let (tx, rx) = mpsc::channel(MAX_MESSAGE_COUNT);
+    let persistence = MongoPersistence::connect(config.persistence())
+        .await
+        .context("connecting persistence layer".to_string())?;
+    let loaded_state = persistence
+        .load(config.placements())
+        .await
+        .context("loading simulation state from persistence".to_string())?;
 
-    let state = State::builder().config(config).receiver(rx).build();
+    let state = State::builder()
+        .config(config)
+        .persistence(persistence)
+        .loaded_state(loaded_state)
+        .receiver(rx)
+        .build();
 
     tokio::spawn(state.run());
     tokio::spawn(simulation(tx.clone()));
