@@ -7,6 +7,7 @@ Economy and military simulation
 - [Simulation](#simulation)
   - [Installation](#installation)
   - [Run From Source](#run-from-source)
+  - [Persistence](#persistence)
   - [Specification](#specification)
     - [Trusts](#trusts)
     - [Bases](#bases)
@@ -27,6 +28,19 @@ RUST_LOG=debug cargo run
 ```
 
 To see all available endpoints, navigate to http://127.0.0.1:8080/swagger-ui/.
+
+## Persistence<a name="persistence"></a>
+
+Runtime state is loaded from MongoDB on startup. Mutating commands update the in-memory simulation state only after the
+corresponding MongoDB write succeeds, while read endpoints are served from memory.
+
+Configure MongoDB in `simulation.toml`:
+
+```toml
+[persistence]
+uri = "mongodb://localhost:27017"
+database = "simulation"
+```
 
 ## Specification<a name="specification"></a>
 
