@@ -11,37 +11,31 @@ use crate::{
 
 const BASES: &str = "bases";
 
+/// A value between 0 and 1 representing a financier's share of a payment.
 #[derive(Debug, Copy, Clone, PartialEq, utoipa::ToSchema)]
-pub struct Percentage(f32);
+pub struct Share(f32);
 
-#[expect(dead_code)]
-impl Percentage {
-    pub(crate) fn as_factor(self) -> f32 {
-        self.0
-    }
-}
-
-impl<'de> Deserialize<'de> for Percentage {
+impl<'de> Deserialize<'de> for Share {
     fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let percent = f32::deserialize(deserializer)?;
+        let share = f32::deserialize(deserializer)?;
 
-        if !(0.0..=100.0).contains(&percent) {
-            Err(serde::de::Error::custom("percentage must be between 0 and 100"))
+        if !(0.0..=1.0).contains(&share) {
+            Err(serde::de::Error::custom("share must be between 0 and 1"))
         } else {
-            Ok(Percentage(percent / 100.0))
+            Ok(Share(share))
         }
     }
 }
 
-impl Serialize for Percentage {
+impl Serialize for Share {
     fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        serializer.serialize_f32(self.0 * 100.0)
+        serializer.serialize_f32(self.0)
     }
 }
 
@@ -52,7 +46,7 @@ pub(crate) struct UserId(String);
 pub(crate) struct Financing {
     #[serde(rename = "financierId")]
     pub(crate) financier: UserId,
-    pub(crate) percentage: Percentage,
+    pub(crate) share: Share,
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
