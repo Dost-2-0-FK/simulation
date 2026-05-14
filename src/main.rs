@@ -4,6 +4,7 @@ mod domain;
 mod error;
 mod geometry;
 mod handlers;
+mod persistence;
 mod routes;
 mod services;
 mod simulation;
