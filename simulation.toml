@@ -12,6 +12,11 @@ money = 12
 resources = {}
 
 [server]
+
+[persistence]
+uri = "mongodb://localhost:27017"
+database = "simulation"
+
 [env]
 credit_exchange_url = "http://127.0.0.1:12345"
 
@@ -36,4 +41,3 @@ position = { x = 23.2, y = 29.1 }
 id = "placement_2"
 zone = "zone_1"
 position = { x = 23.2, y = 29.1 }
-

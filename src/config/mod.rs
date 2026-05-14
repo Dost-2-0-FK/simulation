@@ -25,6 +25,7 @@ struct TomlConfig {
     env: EnvConfig,
     resources: VecResourceName,
     time: TimeConfig,
+    persistence: PersistenceConfig,
     costs: CostsConfig,
     #[serde(rename = "bloc")]
     blocs: Vec<BlocConfig>,
@@ -43,6 +44,7 @@ pub(crate) struct Config {
     blocs: Vec<Arc<Bloc>>,
     port: TcpListener,
     payment_service: PaymentService,
+    persistence: PersistenceConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -56,6 +58,23 @@ struct EnvConfig {
 struct ServerConfig {
     #[serde(default)]
     port: u16,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct PersistenceConfig {
+    uri: String,
+    database: String,
+}
+
+impl PersistenceConfig {
+    pub(crate) fn uri(&self) -> &str {
+        &self.uri
+    }
+
+    pub(crate) fn database(&self) -> &str {
+        &self.database
+    }
 }
 
 #[serde_as]
@@ -110,7 +129,7 @@ impl Config {
         &self.payment_service
     }
 
-    pub(crate) fn placements(&self) -> impl Iterator<Item = Arc<Placement>> + '_ {
+    pub(crate) fn placements(&self) -> impl Iterator<Item = Arc<Placement>> + Clone + '_ {
         self.placements.iter().cloned()
     }
 
@@ -120,6 +139,10 @@ impl Config {
 
     pub(crate) fn blocs(&self) -> impl Iterator<Item = Arc<Bloc>> + '_ {
         self.blocs.iter().cloned()
+    }
+
+    pub(crate) fn persistence(&self) -> &PersistenceConfig {
+        &self.persistence
     }
 
     async fn parse_from_str(config: &str) -> Result<Self> {
@@ -209,6 +232,7 @@ impl Config {
             port: TcpListener::bind(format!("127.0.0.1:{}", config.server.unwrap_or_default().port))
                 .await
                 .map_err(Error::Io)?,
+            persistence: config.persistence,
             payment_service: PaymentService::new(
                 config.env.credit_exchange_url,
                 config.costs.unit,
