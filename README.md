@@ -6,6 +6,7 @@ Economy and military simulation
 
 - [Simulation](#simulation)
   - [Installation](#installation)
+  - [Run From Source](#run-from-source)
   - [Specification](#specification)
     - [Trusts](#trusts)
     - [Bases](#bases)
@@ -15,6 +16,17 @@ Economy and military simulation
 <!-- mdformat-toc end -->
 
 ## Installation<a name="installation"></a>
+
+## Run From Source<a name="run-from-source"></a>
+
+Make sure you have [`cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed. To run the
+server from source, with `debug` log-level
+
+```shell
+RUST_LOG=debug cargo run
+```
+
+To see all available endpoints, navigate to http://127.0.0.1:8080/swagger-ui/.
 
 ## Specification<a name="specification"></a>
 
