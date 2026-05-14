@@ -13,6 +13,7 @@ serde = "1"
 toml = "0.9"
 url = { version = "2.5.7", features = ["serde"] }
 anyhow = "1"
+mongodb = "3"
 typed-builder = "0.23.2"
 ordered-float = { version = "5", features = ["serde"] }
 serde_with = { version = "3", features = ["time_0_3"] }
