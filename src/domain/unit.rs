@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use mongodb::bson::Uuid;
 use serde::Serialize;
+use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
-    domain::BaseId,
+    domain::MilitaryBase,
     geometry::{Point, Positioned},
     services::payment_service::{Payment, SinglePayer},
 };
@@ -19,20 +22,20 @@ impl UnitId {
 }
 
 /// Associated with a [MilitaryBase] and a [Bloc]. The [Bloc] association is implicit.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub(crate) struct MilitaryUnit {
     id: UnitId,
-    base_id: BaseId,
+    base: Arc<RwLock<MilitaryBase>>,
     position: Point,
 }
 
 crate::impl_positioned!(MilitaryUnit => position);
 
 impl MilitaryUnit {
-    pub(crate) fn new(_payment: Payment<Self, SinglePayer>, base_id: BaseId, position: Point) -> Self {
+    pub(crate) fn new(_payment: Payment<Self, SinglePayer>, base: Arc<RwLock<MilitaryBase>>, position: Point) -> Self {
         Self {
             id: UnitId::new(),
-            base_id,
+            base,
             position,
         }
     }
@@ -41,15 +44,16 @@ impl MilitaryUnit {
         &self.id
     }
 
-    pub(crate) fn from_persisted(id: String, base_id: BaseId, position: Point) -> Self {
+    pub(crate) fn from_persisted(id: String, base: Arc<RwLock<MilitaryBase>>, position: Point) -> Self {
         Self {
             id: id.into(),
-            base_id,
+            base,
             position,
         }
     }
 
-    pub(crate) fn base_id(&self) -> BaseId {
-        self.base_id
+    /// Acquires a read lock on the unit's base and returns the guard.
+    pub(crate) async fn base(&self) -> RwLockReadGuard<'_, MilitaryBase> {
+        self.base.read().await
     }
 }

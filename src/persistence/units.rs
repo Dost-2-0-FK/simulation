@@ -1,9 +1,11 @@
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::Arc};
 
-use super::parse_id;
+use anyhow::{Result, anyhow};
+use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
+
 use crate::{
-    domain::{BaseId, MilitaryUnit},
+    domain::{BaseId, MilitaryBase, MilitaryUnit},
     geometry::{Point, Positioned},
 };
 
@@ -20,16 +22,24 @@ impl PersistedUnit {
         &self.id
     }
 
-    pub(super) fn from_unit(unit: &MilitaryUnit) -> Self {
+    pub(super) async fn from_unit(unit: &MilitaryUnit) -> Self {
         Self {
             id: unit.id().clone().into(),
-            base_id: unit.base_id().0.to_string(),
+            base_id: unit.base().await.id().0.to_string(),
             position: unit.position(),
         }
     }
 
-    pub(super) fn into_unit(self) -> Result<MilitaryUnit> {
-        let base_id = parse_id::<BaseId>(&self.base_id, "unit base")?;
-        Ok(MilitaryUnit::from_persisted(self.id, base_id, self.position))
+    pub(super) fn into_unit(self, bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>) -> Result<MilitaryUnit> {
+        let base_id = self
+            .base_id
+            .parse::<u64>()
+            .map(BaseId)
+            .map_err(|e| anyhow!("parsing persisted unit base id {}: {e}", self.base_id))?;
+        let base = bases
+            .get(&base_id)
+            .ok_or_else(|| anyhow!("unit {} references unknown base {base_id:?}", self.id))?
+            .clone();
+        Ok(MilitaryUnit::from_persisted(self.id, base, self.position))
     }
 }

@@ -1,8 +1,9 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result, anyhow};
 use futures_util::TryStreamExt;
 use mongodb::{Client, Collection, bson::doc, options::ClientOptions};
+use tokio::sync::RwLock;
 
 use crate::{
     config::PersistenceConfig,
@@ -28,7 +29,7 @@ pub(crate) struct MongoPersistence {
 }
 
 pub(crate) struct LoadedState {
-    pub(crate) bases: Vec<MilitaryBase>,
+    pub(crate) bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     pub(crate) trusts: Vec<Trust>,
     pub(crate) units: Vec<MilitaryUnit>,
     pub(crate) blocs: Vec<Bloc>,
@@ -61,7 +62,7 @@ impl MongoPersistence {
     }
 
     pub(crate) async fn load(&self, placements: impl Iterator<Item = Arc<Placement>> + Clone) -> Result<LoadedState> {
-        let bases = self
+        let bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>> = self
             .bases
             .find(doc! {})
             .await
@@ -71,7 +72,10 @@ impl MongoPersistence {
             .await
             .context("reading persisted bases")?
             .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .map(|base| (base.id(), Arc::new(RwLock::new(base))))
+            .collect();
 
         let trusts = self
             .trusts
@@ -90,7 +94,7 @@ impl MongoPersistence {
             .find(doc! {})
             .await
             .context("loading units from MongoDB")?
-            .map_ok(PersistedUnit::into_unit)
+            .map_ok(|unit| unit.into_unit(&bases))
             .try_collect::<Vec<_>>()
             .await
             .context("reading persisted units")?
@@ -136,7 +140,7 @@ impl MongoPersistence {
     }
 
     pub(crate) async fn save_unit(&self, unit: &MilitaryUnit) -> Result<()> {
-        let persisted = PersistedUnit::from_unit(unit);
+        let persisted = PersistedUnit::from_unit(unit).await;
         self.units
             .replace_one(doc! { "_id": persisted.id() }, persisted)
             .upsert(true)

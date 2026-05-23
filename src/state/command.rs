@@ -79,11 +79,16 @@ pub(crate) async fn run(
     while let Some(cmd) = receiver.recv().await {
         match cmd {
             Command::GetUnits(resp) => {
-                unit::get(resp, &units, &bases).await;
+                unit::get(resp, &units).await;
             }
             Command::CreateUnit { base_id, position } => {
-                let unit = unit::create(base_id, position, config.payment_service());
-                units.insert(unit.id().to_owned(), Arc::new(RwLock::new(unit)));
+                match bases.get(&base_id) {
+                    Some(base) => {
+                        let unit = unit::create(base.clone(), position, config.payment_service());
+                        units.insert(unit.id().to_owned(), Arc::new(RwLock::new(unit)));
+                    }
+                    None => log::error!("CreateUnit: base {base_id:?} not found"),
+                }
             }
             Command::CreateBase { placement_id, financing, response } => {
                 let result = async {

@@ -15,7 +15,7 @@ const UNITS: &str = "units";
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct UnitResponse {
-    base_id: BaseId,
+    base_id: Option<BaseId>,
     base: Option<BaseResponse>,
     bloc: Option<BlocName>,
     position: Point,
@@ -23,9 +23,10 @@ pub(crate) struct UnitResponse {
 
 impl UnitResponse {
     pub(crate) fn new(unit: &MilitaryUnit, base: Option<BaseResponse>) -> Self {
-        let bloc = base.as_ref().map(|base| base.bloc.clone());
+        let bloc = base.as_ref().map(|b| b.bloc.clone());
+        let base_id = base.as_ref().map(|b| b.id);
         Self {
-            base_id: unit.base_id(),
+            base_id,
             base,
             bloc,
             position: unit.position(),
