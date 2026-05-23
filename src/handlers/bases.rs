@@ -64,6 +64,7 @@ pub(crate) struct BaseResponse {
     pub(crate) zone: ZoneName,
     pub(crate) bloc: BlocName,
     pub(crate) payment: Vec<Financing>,
+    pub(crate) enabled: bool,
     pub(crate) prioritized: bool,
     pub(crate) target: Target,
     pub(crate) position: Point,
@@ -79,6 +80,7 @@ impl From<&MilitaryBase> for BaseResponse {
             zone: zone.name().clone(),
             bloc: zone.bloc().name().clone(),
             payment: base.financiers().to_vec(),
+            enabled: base.enabled(),
             prioritized: base.prioritized(),
             target: base.target(),
             position: base.position(),
@@ -89,6 +91,7 @@ impl From<&MilitaryBase> for BaseResponse {
 #[derive(Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 struct PatchBaseBody {
+    enabled: Option<bool>,
     prioritized: Option<bool>,
     target: Option<Target>,
 }
@@ -207,6 +210,7 @@ pub(crate) async fn patch(
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::PatchBase {
         id: BaseId(path.into_inner()),
+        enabled: body.enabled,
         prioritized: body.prioritized,
         target: body.target,
         response: sender,

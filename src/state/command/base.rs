@@ -2,13 +2,12 @@ use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::{RwLock, oneshot::Sender};
 
+use super::CommandError;
 use crate::{
     domain::{BaseId, MilitaryBase, Placement, PlacementId, Target},
     handlers::bases::Financing,
     services::payment_service::PaymentService,
 };
-
-use super::CommandError;
 
 pub(crate) async fn get_all(resp: Sender<Vec<MilitaryBase>>, bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>) {
     let mut out = Vec::with_capacity(bases.len());
@@ -18,7 +17,11 @@ pub(crate) async fn get_all(resp: Sender<Vec<MilitaryBase>>, bases: &HashMap<Bas
     let _ = resp.send(out);
 }
 
-pub(crate) async fn get(id: BaseId, resp: Sender<Option<MilitaryBase>>, bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>) {
+pub(crate) async fn get(
+    id: BaseId,
+    resp: Sender<Option<MilitaryBase>>,
+    bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
+) {
     let base = match bases.get(&id) {
         Some(base) => Some(base.read().await.clone()),
         None => None,
@@ -40,7 +43,15 @@ pub(crate) async fn create(
     Ok(MilitaryBase::new(payment, placement))
 }
 
-pub(crate) fn patch(mut base: MilitaryBase, prioritized: Option<bool>, target: Option<Target>) -> MilitaryBase {
+pub(crate) fn patch(
+    mut base: MilitaryBase,
+    enabled: Option<bool>,
+    prioritized: Option<bool>,
+    target: Option<Target>,
+) -> MilitaryBase {
+    if let Some(enabled) = enabled {
+        base.set_enabled(enabled);
+    }
     if let Some(prioritized) = prioritized {
         base.set_prioritized(prioritized);
     }

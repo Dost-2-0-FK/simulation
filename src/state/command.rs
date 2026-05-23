@@ -42,6 +42,7 @@ pub(crate) enum Command {
     GetBase(BaseId, Sender<Option<MilitaryBase>>),
     PatchBase {
         id: BaseId,
+        enabled: Option<bool>,
         prioritized: Option<bool>,
         target: Option<Target>,
         response: Sender<core::result::Result<(), UserError>>,
@@ -108,10 +109,10 @@ pub(crate) async fn run(
             Command::GetBase(id, resp) => {
                 base::get(id, resp, &bases).await;
             }
-            Command::PatchBase { id, prioritized, target, response } => {
+            Command::PatchBase { id, enabled, prioritized, target, response } => {
                 let result = async {
                     let lock = bases.get(&id).ok_or(UserError::NotFound("Base"))?;
-                    let patched = base::patch(lock.read().await.clone(), prioritized, target);
+                    let patched = base::patch(lock.read().await.clone(), enabled, prioritized, target);
                     *lock.write().await = patched;
                     Ok(())
                 }.await;

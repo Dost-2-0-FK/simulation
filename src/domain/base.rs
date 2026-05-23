@@ -34,11 +34,11 @@ pub(crate) struct MilitaryBase {
     #[serde(skip)]
     placement: Arc<Placement>,
     financiers: Vec<Financing>,
-enabled: bool,
-prioritized: bool,
-target: Target,
-/// How much credit has been produced since the last full hour?
-production_count: Money,
+    enabled: bool,
+    prioritized: bool,
+    target: Target,
+    /// How much credit has been produced since the last full hour?
+    production_count: Money,
 }
 
 crate::impl_positioned_as_ref!(MilitaryBase => placement);
@@ -108,6 +108,10 @@ impl MilitaryBase {
 
     pub(crate) fn target(&self) -> Target {
         self.target
+    }
+
+    pub(crate) fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
     }
 
     pub(crate) fn set_prioritized(&mut self, prioritized: bool) {

@@ -97,7 +97,8 @@ There are four fundamental types:
     `{'id':'<base_id|financier_id>', 'receiver': 'receiver_id', 'value': <value>, 'type': '<type>', 'priority': <priority>}`)
   - If only paid by bloc, `value=100`, if paid by bloc and financier, two subscriptions are created: f.e, one with
     `value=70`, one with `value=30`.
-- Bases can be disabled or removed (`/api/base/disable?id=<base_id>`, `/api/base/remove?id=<base_id>`)
+- Bases can be disabled (`PATCH /api/bases/{id}` with body `{enabled: false}`) or removed
+  (`/api/base/remove?id=<base_id>`)
 - Bases can be destroyed by enemy targets
 - Bases can be prioritised (`PATCH /api/bases/{id}` with body `{prioritized: <true|false>}`)
 - Bases can define a target (`PATCH /api/bases/{id}` with body `{target: <trust|base|unit>}`)
@@ -136,7 +137,8 @@ trusts are returned or only a subset (only associated by block/zone financed by 
 - `GET /api/bases/{id}`
 - `POST /api/bases` (payload:
   `{placementId: <placement id>, payment: [{financierId: <financier_id (str)>, share: <value (float, 0-1)>}]}`)
-- `PATCH /api/bases/{id}` (payload: `{(optional) prioritized: <true|false>, (optional) target: <trust|base|unit>}`)
+- `PATCH /api/bases/{id}` (payload:
+  `{(optional) enabled: <true|false>, (optional) prioritized: <true|false>, (optional) target: <trust|base|unit>}`)
 - `GET /api/blocs`
 - `GET /api/blocs/{id}` -> response should contain chance and military expense
 - `PATCH /api/blocs/{id}` payload: `{(optional) chance: <value (float)>, (optional) militaryExpense: <value (int)>}`
