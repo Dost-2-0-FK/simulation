@@ -99,8 +99,8 @@ There are four fundamental types:
     `value=70`, one with `value=30`.
 - Bases can be disabled or removed (`/api/base/disable?id=<base_id>`, `/api/base/remove?id=<base_id>`)
 - Bases can be destroyed by enemy targets
-- Bases can be prioritised (`POST /api/base/prioritise?id=<base_id: str>&value=<true|false>`)
-- Bases can define a target (`POST /api/base/target?id=<base_id>&target=<trust|base|unit>`)
+- Bases can be prioritised (`PATCH /api/bases/{id}` with body `{prioritized: <true|false>}`)
+- Bases can define a target (`PATCH /api/bases/{id}` with body `{target: <trust|base|unit>}`)
 
 ### Logic<a name="logic"></a>
 
@@ -108,7 +108,7 @@ There are four fundamental types:
 - Every hour, military units are produced in bases:
   - Get the blocs' hourly income: `CREDIT-EXCHANGE-SERVICE/api/credits/hourly?id=<bloc_id>`
   - Each bloc can define what percentage of the hourly income shall be used for creating military units (can be set by
-    `POST /api/bloc/military_expense?id=<bloc_id: str>&value=<value: int>`)
+    `PATCH /api/blocs/{id}` with body `{militaryExpense: <value: int>}`)
   - The result of `hourly_income * military_expense/100` is used to create military units until the designated money is
     spent
     - 2 for enabled prioritised bases
