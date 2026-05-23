@@ -3,7 +3,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use futures_util::{StreamExt, stream};
-use tokio::sync::{OwnedRwLockReadGuard, RwLock, mpsc::Receiver, oneshot::Sender};
+use tokio::sync::{RwLock, mpsc::Receiver, oneshot::Sender};
 use typed_builder::TypedBuilder;
 
 use crate::{
@@ -28,10 +28,6 @@ pub(crate) struct State {
     receiver: Receiver<Command>,
 }
 
-/// Type alias for a one shot sender with an RwLockReadGuard, used to send the response for a read command.
-type ReadCommand<T> = Sender<Option<OwnedRwLockReadGuard<T>>>;
-type ListCommand<T> = Sender<Vec<OwnedRwLockReadGuard<T>>>;
-
 /// Used to query or mutate the state of the [state_loop].
 #[derive(Debug)]
 pub(crate) enum Command {
@@ -46,7 +42,7 @@ pub(crate) enum Command {
         financing: Vec<Financing>,
         response: Sender<core::result::Result<(), UserError>>,
     },
-    GetBases(ListCommand<MilitaryBase>),
+    GetBases(Sender<Vec<MilitaryBase>>),
     GetBase(BaseId, Sender<Option<MilitaryBase>>),
     PatchBase {
         id: BaseId,
@@ -59,8 +55,8 @@ pub(crate) enum Command {
         financing: Vec<Financing>,
         response: Sender<core::result::Result<(), UserError>>,
     },
-    GetTrusts(ListCommand<Trust>),
-    GetTrust(TrustId, ReadCommand<Trust>),
+    GetTrusts(Sender<Vec<Trust>>),
+    GetTrust(TrustId, Sender<Option<Trust>>),
     GetPlacements(Sender<Vec<Arc<Placement>>>),
     GetZones(Sender<Vec<Arc<Zone>>>),
     GetBlocs(Sender<Vec<Arc<Bloc>>>),
@@ -163,11 +159,11 @@ impl State {
                     let _ = response.send(Ok(()));
                 }
                 Command::GetBases(resp) => {
-                    let bases = stream::iter(bases.values())
-                        .then(async |base| base.clone().read_owned().await)
-                        .collect()
-                        .await;
-                    let _ = resp.send(bases);
+                    let mut bases_out = Vec::with_capacity(bases.len());
+                    for base in bases.values() {
+                        bases_out.push(base.read().await.clone());
+                    }
+                    let _ = resp.send(bases_out);
                 }
                 Command::GetBase(id, resp) => {
                     let base = match bases.get(&id) {
@@ -235,18 +231,18 @@ impl State {
                     let _ = response.send(Ok(()));
                 }
                 Command::GetTrusts(resp) => {
-                    let mut guards = Vec::with_capacity(trusts.len());
+                    let mut result = Vec::with_capacity(trusts.len());
                     for trust in trusts.values() {
-                        guards.push(trust.clone().read_owned().await);
+                        result.push(trust.read().await.clone());
                     }
-                    let _ = resp.send(guards);
+                    let _ = resp.send(result);
                 }
                 Command::GetTrust(id, resp) => {
-                    let guard = match trusts.get(&id) {
-                        Some(trust) => Some(trust.clone().read_owned().await),
+                    let trust = match trusts.get(&id) {
+                        Some(trust) => Some(trust.read().await.clone()),
                         None => None,
                     };
-                    let _ = resp.send(guard);
+                    let _ = resp.send(trust);
                 }
                 Command::GetPlacements(resp) => {
                     let _ = resp.send(self.config.placements().collect());
