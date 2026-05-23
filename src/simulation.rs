@@ -17,3 +17,18 @@ pub(crate) async fn simulation(_tx: mpsc::Sender<Command>) {
         // let _ = tx.send(Command::CreateUnit { base_id, position }).await;
     }
 }
+
+/// Periodically send [Command::Persist] so the in-memory state is flushed to the database.
+///
+/// The task exits when the command channel is closed, which means the state loop has ended.
+pub(crate) async fn periodic_persist(tx: mpsc::Sender<Command>, interval: Duration) {
+    let mut ticker = tokio::time::interval(interval);
+    ticker.tick().await; // skip the immediate first tick
+    loop {
+        ticker.tick().await;
+        if tx.send(Command::Persist).await.is_err() {
+            log::warn!("Periodic persistence task stopping: state loop channel closed.");
+            break;
+        }
+    }
+}

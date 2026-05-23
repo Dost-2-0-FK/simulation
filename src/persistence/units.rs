@@ -16,6 +16,10 @@ pub(super) struct PersistedUnit {
 }
 
 impl PersistedUnit {
+    pub(super) fn id(&self) -> &str {
+        &self.id
+    }
+
     pub(super) fn from_unit(unit: &MilitaryUnit) -> Self {
         Self {
             id: unit.id().clone().into(),

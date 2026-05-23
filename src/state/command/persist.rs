@@ -1,0 +1,38 @@
+use std::{collections::HashMap, sync::Arc};
+
+use tokio::sync::RwLock;
+
+use crate::{
+    domain::{BaseId, Bloc, BlocName, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId},
+    persistence::MongoPersistence,
+};
+
+pub(crate) async fn persist_all(
+    persistence: &MongoPersistence,
+    units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
+    bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
+    trusts: &HashMap<TrustId, Arc<RwLock<Trust>>>,
+    blocs: &HashMap<BlocName, Arc<RwLock<Bloc>>>,
+) {
+    for unit in units.values() {
+        if let Err(e) = persistence.save_unit(&*unit.read().await).await {
+            log::error!("Error persisting unit: {e:#}");
+        }
+    }
+    for base in bases.values() {
+        if let Err(e) = persistence.save_base(&*base.read().await).await {
+            log::error!("Error persisting base: {e:#}");
+        }
+    }
+    for trust in trusts.values() {
+        if let Err(e) = persistence.save_trust(&*trust.read().await).await {
+            log::error!("Error persisting trust: {e:#}");
+        }
+    }
+    for bloc in blocs.values() {
+        if let Err(e) = persistence.save_bloc(&*bloc.read().await).await {
+            log::error!("Error persisting bloc: {e:#}");
+        }
+    }
+    log::info!("successfully persisted all collections.")
+}

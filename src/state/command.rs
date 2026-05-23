@@ -1,5 +1,6 @@
 pub(crate) mod base;
 pub(crate) mod bloc;
+pub(crate) mod persist;
 pub(crate) mod placement;
 pub(crate) mod trust;
 pub(crate) mod unit;
@@ -61,6 +62,8 @@ pub(crate) enum Command {
         military_expense: Option<u32>,
         response: Sender<core::result::Result<(), UserError>>,
     },
+    /// Persist the current in-memory state to the database. Sent periodically by a background task.
+    Persist,
 }
 
 /// The core of the state is this loop, where it accepts commands to be read or mutated.
@@ -80,17 +83,13 @@ pub(crate) async fn run(
             }
             Command::CreateUnit { base_id, position } => {
                 let unit = unit::create(base_id, position, config.payment_service());
-                match persistence.save_unit(&unit).await {
-                    Ok(()) => { units.insert(unit.id().to_owned(), Arc::new(RwLock::new(unit))); }
-                    Err(error) => log::error!("Error persisting unit: {error:#}"),
-                }
+                units.insert(unit.id().to_owned(), Arc::new(RwLock::new(unit)));
             }
             Command::CreateBase { placement_id, financing, response } => {
                 let result = async {
                     let base = base::create(placement_id, financing, config.payment_service(), config.placements())
                         .await
                         .map_err(|CommandError::NotFound(n)| UserError::NotFound(n))?;
-                    persistence.save_base(&base).await.map_err(|e| { log::error!("Error persisting base: {e:#}"); UserError::InternalError })?;
                     bases.insert(base.id(), Arc::new(RwLock::new(base)));
                     Ok(())
                 }.await;
@@ -106,7 +105,6 @@ pub(crate) async fn run(
                 let result = async {
                     let lock = bases.get(&id).ok_or(UserError::NotFound("Base"))?;
                     let patched = base::patch(lock.read().await.clone(), prioritized, target);
-                    persistence.save_base(&patched).await.map_err(|e| { log::error!("Error persisting base: {e:#}"); UserError::InternalError })?;
                     *lock.write().await = patched;
                     Ok(())
                 }.await;
@@ -117,7 +115,6 @@ pub(crate) async fn run(
                     let trust = trust::create(placement_id, financing, config.payment_service(), config.placements())
                         .await
                         .map_err(|CommandError::NotFound(n)| UserError::NotFound(n))?;
-                    persistence.save_trust(&trust).await.map_err(|e| { log::error!("Error persisting trust: {e:#}"); UserError::InternalError })?;
                     trusts.insert(trust.id(), Arc::new(RwLock::new(trust)));
                     Ok(())
                 }.await;
@@ -142,11 +139,13 @@ pub(crate) async fn run(
                 let result = async {
                     let lock = blocs.get(&id).ok_or(UserError::NotFound("Bloc"))?;
                     let patched = bloc::patch(&lock.read().await.clone(), chance, military_expense);
-                    persistence.save_bloc(&patched).await.map_err(|e| { log::error!("Error persisting bloc: {e:#}"); UserError::InternalError })?;
                     *lock.write().await = patched;
                     Ok(())
                 }.await;
                 let _ = response.send(result);
+            }
+            Command::Persist => {
+                persist::persist_all(persistence, &units, &bases, &trusts, &blocs).await;
             }
         }
     }

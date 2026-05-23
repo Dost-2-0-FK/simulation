@@ -5,7 +5,7 @@ use utoipa::OpenApi;
 use crate::{
     config::Config,
     persistence::MongoPersistence,
-    simulation::simulation,
+    simulation::{periodic_persist, simulation},
     state::{Command, State},
 };
 
@@ -22,6 +22,8 @@ pub(crate) async fn setup_state() -> Result<mpsc::Sender<Command>> {
         .await
         .context("loading simulation state from persistence".to_string())?;
 
+    let persist_interval = config.persistence().interval();
+
     let state = State::builder()
         .config(config)
         .persistence(persistence)
@@ -31,6 +33,7 @@ pub(crate) async fn setup_state() -> Result<mpsc::Sender<Command>> {
 
     tokio::spawn(state.run());
     tokio::spawn(simulation(tx.clone()));
+    tokio::spawn(periodic_persist(tx.clone(), persist_interval));
 
     Ok(tx)
 }

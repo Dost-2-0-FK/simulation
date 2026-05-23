@@ -136,8 +136,10 @@ impl MongoPersistence {
     }
 
     pub(crate) async fn save_unit(&self, unit: &MilitaryUnit) -> Result<()> {
+        let persisted = PersistedUnit::from_unit(unit);
         self.units
-            .insert_one(PersistedUnit::from_unit(unit))
+            .replace_one(doc! { "_id": persisted.id() }, persisted)
+            .upsert(true)
             .await
             .context("saving unit to MongoDB")?;
         Ok(())
