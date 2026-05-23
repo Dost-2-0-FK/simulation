@@ -60,11 +60,15 @@ struct ServerConfig {
     port: u16,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct PersistenceConfig {
     uri: String,
     database: String,
+    #[serde(rename = "interval_seconds")]
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    interval: Duration,
 }
 
 impl PersistenceConfig {
@@ -74,6 +78,10 @@ impl PersistenceConfig {
 
     pub(crate) fn database(&self) -> &str {
         &self.database
+    }
+
+    pub(crate) fn interval(&self) -> Duration {
+        self.interval
     }
 }
 
@@ -274,6 +282,11 @@ mod tests {
 
         [costs.trust]
         money = 1.2
+
+        [persistence]
+        uri = "mongodb://localhost:27017"
+        database = "simulation"
+        interval_seconds = 30
 
         [[bloc]]
         name = "bloc_1"
