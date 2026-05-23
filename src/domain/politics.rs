@@ -35,7 +35,7 @@ impl Chance {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Display, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Hash, Display, utoipa::ToSchema)]
 pub(crate) struct BlocName(String);
 
 impl From<String> for BlocName {

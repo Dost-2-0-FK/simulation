@@ -58,7 +58,7 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
 
     let blocs = blocs
         .iter()
-        .map(|bloc| BlocResponse::from(bloc.as_ref()))
+        .map(BlocResponse::from)
         .collect::<Vec<_>>();
 
     Ok(HttpResponse::Ok().json(blocs))
@@ -89,7 +89,7 @@ pub(crate) async fn get(path: web::Path<String>, tx: web::Data<mpsc::Sender<Comm
     let bloc = blocs
         .iter()
         .find(|bloc| bloc.name().to_string() == id)
-        .map(|bloc| BlocResponse::from(bloc.as_ref()))
+        .map(BlocResponse::from)
         .ok_or(UserError::NotFound("Bloc"))?;
 
     Ok(HttpResponse::Ok().json(bloc))
@@ -111,7 +111,7 @@ pub(crate) async fn patch(
 ) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::PatchBloc {
-        id: path.into_inner(),
+        id: BlocName::from(path.into_inner()),
         chance: body.chance.map(Chance::new),
         military_expense: body.military_expense,
         response: sender,
