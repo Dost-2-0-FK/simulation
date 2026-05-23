@@ -45,6 +45,7 @@ pub(crate) struct Config {
     port: TcpListener,
     payment_service: PaymentService,
     persistence: PersistenceConfig,
+    production_interval: Duration,
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,6 +94,9 @@ struct TimeConfig {
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     main_loop_tick: Duration,
     combat_loop_tick_factor: u8,
+    #[serde(rename = "production_interval_seconds")]
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    production_interval: Duration,
 }
 
 #[derive(Debug, Deserialize)]
@@ -151,6 +155,10 @@ impl Config {
 
     pub(crate) fn persistence(&self) -> &PersistenceConfig {
         &self.persistence
+    }
+
+    pub(crate) fn production_interval(&self) -> Duration {
+        self.production_interval
     }
 
     async fn parse_from_str(config: &str) -> Result<Self> {
@@ -241,6 +249,7 @@ impl Config {
                 .await
                 .map_err(Error::Io)?,
             persistence: config.persistence,
+            production_interval: config.time.production_interval,
             payment_service: PaymentService::new(
                 config.env.credit_exchange_url,
                 config.costs.unit,
@@ -271,6 +280,7 @@ mod tests {
         [time]
         main_loop_tick_seconds = 1.2
         combat_loop_tick_factor = 2
+        production_interval_seconds = 3600
 
         [costs]
         base = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }

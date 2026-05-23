@@ -12,7 +12,7 @@ pub(crate) use self::{
     resources::{ResourceValue, Resources, VecResourceName},
 };
 use crate::{
-    domain::{MilitaryBase, MilitaryUnit, Trust},
+    domain::{BlocName, MilitaryBase, MilitaryUnit, Trust},
     handlers::bases::Financing,
 };
 
@@ -89,6 +89,14 @@ impl PaymentService {
     pub(crate) fn pay_for_military_unit(&self) -> Payment<'_, MilitaryUnit, SinglePayer> {
         self.log_payment(&self.military_unit);
         Payment::<_, SinglePayer>::new(&self.military_unit)
+    }
+
+    /// Returns the hourly income for the given bloc.
+    ///
+    /// # TODO
+    /// Make an HTTP request to `CREDIT-EXCHANGE-SERVICE/api/credits/hourly?id=<bloc_id>`.
+    pub(crate) async fn hourly_income(&self, _bloc_name: &BlocName) -> f64 {
+        0.0
     }
 
     pub(crate) async fn pay_for_military_base(

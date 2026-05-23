@@ -15,8 +15,14 @@ pub(super) struct PersistedBase {
     id: String,
     placement_id: PlacementId,
     financiers: Vec<Financing>,
+    #[serde(default = "default_enabled")]
+    enabled: bool,
     prioritized: bool,
     target: Target,
+}
+
+fn default_enabled() -> bool {
+    true
 }
 
 impl PersistedBase {
@@ -25,6 +31,7 @@ impl PersistedBase {
             id: base.id().0.to_string(),
             placement_id: base.placement_id().clone(),
             financiers: base.financiers().to_vec(),
+            enabled: base.enabled(),
             prioritized: base.prioritized(),
             target: base.target(),
         }
@@ -42,6 +49,7 @@ impl PersistedBase {
             id,
             placement,
             self.financiers,
+            self.enabled,
             self.prioritized,
             self.target,
         ))

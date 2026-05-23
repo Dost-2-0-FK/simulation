@@ -34,10 +34,11 @@ pub(crate) struct MilitaryBase {
     #[serde(skip)]
     placement: Arc<Placement>,
     financiers: Vec<Financing>,
-    prioritized: bool,
-    target: Target,
-    /// How much credit has been produced since the last full hour?
-    production_count: Money,
+enabled: bool,
+prioritized: bool,
+target: Target,
+/// How much credit has been produced since the last full hour?
+production_count: Money,
 }
 
 crate::impl_positioned_as_ref!(MilitaryBase => placement);
@@ -52,6 +53,7 @@ impl MilitaryBase {
             id: BaseId(id),
             financiers: payment.consume(),
             placement,
+            enabled: true,
             prioritized: false,
             target: Target::Trust,
             production_count: Default::default(),
@@ -62,6 +64,7 @@ impl MilitaryBase {
         id: BaseId,
         placement: Arc<Placement>,
         financiers: Vec<Financing>,
+        enabled: bool,
         prioritized: bool,
         target: Target,
     ) -> Self {
@@ -72,6 +75,7 @@ impl MilitaryBase {
             id,
             placement,
             financiers,
+            enabled,
             prioritized,
             target,
             production_count: Default::default(),
@@ -92,6 +96,10 @@ impl MilitaryBase {
 
     pub(crate) fn financiers(&self) -> &[Financing] {
         &self.financiers
+    }
+
+    pub(crate) fn enabled(&self) -> bool {
+        self.enabled
     }
 
     pub(crate) fn prioritized(&self) -> bool {

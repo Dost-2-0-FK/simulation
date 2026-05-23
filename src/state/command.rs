@@ -64,6 +64,8 @@ pub(crate) enum Command {
     },
     /// Persist the current in-memory state to the database. Sent periodically by a background task.
     Persist,
+    /// Run one hourly military unit production cycle for all blocs. Sent periodically by a background task.
+    ProduceMilitaryUnits,
 }
 
 /// The core of the state is this loop, where it accepts commands to be read or mutated.
@@ -151,6 +153,9 @@ pub(crate) async fn run(
             }
             Command::Persist => {
                 persist::persist_all(persistence, &units, &bases, &trusts, &blocs).await;
+            }
+            Command::ProduceMilitaryUnits => {
+                unit::produce_units(&blocs, &bases, &mut units, config.payment_service()).await;
             }
         }
     }
