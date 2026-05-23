@@ -31,15 +31,16 @@ To see all available endpoints, navigate to http://127.0.0.1:8080/swagger-ui/.
 
 ## Persistence<a name="persistence"></a>
 
-Runtime state is loaded from MongoDB on startup. Mutating commands update the in-memory simulation state only after the
-corresponding MongoDB write succeeds, while read endpoints are served from memory.
+Runtime state is loaded from MongoDB on startup. All read endpoints are served from in-memory state. Mutations update
+only the in-memory state immediately; the full state is flushed to MongoDB periodically by a background task.
 
-Configure MongoDB in `simulation.toml`:
+Configure MongoDB and the persistence interval in `simulation.toml`:
 
 ```toml
 [persistence]
 uri = "mongodb://localhost:27017"
 database = "simulation"
+interval_seconds = 30
 ```
 
 ## Specification<a name="specification"></a>
@@ -134,7 +135,7 @@ trusts are returned or only a subset (only associated by block/zone financed by 
   financier)
 - `GET /api/bases/{id}`
 - `POST /api/bases` (payload:
-  `{placementId: <placement id>,  payment: {financierId: <financier_id (str)>, percentage: <value (int)>}`)
+  `{placementId: <placement id>, payment: [{financierId: <financier_id (str)>, share: <value (float, 0-1)>}]}`)
 - `PATCH /api/bases/{id}` (payload: `{(optional) prioritized: <true|false>, (optional) target: <trust|base|unit>}`)
 - `GET /api/blocs`
 - `GET /api/blocs/{id}` -> response should contain chance and military expense
@@ -145,6 +146,6 @@ trusts are returned or only a subset (only associated by block/zone financed by 
   financier)
 - `GET /api/trusts/{id}`
 - `POST /api/trusts` (payload:
-  `{placementId: <placement id>,  payment: {financierId: <financier_id (str)>, percentage: <value (int)>}`)
+  `{placementId: <placement id>, payment: [{financierId: <financier_id (str)>, share: <value (float, 0-1)>}]}`)
 - `GET /api/units` (returns units and associated Bloc and Base)
 - `GET /api/zones`
