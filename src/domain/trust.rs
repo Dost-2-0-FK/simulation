@@ -14,7 +14,7 @@ use crate::{
 
 static TRUST_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema, PartialEq, Eq, Hash)]
 pub(crate) struct TrustId(pub(crate) u64);
 
 /// A [Trust] is built on a placement, and associated with a [Zone]. The association is given
