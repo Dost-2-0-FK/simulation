@@ -1,0 +1,153 @@
+pub(crate) mod base;
+pub(crate) mod bloc;
+pub(crate) mod placement;
+pub(crate) mod trust;
+pub(crate) mod unit;
+pub(crate) mod zone;
+
+#[derive(Debug)]
+pub(crate) enum CommandError {
+    NotFound(&'static str),
+}
+
+use std::{collections::HashMap, sync::Arc};
+
+use tokio::sync::{RwLock, mpsc::Receiver, oneshot::Sender};
+
+use crate::{
+    config::Config,
+    domain::{BaseId, Bloc, BlocName, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust, TrustId, UnitId, Zone},
+    error::UserError,
+    geometry::Point,
+    handlers::{bases::Financing, units::UnitResponse},
+    persistence::MongoPersistence,
+};
+
+/// Used to query or mutate the state of the [state_loop].
+#[derive(Debug)]
+pub(crate) enum Command {
+    #[expect(dead_code)]
+    CreateUnit {
+        base_id: BaseId,
+        position: Point,
+    },
+    GetUnits(Sender<Vec<UnitResponse>>),
+    CreateBase {
+        placement_id: PlacementId,
+        financing: Vec<Financing>,
+        response: Sender<core::result::Result<(), UserError>>,
+    },
+    GetBases(Sender<Vec<MilitaryBase>>),
+    GetBase(BaseId, Sender<Option<MilitaryBase>>),
+    PatchBase {
+        id: BaseId,
+        prioritized: Option<bool>,
+        target: Option<Target>,
+        response: Sender<core::result::Result<(), UserError>>,
+    },
+    CreateTrust {
+        placement_id: PlacementId,
+        financing: Vec<Financing>,
+        response: Sender<core::result::Result<(), UserError>>,
+    },
+    GetTrusts(Sender<Vec<Trust>>),
+    GetTrust(TrustId, Sender<Option<Trust>>),
+    GetPlacements(Sender<Vec<Arc<Placement>>>),
+    GetZones(Sender<Vec<Arc<Zone>>>),
+    GetBlocs(Sender<Vec<Bloc>>),
+    PatchBloc {
+        id: BlocName,
+        chance: Option<Chance>,
+        military_expense: Option<u32>,
+        response: Sender<core::result::Result<(), UserError>>,
+    },
+}
+
+/// The core of the state is this loop, where it accepts commands to be read or mutated.
+pub(crate) async fn run(
+    mut receiver: Receiver<Command>,
+    config: &Config,
+    persistence: &MongoPersistence,
+    mut units: HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
+    mut bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
+    mut trusts: HashMap<TrustId, Arc<RwLock<Trust>>>,
+    blocs: HashMap<BlocName, Arc<RwLock<Bloc>>>,
+) {
+    while let Some(cmd) = receiver.recv().await {
+        match cmd {
+            Command::GetUnits(resp) => {
+                unit::get(resp, &units, &bases).await;
+            }
+            Command::CreateUnit { base_id, position } => {
+                let unit = unit::create(base_id, position, config.payment_service());
+                match persistence.save_unit(&unit).await {
+                    Ok(()) => { units.insert(unit.id().to_owned(), Arc::new(RwLock::new(unit))); }
+                    Err(error) => log::error!("Error persisting unit: {error:#}"),
+                }
+            }
+            Command::CreateBase { placement_id, financing, response } => {
+                let result = async {
+                    let base = base::create(placement_id, financing, config.payment_service(), config.placements())
+                        .await
+                        .map_err(|CommandError::NotFound(n)| UserError::NotFound(n))?;
+                    persistence.save_base(&base).await.map_err(|e| { log::error!("Error persisting base: {e:#}"); UserError::InternalError })?;
+                    bases.insert(base.id(), Arc::new(RwLock::new(base)));
+                    Ok(())
+                }.await;
+                let _ = response.send(result);
+            }
+            Command::GetBases(resp) => {
+                base::get_all(resp, &bases).await;
+            }
+            Command::GetBase(id, resp) => {
+                base::get(id, resp, &bases).await;
+            }
+            Command::PatchBase { id, prioritized, target, response } => {
+                let result = async {
+                    let lock = bases.get(&id).ok_or(UserError::NotFound("Base"))?;
+                    let patched = base::patch(lock.read().await.clone(), prioritized, target);
+                    persistence.save_base(&patched).await.map_err(|e| { log::error!("Error persisting base: {e:#}"); UserError::InternalError })?;
+                    *lock.write().await = patched;
+                    Ok(())
+                }.await;
+                let _ = response.send(result);
+            }
+            Command::CreateTrust { placement_id, financing, response } => {
+                let result = async {
+                    let trust = trust::create(placement_id, financing, config.payment_service(), config.placements())
+                        .await
+                        .map_err(|CommandError::NotFound(n)| UserError::NotFound(n))?;
+                    persistence.save_trust(&trust).await.map_err(|e| { log::error!("Error persisting trust: {e:#}"); UserError::InternalError })?;
+                    trusts.insert(trust.id(), Arc::new(RwLock::new(trust)));
+                    Ok(())
+                }.await;
+                let _ = response.send(result);
+            }
+            Command::GetTrusts(resp) => {
+                trust::get_all(resp, &trusts).await;
+            }
+            Command::GetTrust(id, resp) => {
+                trust::get(id, resp, &trusts).await;
+            }
+            Command::GetPlacements(resp) => {
+                placement::get(resp, config.placements());
+            }
+            Command::GetZones(resp) => {
+                zone::get(resp, config.zones());
+            }
+            Command::GetBlocs(resp) => {
+                bloc::get_all(resp, &blocs).await;
+            }
+            Command::PatchBloc { id, chance, military_expense, response } => {
+                let result = async {
+                    let lock = blocs.get(&id).ok_or(UserError::NotFound("Bloc"))?;
+                    let patched = bloc::patch(&lock.read().await.clone(), chance, military_expense);
+                    persistence.save_bloc(&patched).await.map_err(|e| { log::error!("Error persisting bloc: {e:#}"); UserError::InternalError })?;
+                    *lock.write().await = patched;
+                    Ok(())
+                }.await;
+                let _ = response.send(result);
+            }
+        }
+    }
+}

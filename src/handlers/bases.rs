@@ -224,11 +224,3 @@ pub(crate) async fn patch(
 
     result.map(|()| HttpResponse::Ok())
 }
-
-pub(crate) fn base_by_id(bases: &[MilitaryBase], id: BaseId) -> Option<&MilitaryBase> {
-    bases.iter().find(|base| base.id().0 == id.0)
-}
-
-pub(crate) fn base_response_by_id(bases: &[MilitaryBase], id: BaseId) -> Option<BaseResponse> {
-    base_by_id(bases, id).map(BaseResponse::from)
-}
