@@ -17,9 +17,11 @@ use tokio::sync::{RwLock, mpsc::Receiver, oneshot::Sender};
 
 use crate::{
     config::Config,
-    domain::{BaseId, Bloc, BlocName, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust, TrustId, UnitId, Zone},
+    domain::{
+        BaseId, Bloc, BlocName, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust, TrustId,
+        UnitId, Zone,
+    },
     error::UserError,
-    geometry::Point,
     handlers::{bases::Financing, units::UnitResponse},
     persistence::MongoPersistence,
 };
@@ -27,11 +29,6 @@ use crate::{
 /// Used to query or mutate the state of the [state_loop].
 #[derive(Debug)]
 pub(crate) enum Command {
-    #[expect(dead_code)]
-    CreateUnit {
-        base_id: BaseId,
-        position: Point,
-    },
     GetUnits(Sender<Vec<UnitResponse>>),
     CreateBase {
         placement_id: PlacementId,
@@ -84,23 +81,19 @@ pub(crate) async fn run(
             Command::GetUnits(resp) => {
                 unit::get(resp, &units).await;
             }
-            Command::CreateUnit { base_id, position } => {
-                match bases.get(&base_id) {
-                    Some(base) => {
-                        let unit = unit::create(base.clone(), position, config.payment_service());
-                        units.insert(unit.id().to_owned(), Arc::new(RwLock::new(unit)));
-                    }
-                    None => log::error!("CreateUnit: base {base_id:?} not found"),
-                }
-            }
-            Command::CreateBase { placement_id, financing, response } => {
+            Command::CreateBase {
+                placement_id,
+                financing,
+                response,
+            } => {
                 let result = async {
                     let base = base::create(placement_id, financing, config.payment_service(), config.placements())
                         .await
                         .map_err(|CommandError::NotFound(n)| UserError::NotFound(n))?;
                     bases.insert(base.id(), Arc::new(RwLock::new(base)));
                     Ok(())
-                }.await;
+                }
+                .await;
                 let _ = response.send(result);
             }
             Command::GetBases(resp) => {
@@ -109,23 +102,35 @@ pub(crate) async fn run(
             Command::GetBase(id, resp) => {
                 base::get(id, resp, &bases).await;
             }
-            Command::PatchBase { id, enabled, prioritized, target, response } => {
+            Command::PatchBase {
+                id,
+                enabled,
+                prioritized,
+                target,
+                response,
+            } => {
                 let result = async {
                     let lock = bases.get(&id).ok_or(UserError::NotFound("Base"))?;
                     let patched = base::patch(lock.read().await.clone(), enabled, prioritized, target);
                     *lock.write().await = patched;
                     Ok(())
-                }.await;
+                }
+                .await;
                 let _ = response.send(result);
             }
-            Command::CreateTrust { placement_id, financing, response } => {
+            Command::CreateTrust {
+                placement_id,
+                financing,
+                response,
+            } => {
                 let result = async {
                     let trust = trust::create(placement_id, financing, config.payment_service(), config.placements())
                         .await
                         .map_err(|CommandError::NotFound(n)| UserError::NotFound(n))?;
                     trusts.insert(trust.id(), Arc::new(RwLock::new(trust)));
                     Ok(())
-                }.await;
+                }
+                .await;
                 let _ = response.send(result);
             }
             Command::GetTrusts(resp) => {
@@ -143,13 +148,19 @@ pub(crate) async fn run(
             Command::GetBlocs(resp) => {
                 bloc::get_all(resp, &blocs).await;
             }
-            Command::PatchBloc { id, chance, military_expense, response } => {
+            Command::PatchBloc {
+                id,
+                chance,
+                military_expense,
+                response,
+            } => {
                 let result = async {
                     let lock = blocs.get(&id).ok_or(UserError::NotFound("Bloc"))?;
                     let patched = bloc::patch(&lock.read().await.clone(), chance, military_expense);
                     *lock.write().await = patched;
                     Ok(())
-                }.await;
+                }
+                .await;
                 let _ = response.send(result);
             }
             Command::Persist => {
