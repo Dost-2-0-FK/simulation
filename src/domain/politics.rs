@@ -38,19 +38,25 @@ impl Chance {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Display, utoipa::ToSchema)]
 pub(crate) struct BlocName(String);
 
-#[derive(Debug)]
+impl From<String> for BlocName {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct Bloc {
     name: BlocName,
-    chance: std::sync::RwLock<Chance>,
-    military_expense: std::sync::RwLock<u32>,
+    chance: Chance,
+    military_expense: u32,
 }
 
 impl Bloc {
     pub(crate) fn new(name: BlocName, chance: Chance, military_expense: u32) -> Self {
         Self {
             name,
-            chance: std::sync::RwLock::new(chance),
-            military_expense: std::sync::RwLock::new(military_expense),
+            chance,
+            military_expense,
         }
     }
 
@@ -59,24 +65,20 @@ impl Bloc {
     }
 
     pub(crate) fn chance(&self) -> Chance {
-        *self.chance.read().expect("chance lock must not be poisoned")
+        self.chance
     }
 
     pub(crate) fn military_expense(&self) -> u32 {
-        *self
-            .military_expense
-            .read()
-            .expect("military expense lock must not be poisoned")
+        self.military_expense
     }
 
-    pub(crate) fn set_chance(&self, chance: Chance) {
-        *self.chance.write().expect("chance lock must not be poisoned") = chance;
+    #[expect(dead_code)]
+    pub(crate) fn set_chance(&mut self, chance: Chance) {
+        self.chance = chance;
     }
 
-    pub(crate) fn set_military_expense(&self, military_expense: u32) {
-        *self
-            .military_expense
-            .write()
-            .expect("military expense lock must not be poisoned") = military_expense;
+    #[expect(dead_code)]
+    pub(crate) fn set_military_expense(&mut self, military_expense: u32) {
+        self.military_expense = military_expense;
     }
 }
