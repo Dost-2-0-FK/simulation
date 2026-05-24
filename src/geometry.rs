@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::ops::{Add, Mul, Sub};
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema)]
 pub(crate) struct Point {
@@ -7,9 +8,29 @@ pub(crate) struct Point {
 }
 
 impl Point {
-    #[expect(dead_code)]
     pub(crate) fn new(x: f64, y: f64) -> Self {
         Self { x, y }
+    }
+}
+
+impl Add for Point {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        Self::new(self.x + rhs.x, self.y + rhs.y)
+    }
+}
+
+impl Sub for Point {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self::new(self.x - rhs.x, self.y - rhs.y)
+    }
+}
+
+impl Mul<f64> for Point {
+    type Output = Self;
+    fn mul(self, scale: f64) -> Self {
+        Self::new(self.x * scale, self.y * scale)
     }
 }
 
@@ -19,22 +40,28 @@ impl Positioned for Point {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, PartialOrd)]
 pub(crate) struct Distance(f64);
 
-#[expect(dead_code)]
+impl std::ops::Div for Distance {
+    type Output = f64;
+    fn div(self, rhs: Self) -> f64 {
+        self.0 / rhs.0
+    }
+}
+
 pub(crate) trait Positioned {
     fn position(&self) -> Point;
 
-    fn distance_to(&self, other: &impl Positioned) -> Distance {
-        let other_position = other.position();
-        let self_position = self.position();
-
-        let distance_x = self_position.x - other_position.x;
-        let distance_y = self_position.y - other_position.y;
-        let distance = (distance_x.powi(2) + distance_y.powi(2)).sqrt();
-
-        Distance(distance)
+    fn distance_to(&self, other: &impl Positioned) -> Distance
+    where
+        Self: Sized,
+    {
+        let a = self.position();
+        let b = other.position();
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        Distance((dx * dx + dy * dy).sqrt())
     }
 }
 

@@ -65,6 +65,8 @@ pub(crate) enum Command {
     Persist,
     /// Run one hourly military unit production cycle for all blocs. Sent periodically by a background task.
     ProduceMilitaryUnits,
+    /// Move all military units one step toward their closest enemy target. Sent periodically by a background task.
+    MoveMilitaryUnits,
 }
 
 /// The core of the state is this loop, where it accepts commands to be read or mutated.
@@ -169,6 +171,9 @@ pub(crate) async fn run(
             }
             Command::ProduceMilitaryUnits => {
                 unit::produce_units(&blocs, &bases, &mut units, config.payment_service()).await;
+            }
+            Command::MoveMilitaryUnits => {
+                unit::move_units(&mut units, &bases, &trusts, config.movement_step()).await;
             }
         }
     }

@@ -6,7 +6,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
     domain::MilitaryBase,
-    geometry::{Point, Positioned},
+    geometry::{Distance, Point, Positioned},
     services::payment_service::{Payment, SinglePayer},
 };
 
@@ -55,5 +55,23 @@ impl MilitaryUnit {
     /// Acquires a read lock on the unit's base and returns the guard.
     pub(crate) async fn base(&self) -> RwLockReadGuard<'_, MilitaryBase> {
         self.base.read().await
+    }
+
+    #[expect(dead_code)]
+    pub(crate) fn set_position(&mut self, position: Point) {
+        self.position = position;
+    }
+
+    /// Moves the unit `step` distance toward `target`, snapping to it if closer.
+    pub(crate) fn move_toward(&mut self, target: Point, step: Distance) {
+        let from = self.position;
+        let diff = target - from;
+        let dist = from.distance_to(&target);
+        self.position = if dist <= step {
+            target
+        } else {
+            let scale = step / dist;
+            from + diff * scale
+        };
     }
 }

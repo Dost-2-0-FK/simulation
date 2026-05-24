@@ -9,7 +9,7 @@ use tokio::{fs, net::TcpListener};
 use self::error::{Error, Result};
 use crate::{
     domain::{Bloc, BlocName, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone, ZoneName},
-    geometry::Point,
+    geometry::{Distance, Point},
     services::payment_service::Share,
     services::payment_service::{Cost, PaymentService, VecResourceName},
 };
@@ -47,6 +47,8 @@ pub(crate) struct Config {
     payment_service: PaymentService,
     persistence: PersistenceConfig,
     production_interval: Duration,
+    movement_interval: Duration,
+    movement_step: Distance,
 }
 
 #[derive(Debug, Deserialize)]
@@ -98,6 +100,10 @@ struct TimeConfig {
     #[serde(rename = "production_interval_seconds")]
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     production_interval: Duration,
+    #[serde(rename = "movement_interval_seconds")]
+    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
+    movement_interval: Duration,
+    movement_step: Distance,
 }
 
 #[derive(Debug, Deserialize)]
@@ -160,6 +166,14 @@ impl Config {
 
     pub(crate) fn production_interval(&self) -> Duration {
         self.production_interval
+    }
+
+    pub(crate) fn movement_interval(&self) -> Duration {
+        self.movement_interval
+    }
+
+    pub(crate) fn movement_step(&self) -> Distance {
+        self.movement_step
     }
 
     async fn parse_from_str(config: &str) -> Result<Self> {
@@ -251,6 +265,8 @@ impl Config {
                 .map_err(Error::Io)?,
             persistence: config.persistence,
             production_interval: config.time.production_interval,
+            movement_interval: config.time.movement_interval,
+            movement_step: config.time.movement_step,
             payment_service: PaymentService::new(
                 config.env.credit_exchange_url,
                 config.costs.unit,
@@ -282,6 +298,8 @@ mod tests {
         main_loop_tick_seconds = 1.2
         combat_loop_tick_factor = 2
         production_interval_seconds = 3600
+        movement_interval_seconds = 60
+        movement_step = 1.0
 
         [costs]
         base = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }

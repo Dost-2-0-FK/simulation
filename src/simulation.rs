@@ -42,3 +42,18 @@ pub(crate) async fn periodic_produce(tx: mpsc::Sender<Command>, interval: Durati
         }
     }
 }
+
+/// Periodically send [Command::MoveMilitaryUnits] to move all units one step toward their closest enemy.
+///
+/// The task exits when the command channel is closed, which means the state loop has ended.
+pub(crate) async fn periodic_move(tx: mpsc::Sender<Command>, interval: Duration) {
+    let mut ticker = tokio::time::interval(interval);
+    ticker.tick().await; // skip the immediate first tick
+    loop {
+        ticker.tick().await;
+        if tx.send(Command::MoveMilitaryUnits).await.is_err() {
+            log::warn!("Periodic movement task stopping: state loop channel closed.");
+            break;
+        }
+    }
+}
