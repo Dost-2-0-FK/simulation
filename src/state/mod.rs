@@ -54,11 +54,7 @@ impl State {
             .into_iter()
             .map(|unit| (unit.id().clone(), Arc::new(RwLock::new(unit))))
             .collect::<HashMap<_, _>>();
-        // bases is already HashMap<BaseId, Arc<RwLock<MilitaryBase>>> from LoadedState
-        let trusts = trusts
-            .into_iter()
-            .map(|trust| (trust.id(), Arc::new(RwLock::new(trust))))
-            .collect::<HashMap<_, _>>();
+        // bases and trusts are already HashMaps from LoadedState
 
         command::run(
             self.receiver,

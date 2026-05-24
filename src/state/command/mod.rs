@@ -22,7 +22,8 @@ use crate::{
         UnitId, Zone,
     },
     error::UserError,
-    handlers::{bases::Financing, units::UnitResponse},
+    handlers::bases::{Financing, TargetBody},
+    handlers::units::UnitResponse,
     persistence::MongoPersistence,
     services::payment_service::Share,
 };
@@ -42,7 +43,7 @@ pub(crate) enum Command {
         id: BaseId,
         enabled: Option<bool>,
         prioritized: Option<bool>,
-        target: Option<Target>,
+        target: Option<TargetBody>,
         response: Sender<core::result::Result<(), UserError>>,
     },
     CreateTrust {
@@ -113,8 +114,26 @@ pub(crate) async fn run(
                 response,
             } => {
                 let result = async {
+                    let resolved_target = match target {
+                        None => None,
+                        Some(TargetBody::None) => Some(Target::None),
+                        Some(TargetBody::Base { id: base_id }) => {
+                            let arc = bases.get(&base_id).ok_or(UserError::NotFound("Base"))?;
+                            Some(Target::Base {
+                                id: base_id,
+                                arc: arc.clone(),
+                            })
+                        }
+                        Some(TargetBody::Trust { id: trust_id }) => {
+                            let arc = trusts.get(&trust_id).ok_or(UserError::NotFound("Trust"))?;
+                            Some(Target::Trust {
+                                id: trust_id,
+                                arc: arc.clone(),
+                            })
+                        }
+                    };
                     let lock = bases.get(&id).ok_or(UserError::NotFound("Base"))?;
-                    let patched = base::patch(lock.read().await.clone(), enabled, prioritized, target);
+                    let patched = base::patch(lock.read().await.clone(), enabled, prioritized, resolved_target);
                     *lock.write().await = patched;
                     Ok(())
                 }
@@ -173,7 +192,7 @@ pub(crate) async fn run(
                 unit::produce_units(&blocs, &bases, &mut units, config.payment_service()).await;
             }
             Command::MoveMilitaryUnits => {
-                unit::move_units(&mut units, &bases, &trusts, config.movement_step()).await;
+                unit::move_units(&mut units, config.movement_step()).await;
             }
         }
     }

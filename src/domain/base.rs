@@ -4,9 +4,10 @@ use std::sync::{
 };
 
 use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 
 use crate::{
-    domain::{Placement, PlacementId},
+    domain::{Placement, PlacementId, Trust, TrustId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
     services::payment_service::{Financiers, Money, Payment},
@@ -18,12 +19,24 @@ static BASE_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
 // TODO make this inner field private (just for now it's not to enable a shortcut to create a unit)
 pub(crate) struct BaseId(pub(crate) u64);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema)]
-#[serde(rename_all = "lowercase")]
+/// Which entity a base's units will move toward as their secondary target. The variants store the
+/// designated target alongside a cached copy of its ID so callers can read the ID without
+/// acquiring a lock.
+///
+/// Regardless of the variant, enemy units that are closer than the secondary target are always
+/// prioritised. `None` means units only ever chase the nearest enemy unit.
+#[derive(Debug, Clone, Default)]
 pub(crate) enum Target {
-    Trust,
-    Base,
-    Unit,
+    #[default]
+    None,
+    Base {
+        id: BaseId,
+        arc: Arc<RwLock<MilitaryBase>>,
+    },
+    Trust {
+        id: TrustId,
+        arc: Arc<RwLock<Trust>>,
+    },
 }
 
 /// A [MilitaryBase] is built on a placement, and associated with a [Zone] and a [Bloc]. The associations are given
@@ -36,6 +49,7 @@ pub(crate) struct MilitaryBase {
     financiers: Vec<Financing>,
     enabled: bool,
     prioritized: bool,
+    #[serde(skip)]
     target: Target,
     /// How much credit has been produced since the last full hour?
     production_count: Money,
@@ -55,7 +69,7 @@ impl MilitaryBase {
             placement,
             enabled: true,
             prioritized: false,
-            target: Target::Trust,
+            target: Target::None,
             production_count: Default::default(),
         }
     }
@@ -66,7 +80,6 @@ impl MilitaryBase {
         financiers: Vec<Financing>,
         enabled: bool,
         prioritized: bool,
-        target: Target,
     ) -> Self {
         assert_ne!(id.0, u64::MAX, "ID counter has overflowed and is no longer unique");
         BASE_INSTANCE_COUNT.fetch_max(id.0 + 1, SeqCst);
@@ -77,7 +90,7 @@ impl MilitaryBase {
             financiers,
             enabled,
             prioritized,
-            target,
+            target: Target::None,
             production_count: Default::default(),
         }
     }
@@ -106,8 +119,8 @@ impl MilitaryBase {
         self.prioritized
     }
 
-    pub(crate) fn target(&self) -> Target {
-        self.target
+    pub(crate) fn target(&self) -> &Target {
+        &self.target
     }
 
     pub(crate) fn set_enabled(&mut self, enabled: bool) {

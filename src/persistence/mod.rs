@@ -30,7 +30,7 @@ pub(crate) struct MongoPersistence {
 
 pub(crate) struct LoadedState {
     pub(crate) bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
-    pub(crate) trusts: Vec<Trust>,
+    pub(crate) trusts: HashMap<TrustId, Arc<RwLock<Trust>>>,
     pub(crate) units: Vec<MilitaryUnit>,
     pub(crate) blocs: Vec<Bloc>,
 }
@@ -62,22 +62,25 @@ impl MongoPersistence {
     }
 
     pub(crate) async fn load(&self, placements: impl Iterator<Item = Arc<Placement>> + Clone) -> Result<LoadedState> {
-        let bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>> = self
+        // Phase 1: load raw persisted bases and create MilitaryBase instances with Target::None.
+        let raw_bases: Vec<PersistedBase> = self
             .bases
             .find(doc! {})
             .await
             .context("loading bases from MongoDB")?
-            .map_ok(|base| base.into_base(placements.clone()))
-            .try_collect::<Vec<_>>()
+            .try_collect()
             .await
-            .context("reading persisted bases")?
-            .into_iter()
+            .context("reading persisted bases")?;
+
+        let bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>> = raw_bases
+            .iter()
+            .map(|pb| pb.into_base(placements.clone()))
             .collect::<Result<Vec<_>>>()?
             .into_iter()
             .map(|base| (base.id(), Arc::new(RwLock::new(base))))
             .collect();
 
-        let trusts = self
+        let trusts: HashMap<TrustId, Arc<RwLock<Trust>>> = self
             .trusts
             .find(doc! {})
             .await
@@ -87,7 +90,23 @@ impl MongoPersistence {
             .await
             .context("reading persisted trusts")?
             .into_iter()
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .map(|trust| (trust.id(), Arc::new(RwLock::new(trust))))
+            .collect();
+
+        // Phase 2: resolve base targets now that all bases and trusts are available.
+        for pb in &raw_bases {
+            if let Some(target) = pb
+                .resolve_target(&bases, &trusts)
+                .with_context(|| format!("resolving target for base {}", pb.id()))?
+            {
+                let base_id = pb.id().parse::<u64>().map(BaseId).context("parsing base id")?;
+                if let Some(arc) = bases.get(&base_id) {
+                    arc.write().await.set_target(target);
+                }
+            }
+        }
 
         let units = self
             .units

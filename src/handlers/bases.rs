@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
-    domain::{BaseId, BlocName, MilitaryBase, PlacementId, Target, ZoneName},
+    domain::{BaseId, BlocName, MilitaryBase, PlacementId, Target, TrustId, ZoneName},
     error::{Result, UserError},
     geometry::{Point, Positioned},
     services::payment_service::Share,
@@ -20,6 +20,34 @@ pub(crate) struct Financing {
     #[serde(rename = "financierId")]
     pub(crate) financier: UserId,
     pub(crate) share: Share,
+}
+
+/// Serialized representation of a [Target] in HTTP responses. Carries only the entity ID.
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub(crate) enum TargetResponse {
+    None,
+    Base { id: BaseId },
+    Trust { id: TrustId },
+}
+
+impl From<&Target> for TargetResponse {
+    fn from(t: &Target) -> Self {
+        match t {
+            Target::None => Self::None,
+            Target::Base { id, .. } => Self::Base { id: *id },
+            Target::Trust { id, .. } => Self::Trust { id: *id },
+        }
+    }
+}
+
+/// Deserialized representation of a [Target] in PATCH request bodies. Carries only the entity ID.
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub(crate) enum TargetBody {
+    None,
+    Base { id: BaseId },
+    Trust { id: TrustId },
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -39,7 +67,7 @@ pub(crate) struct BaseResponse {
     pub(crate) payment: Vec<Financing>,
     pub(crate) enabled: bool,
     pub(crate) prioritized: bool,
-    pub(crate) target: Target,
+    pub(crate) target: TargetResponse,
     pub(crate) position: Point,
 }
 
@@ -55,7 +83,7 @@ impl From<&MilitaryBase> for BaseResponse {
             payment: base.financiers().to_vec(),
             enabled: base.enabled(),
             prioritized: base.prioritized(),
-            target: base.target(),
+            target: base.target().into(),
             position: base.position(),
         }
     }
@@ -66,7 +94,7 @@ impl From<&MilitaryBase> for BaseResponse {
 struct PatchBaseBody {
     enabled: Option<bool>,
     prioritized: Option<bool>,
-    target: Option<Target>,
+    target: Option<TargetBody>,
 }
 
 /// Create a base on a placement.
@@ -181,6 +209,7 @@ pub(crate) async fn patch(
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
+    let body = body.into_inner();
     tx.send(Command::PatchBase {
         id: BaseId(path.into_inner()),
         enabled: body.enabled,

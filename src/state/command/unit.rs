@@ -4,7 +4,7 @@ use futures_util::{StreamExt, stream};
 use tokio::sync::{RwLock, oneshot::Sender};
 
 use crate::{
-    domain::{BaseId, Bloc, BlocName, MilitaryBase, MilitaryUnit, Target, Trust, TrustId, UnitId},
+    domain::{BaseId, Bloc, BlocName, MilitaryBase, MilitaryUnit, Target, UnitId},
     geometry::{Distance, Point, Positioned},
     handlers::units::UnitResponse,
     services::payment_service::PaymentService,
@@ -104,79 +104,77 @@ pub(crate) async fn produce_units(
     }
 }
 
-/// Moves `unit` one `step` toward the closest target in `targets`. Does nothing if `targets` is empty.
-pub(crate) fn move_toward_closest(unit: &mut MilitaryUnit, targets: &[&dyn Positioned], step: Distance) {
-    let Some(closest) = targets.iter().min_by(|a, b| {
-        let da = unit.distance_to(&a.position());
-        let db = unit.distance_to(&b.position());
-        da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
-    }) else {
-        return;
-    };
-    unit.move_toward(closest.position(), step);
-}
-
-/// Runs one movement tick: each unit moves one `step` toward the closest enemy target.
+/// Moves `unit` one `step` toward the designated `target_point`, unless there is an enemy unit
+/// closer than the target — in that case the closest such enemy unit is prioritised.
 ///
-/// The target type (trust, base, or unit) is determined by the `Target` set on each unit's home base.
-/// Enemy entities are those belonging to a different bloc than the unit's own bloc.
-/// Pre-collects all positions before mutating units to avoid borrow conflicts.
-pub(crate) async fn move_units(
-    units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
-    bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
-    trusts: &HashMap<TrustId, Arc<RwLock<Trust>>>,
+/// If `target_point` is `None` (i.e. the base's [Target] is [Target::None]), the unit moves
+/// toward the closest enemy unit regardless of distance. Does nothing when there are no enemies
+/// and no target.
+fn move_toward_target_or_unit(
+    unit: &mut MilitaryUnit,
+    unit_bloc: &BlocName,
+    target_point: Option<Point>,
+    units: &[(BlocName, UnitId, Point)],
     step: Distance,
 ) {
-    // Pre-collect (BlocName, Point) for trusts and bases.
-    let mut trust_positions: Vec<(BlocName, Point)> = Vec::with_capacity(trusts.len());
-    for trust_arc in trusts.values() {
-        let trust = trust_arc.read().await;
-        let bloc_name = trust.placement().zone().bloc().name().clone();
-        trust_positions.push((bloc_name, trust.position()));
-    }
+    let from = unit.position();
 
-    let mut base_positions: Vec<(BlocName, Point)> = Vec::with_capacity(bases.len());
-    for base_arc in bases.values() {
-        let base = base_arc.read().await;
-        let bloc_name = base.placement().zone().bloc().name().clone();
-        base_positions.push((bloc_name, base.position()));
-    }
+    let enemy_units = units
+        .iter()
+        .filter(|(bloc, id, _)| bloc != unit_bloc && id != unit.id());
 
-    // Pre-collect (BlocName, UnitId, Point) for units.
-    let mut unit_positions: Vec<(BlocName, UnitId, Point)> = Vec::with_capacity(units.len());
+    let move_to = if let Some(tp) = target_point {
+        let target_dist = from.distance_to(&tp);
+        let closer_enemy = enemy_units
+            .filter(|(_, _, pos)| from.distance_to(pos) < target_dist)
+            .min_by(|(_, _, a), (_, _, b)| {
+                from.distance_to(a)
+                    .partial_cmp(&from.distance_to(b))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        if let Some((_, _, ep)) = closer_enemy { *ep } else { tp }
+    } else {
+        let closest_enemy = enemy_units.min_by(|(_, _, a), (_, _, b)| {
+            from.distance_to(a)
+                .partial_cmp(&from.distance_to(b))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        match closest_enemy {
+            Some((_, _, ep)) => *ep,
+            None => return,
+        }
+    };
+
+    unit.move_toward(move_to, step);
+}
+
+/// Runs one movement tick: each unit moves one `step` toward its designated target (or the
+/// closest enemy unit if one is nearer than the target).
+///
+/// Pre-collects all unit positions before the mutation pass to avoid borrow conflicts.
+pub(crate) async fn move_units(units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>, step: Distance) {
+    // Pre-collect (BlocName, UnitId, Point) for all units for enemy-unit detection.
+    let mut blocs_units_points: Vec<(BlocName, UnitId, Point)> = Vec::with_capacity(units.len());
     for (unit_id, unit_arc) in units.iter() {
         let unit = unit_arc.read().await;
         let base = unit.base().await;
         let bloc_name = base.placement().zone().bloc().name().clone();
-        unit_positions.push((bloc_name, unit_id.clone(), unit.position()));
+        blocs_units_points.push((bloc_name, unit_id.clone(), unit.position()));
     }
 
-    for (unit_id, unit_arc) in units.iter() {
-        let mut unit = unit_arc.write().await;
+    for unit in units.values() {
+        let mut unit = unit.write().await;
         let (unit_bloc, target) = {
             let base = unit.base().await;
-            (base.placement().zone().bloc().name().clone(), base.target())
+            (base.placement().zone().bloc().name().clone(), base.target().clone())
         };
 
-        let enemy_points: Vec<Point> = match target {
-            Target::Trust => trust_positions
-                .iter()
-                .filter(|(bloc, _)| bloc != &unit_bloc)
-                .map(|(_, pt)| *pt)
-                .collect(),
-            Target::Base => base_positions
-                .iter()
-                .filter(|(bloc, _)| bloc != &unit_bloc)
-                .map(|(_, pt)| *pt)
-                .collect(),
-            Target::Unit => unit_positions
-                .iter()
-                .filter(|(bloc, id, _)| bloc != &unit_bloc && id != unit_id)
-                .map(|(_, _, pt)| *pt)
-                .collect(),
+        let target_point = match &target {
+            Target::None => None,
+            Target::Base { arc, .. } => Some(arc.read().await.position()),
+            Target::Trust { arc, .. } => Some(arc.read().await.position()),
         };
 
-        let positioned: Vec<&dyn Positioned> = enemy_points.iter().map(|p| p as &dyn Positioned).collect();
-        move_toward_closest(&mut unit, &positioned, step);
+        move_toward_target_or_unit(&mut unit, &unit_bloc, target_point, &blocs_units_points, step);
     }
 }
