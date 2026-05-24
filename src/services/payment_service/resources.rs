@@ -44,7 +44,7 @@ impl ResourceValue<'_> {
 }
 
 /// A set of resources with corresponding amounts
-#[derive(Debug, Clone, Deserialize, Display)]
+#[derive(Debug, Clone, Default, Deserialize, Display)]
 #[display("{}", 
     _0.iter()
         .map(|(k, v)| format!("{k}: {}", v.0))
@@ -52,6 +52,32 @@ impl ResourceValue<'_> {
         .join(", ")
 )]
 pub(crate) struct Resources(HashMap<ResourceName, OrderedFloat<f32>>);
+
+impl Resources {
+    /// Returns true if `self` has enough of every resource required by `cost`.
+    pub(crate) fn covers(&self, cost: &Resources) -> bool {
+        cost.0
+            .iter()
+            .all(|(name, amount)| self.0.get(name).is_some_and(|a| a >= amount))
+    }
+}
+
+impl std::ops::Mul<f32> for Resources {
+    type Output = Self;
+    fn mul(self, rhs: f32) -> Self {
+        Self(self.0.into_iter().map(|(k, v)| (k, v * rhs)).collect())
+    }
+}
+
+impl std::ops::SubAssign<&Resources> for Resources {
+    fn sub_assign(&mut self, rhs: &Resources) {
+        for (name, amount) in &rhs.0 {
+            if let Some(a) = self.0.get_mut(name) {
+                *a -= amount;
+            }
+        }
+    }
+}
 
 impl<'r> IntoIterator for &'r Resources {
     type Item = ResourceValue<'r>;

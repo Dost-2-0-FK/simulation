@@ -95,8 +95,8 @@ impl PaymentService {
     ///
     /// # TODO
     /// Make an HTTP request to `CREDIT-EXCHANGE-SERVICE/api/credits/hourly?id=<bloc_id>`.
-    pub(crate) async fn hourly_income(&self, _bloc_name: &BlocName) -> f64 {
-        0.0
+    pub(crate) async fn hourly_income(&self, _bloc_name: &BlocName) -> (Money, Resources) {
+        (Money::default(), Resources::default())
     }
 
     pub(crate) async fn pay_for_military_base(

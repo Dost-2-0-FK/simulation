@@ -14,7 +14,7 @@ use crate::{
 
 static BASE_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, utoipa::ToSchema, PartialEq, Eq, Hash, PartialOrd, Ord)]
 // TODO make this inner field private (just for now it's not to enable a shortcut to create a unit)
 pub(crate) struct BaseId(pub(crate) u64);
 

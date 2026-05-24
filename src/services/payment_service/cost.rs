@@ -16,12 +16,15 @@ pub(crate) struct Cost<T> {
 }
 
 impl<T> Cost<T> {
-    #[expect(dead_code)]
     pub(crate) fn money(&self) -> Money {
         self.money
     }
 
     pub(crate) fn resources(&self) -> impl Iterator<Item = ResourceValue<'_>> {
         self.resources.into_iter()
+    }
+
+    pub(crate) fn resources_owned(&self) -> Resources {
+        self.resources.clone()
     }
 }

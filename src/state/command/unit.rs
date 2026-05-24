@@ -35,14 +35,18 @@ pub(crate) fn create(
 /// Runs one hourly production cycle: for each bloc, uses the configured military expense
 /// percentage of the bloc's hourly income to create units at enabled bases.
 ///
-/// Prioritised enabled bases produce one unit at cost 2 (processed first), regular enabled bases
-/// produce one unit at cost 1. Disabled bases are skipped.
+/// Enabled bases are processed in ascending id order. Prioritised bases produce 2 units per
+/// pass, regular enabled bases 1. After iterating all bases, the cycle restarts from the
+/// beginning until the budget (money and resources) is exhausted.
 pub(crate) async fn produce_units(
     blocs: &HashMap<BlocName, Arc<RwLock<Bloc>>>,
     bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     payment_service: &PaymentService,
 ) {
+    let unit_money_cost = payment_service.military_unit.money();
+    let unit_resource_cost = payment_service.military_unit.resources_owned();
+
     for (bloc_name, bloc_arc) in blocs {
         let military_expense = {
             let bloc = bloc_arc.read().await;
@@ -52,51 +56,49 @@ pub(crate) async fn produce_units(
             continue;
         }
 
-        let hourly_income = payment_service.hourly_income(bloc_name).await;
-        let mut budget = hourly_income * military_expense as f64 / 100.0;
-        log::info!("Bloc {bloc_name}: hourly income {hourly_income}, production budget {budget}");
+        let (hourly_money, hourly_resources) = payment_service.hourly_income(bloc_name).await;
+        let factor = military_expense as f32 / 100.0;
+        let mut budget_money = hourly_money * factor;
+        let mut budget_resources = hourly_resources * factor;
 
-        // Collect enabled bases for this bloc, prioritised separately from normal ones.
-        let mut prioritized: Vec<Arc<RwLock<MilitaryBase>>> = Vec::new();
-        let mut normal: Vec<Arc<RwLock<MilitaryBase>>> = Vec::new();
+        log::info!("Bloc {bloc_name}: hourly income {hourly_money}, production budget {budget_money}");
 
+        // Collect enabled bases for this bloc sorted by id ascending.
+        let mut enabled_bases_with_quota: Vec<(BaseId, Arc<RwLock<MilitaryBase>>, u32)> = Vec::new();
         for base_arc in bases.values() {
             let base = base_arc.read().await;
-            let enabled = base.enabled();
-            let bloc_matches = base.placement().zone().bloc().name() == bloc_name;
-            let is_prioritized = base.prioritized();
-            drop(base);
-
-            if !enabled || !bloc_matches {
+            if !base.enabled() || base.placement().zone().bloc().name() != bloc_name {
                 continue;
             }
-            if is_prioritized {
-                prioritized.push(base_arc.clone());
-            } else {
-                normal.push(base_arc.clone());
-            }
+            let quota = if base.prioritized() { 2u32 } else { 1u32 };
+            let id = base.id();
+            drop(base);
+            enabled_bases_with_quota.push((id, base_arc.clone(), quota));
         }
 
-        // Process prioritised bases first (cost 2), then normal bases (cost 1).
-        let candidates = prioritized
-            .iter()
-            .map(|b| (b, 2.0_f64))
-            .chain(normal.iter().map(|b| (b, 1.0_f64)));
+        if enabled_bases_with_quota.is_empty() {
+            continue;
+        }
 
-        for (base_arc, cost) in candidates {
-            while budget >= cost {
-                let base = base_arc.read().await;
-                let position = base.position();
-                let base_id = base.id();
-                let unit = create(base_arc.clone(), position, payment_service);
-                let unit_id = unit.id().clone();
-                units.insert(unit.id().clone(), Arc::new(RwLock::new(unit)));
-                log::info!(
-                    "added unit {unit_id:?} to base {base_id:?}",
-                    unit_id = unit_id,
-                    base_id = base_id,
-                );
-                budget -= cost;
+        enabled_bases_with_quota.sort_by_key(|(id, ..)| *id);
+
+        'outer: loop {
+            for (_, base_arc, quota) in &enabled_bases_with_quota {
+                for _ in 0..*quota {
+                    if budget_money < unit_money_cost || !budget_resources.covers(&unit_resource_cost) {
+                        break 'outer;
+                    }
+                    let base = base_arc.read().await;
+                    let position = base.position();
+                    let base_id = base.id();
+                    drop(base);
+                    let unit = create(base_arc.clone(), position, payment_service);
+                    let unit_id = unit.id().clone();
+                    units.insert(unit_id.clone(), Arc::new(RwLock::new(unit)));
+                    log::info!("added unit {unit_id:?} to base {base_id:?}");
+                    budget_money -= unit_money_cost;
+                    budget_resources -= &unit_resource_cost;
+                }
             }
         }
     }
