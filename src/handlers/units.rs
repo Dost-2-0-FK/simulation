@@ -3,7 +3,7 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
-    domain::{BaseId, BlocName, MilitaryUnit},
+    domain::{BaseId, BlocName, MilitaryUnit, TrustId, UnitId},
     error::{Result, UserError},
     geometry::{Point, Positioned},
     handlers::bases::BaseResponse,
@@ -12,6 +12,18 @@ use crate::{
 
 const UNITS: &str = "units";
 
+/// Serialized representation of a unit's effective current target in HTTP responses. Carries the
+/// entity's ID and its current position. `Unit` is used when an enemy unit is being chased,
+/// `None` when there is no designated target and no enemies are present.
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub(crate) enum UnitTargetResponse {
+    None,
+    Unit { id: UnitId, position: Point },
+    Base { id: BaseId, position: Point },
+    Trust { id: TrustId, position: Point },
+}
+
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct UnitResponse {
@@ -19,10 +31,11 @@ pub(crate) struct UnitResponse {
     base: Option<BaseResponse>,
     bloc: Option<BlocName>,
     position: Point,
+    target: UnitTargetResponse,
 }
 
 impl UnitResponse {
-    pub(crate) fn new(unit: &MilitaryUnit, base: Option<BaseResponse>) -> Self {
+    pub(crate) fn new(unit: &MilitaryUnit, base: Option<BaseResponse>, target: UnitTargetResponse) -> Self {
         let bloc = base.as_ref().map(|b| b.bloc.clone());
         let base_id = base.as_ref().map(|b| b.id);
         Self {
@@ -30,6 +43,7 @@ impl UnitResponse {
             base,
             bloc,
             position: unit.position(),
+            target,
         }
     }
 }

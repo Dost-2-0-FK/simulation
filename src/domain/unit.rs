@@ -11,7 +11,7 @@ use crate::{
 };
 
 /// Identifies a [MilitaryUnit].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, derive_more::From, derive_more::Into)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, utoipa::ToSchema, derive_more::From, derive_more::Into)]
 pub(crate) struct UnitId(String);
 
 impl UnitId {

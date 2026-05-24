@@ -6,17 +6,113 @@ use tokio::sync::{RwLock, oneshot::Sender};
 use crate::{
     domain::{BaseId, Bloc, BlocName, MilitaryBase, MilitaryUnit, Target, UnitId},
     geometry::{Distance, Point, Positioned},
-    handlers::units::UnitResponse,
+    handlers::units::{UnitResponse, UnitTargetResponse},
     services::payment_service::PaymentService,
 };
 
+/// The resolved destination a unit will move toward this tick.
+enum MoveTo {
+    /// An enemy unit is the closest target.
+    EnemyUnit(UnitId, Point),
+    /// The designated secondary target (base or trust) is the closest.
+    Designated(Point),
+}
+
+/// Core sync helper: given a unit's current position, its optional designated `target_point`, and
+/// all unit snapshots, returns where the unit should move — or `None` when there is nothing to
+/// move toward (no designated target and no enemies).
+///
+/// An enemy unit that is strictly closer than `target_point` always wins over the designated
+/// target. When `target_point` is `None` the closest enemy unit is returned unconditionally.
+fn select_move_target(
+    from: Point,
+    unit_id: &UnitId,
+    unit_bloc: &BlocName,
+    target_point: Option<Point>,
+    all_units: &[(BlocName, UnitId, Point)],
+) -> Option<MoveTo> {
+    let enemies = || {
+        all_units
+            .iter()
+            .filter(|(bloc, id, _)| bloc != unit_bloc && id != unit_id)
+    };
+
+    match target_point {
+        None => enemies()
+            .min_by(|(_, _, a), (_, _, b)| {
+                from.distance_to(a)
+                    .partial_cmp(&from.distance_to(b))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(_, id, pos)| MoveTo::EnemyUnit(id.clone(), *pos)),
+        Some(tp) => {
+            let target_dist = from.distance_to(&tp);
+            let closer_enemy = enemies()
+                .filter(|(_, _, pos)| from.distance_to(pos) < target_dist)
+                .min_by(|(_, _, a), (_, _, b)| {
+                    from.distance_to(a)
+                        .partial_cmp(&from.distance_to(b))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+            Some(match closer_enemy {
+                Some((_, id, pos)) => MoveTo::EnemyUnit(id.clone(), *pos),
+                None => MoveTo::Designated(tp),
+            })
+        }
+    }
+}
+
+/// Computes the effective target a unit would move toward right now and returns it as a
+/// `UnitTargetResponse` suitable for HTTP responses.
+async fn effective_target(
+    unit_id: &UnitId,
+    from: Point,
+    unit_bloc: &BlocName,
+    target: &Target,
+    all_units: &[(BlocName, UnitId, Point)],
+) -> UnitTargetResponse {
+    let target_point = match target {
+        Target::None => None,
+        Target::Base { arc, .. } => Some(arc.read().await.position()),
+        Target::Trust { arc, .. } => Some(arc.read().await.position()),
+    };
+
+    match select_move_target(from, unit_id, unit_bloc, target_point, all_units) {
+        None => UnitTargetResponse::None,
+        Some(MoveTo::EnemyUnit(id, position)) => UnitTargetResponse::Unit { id, position },
+        Some(MoveTo::Designated(position)) => match target {
+            Target::Base { id, .. } => UnitTargetResponse::Base { id: *id, position },
+            Target::Trust { id, .. } => UnitTargetResponse::Trust { id: *id, position },
+            Target::None => panic!("Designated requires a non-None target"),
+        },
+    }
+}
+
 pub(crate) async fn get(resp: Sender<Vec<UnitResponse>>, units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>) {
+    // Pre-collect (BlocName, UnitId, Point) for enemy-unit detection.
+    let mut all_units_snapshot: Vec<(BlocName, UnitId, Point)> = Vec::with_capacity(units.len());
+    for (unit_id, unit_arc) in units.iter() {
+        let unit = unit_arc.read().await;
+        let base = unit.base().await;
+        let bloc_name = base.placement().zone().bloc().name().clone();
+        all_units_snapshot.push((bloc_name, unit_id.clone(), unit.position()));
+    }
+
     let unit_responses = stream::iter(units.values())
         .then(async |unit| {
             let unit_guard = unit.read().await;
             let base_guard = unit_guard.base().await;
+            let bloc_name = base_guard.placement().zone().bloc().name().clone();
+            let target = effective_target(
+                unit_guard.id(),
+                unit_guard.position(),
+                &bloc_name,
+                base_guard.target(),
+                &all_units_snapshot,
+            )
+            .await;
             let base_response = (&(*base_guard)).into();
-            UnitResponse::new(&unit_guard, Some(base_response))
+            UnitResponse::new(&unit_guard, Some(base_response), target)
         })
         .collect()
         .await;
@@ -104,12 +200,7 @@ pub(crate) async fn produce_units(
     }
 }
 
-/// Moves `unit` one `step` toward the designated `target_point`, unless there is an enemy unit
-/// closer than the target — in that case the closest such enemy unit is prioritised.
-///
-/// If `target_point` is `None` (i.e. the base's [Target] is [Target::None]), the unit moves
-/// toward the closest enemy unit regardless of distance. Does nothing when there are no enemies
-/// and no target.
+/// Moves `unit` one `step` toward its effective target (see [`select_move_target`]).
 fn move_toward_target_or_unit(
     unit: &mut MilitaryUnit,
     unit_bloc: &BlocName,
@@ -118,33 +209,10 @@ fn move_toward_target_or_unit(
     step: Distance,
 ) {
     let from = unit.position();
-
-    let enemy_units = units
-        .iter()
-        .filter(|(bloc, id, _)| bloc != unit_bloc && id != unit.id());
-
-    let move_to = if let Some(tp) = target_point {
-        let target_dist = from.distance_to(&tp);
-        let closer_enemy = enemy_units
-            .filter(|(_, _, pos)| from.distance_to(pos) < target_dist)
-            .min_by(|(_, _, a), (_, _, b)| {
-                from.distance_to(a)
-                    .partial_cmp(&from.distance_to(b))
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-        if let Some((_, _, ep)) = closer_enemy { *ep } else { tp }
-    } else {
-        let closest_enemy = enemy_units.min_by(|(_, _, a), (_, _, b)| {
-            from.distance_to(a)
-                .partial_cmp(&from.distance_to(b))
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        match closest_enemy {
-            Some((_, _, ep)) => *ep,
-            None => return,
-        }
+    let move_to = match select_move_target(from, unit.id(), unit_bloc, target_point, units) {
+        None => return,
+        Some(MoveTo::EnemyUnit(_, pos) | MoveTo::Designated(pos)) => pos,
     };
-
     unit.move_toward(move_to, step);
 }
 

@@ -22,16 +22,16 @@ pub(crate) struct Financing {
     pub(crate) share: Share,
 }
 
-/// Serialized representation of a [Target] in HTTP responses. Carries only the entity ID.
+/// Serialized representation of a [Target] in HTTP responses for bases. Carries only the entity ID.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(tag = "type", rename_all = "lowercase")]
-pub(crate) enum TargetResponse {
+pub(crate) enum BaseTargetResponse {
     None,
     Base { id: BaseId },
     Trust { id: TrustId },
 }
 
-impl From<&Target> for TargetResponse {
+impl From<&Target> for BaseTargetResponse {
     fn from(t: &Target) -> Self {
         match t {
             Target::None => Self::None,
@@ -67,7 +67,7 @@ pub(crate) struct BaseResponse {
     pub(crate) payment: Vec<Financing>,
     pub(crate) enabled: bool,
     pub(crate) prioritized: bool,
-    pub(crate) target: TargetResponse,
+    pub(crate) target: BaseTargetResponse,
     pub(crate) position: Point,
 }
 
