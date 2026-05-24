@@ -6,7 +6,9 @@ Economy and military simulation
 
 - [Simulation](#simulation)
   - [Installation](#installation)
-  - [Run From Source](#run-from-source)
+    - [Download Prebuilt Artifact](#download-prebuilt-artifact)
+    - [Install from source](#install-from-source)
+  - [Run From Source Without Installing](#run-from-source-without-installing)
   - [Persistence](#persistence)
   - [Specification](#specification)
     - [Trusts](#trusts)
@@ -18,10 +20,26 @@ Economy and military simulation
 
 ## Installation<a name="installation"></a>
 
-## Run From Source<a name="run-from-source"></a>
+To enable running via `simulation` in the terminal, there's two simple ways to install.
 
-Make sure you have [`cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed. To run the
-server from source, with `debug` log-level
+### Download Prebuilt Artifact<a name="download-prebuilt-artifact"></a>
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/Dost-2-0-FK/simulation/releases/latest/download/simulation-installer.sh | sh
+```
+
+### Install from source<a name="install-from-source"></a>
+
+Make sure you have [`cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html).
+
+```sh
+cargo install --git https://github.com/Dost-2-0-FK/simulation
+```
+
+## Run From Source Without Installing<a name="run-from-source-without-installing"></a>
+
+Make sure you have [`cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html). To run the server from
+source, with `debug` log-level
 
 ```shell
 RUST_LOG=debug cargo run
