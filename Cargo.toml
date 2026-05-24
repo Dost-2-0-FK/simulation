@@ -2,6 +2,7 @@
 name = "simulation"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/Dost-2-0-FK/simulation"
 
 [dependencies]
 actix-web = "4.11.0"
@@ -21,3 +22,8 @@ utoipa-actix-web = "0.1.2"
 utoipa = { version = "5.4.0", features = ["actix_extras"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
 futures-util = "0.3.32"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
