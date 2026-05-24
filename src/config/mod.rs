@@ -10,6 +10,7 @@ use self::error::{Error, Result};
 use crate::{
     domain::{Bloc, BlocName, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone, ZoneName},
     geometry::Point,
+    services::payment_service::Share,
     services::payment_service::{Cost, PaymentService, VecResourceName},
 };
 
@@ -113,7 +114,7 @@ struct BlocConfig {
     name: BlocName,
     chance: Chance,
     #[serde(default, rename = "militaryExpense")]
-    military_expense: u32,
+    military_expense: Share,
 }
 
 #[derive(Debug, Deserialize)]

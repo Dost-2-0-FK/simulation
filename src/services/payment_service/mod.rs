@@ -3,6 +3,7 @@
 mod cost;
 mod money;
 mod resources;
+mod share;
 
 use url::Url;
 
@@ -10,6 +11,7 @@ pub(crate) use self::{
     cost::Cost,
     money::Money,
     resources::{ResourceValue, Resources, VecResourceName},
+    share::Share,
 };
 use crate::{
     domain::{BlocName, MilitaryBase, MilitaryUnit, Trust},

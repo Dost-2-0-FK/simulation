@@ -1,13 +1,16 @@
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{Bloc, BlocName, Chance};
+use crate::{
+    domain::{Bloc, BlocName, Chance},
+    services::payment_service::Share,
+};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct PersistedBloc {
     #[serde(rename = "_id")]
     id: String,
     chance: Chance,
-    military_expense: u32,
+    military_expense: Share,
 }
 
 impl PersistedBloc {

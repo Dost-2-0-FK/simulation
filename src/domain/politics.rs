@@ -3,6 +3,8 @@ use std::sync::Arc;
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 
+use crate::services::payment_service::Share;
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, derive_more::Display, utoipa::ToSchema)]
 pub(crate) struct ZoneName(String);
 
@@ -48,11 +50,11 @@ impl From<String> for BlocName {
 pub(crate) struct Bloc {
     name: BlocName,
     chance: Chance,
-    military_expense: u32,
+    military_expense: Share,
 }
 
 impl Bloc {
-    pub(crate) fn new(name: BlocName, chance: Chance, military_expense: u32) -> Self {
+    pub(crate) fn new(name: BlocName, chance: Chance, military_expense: Share) -> Self {
         Self {
             name,
             chance,
@@ -68,7 +70,7 @@ impl Bloc {
         self.chance
     }
 
-    pub(crate) fn military_expense(&self) -> u32 {
+    pub(crate) fn military_expense(&self) -> Share {
         self.military_expense
     }
 
@@ -78,7 +80,7 @@ impl Bloc {
     }
 
     #[expect(dead_code)]
-    pub(crate) fn set_military_expense(&mut self, military_expense: u32) {
+    pub(crate) fn set_military_expense(&mut self, military_expense: Share) {
         self.military_expense = military_expense;
     }
 }

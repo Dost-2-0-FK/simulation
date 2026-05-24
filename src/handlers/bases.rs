@@ -6,38 +6,11 @@ use crate::{
     domain::{BaseId, BlocName, MilitaryBase, PlacementId, Target, ZoneName},
     error::{Result, UserError},
     geometry::{Point, Positioned},
+    services::payment_service::Share,
     state::Command,
 };
 
 const BASES: &str = "bases";
-
-/// A value between 0 and 1 representing a financier's share of a payment.
-#[derive(Debug, Copy, Clone, PartialEq, utoipa::ToSchema)]
-pub struct Share(f32);
-
-impl<'de> Deserialize<'de> for Share {
-    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let share = f32::deserialize(deserializer)?;
-
-        if !(0.0..=1.0).contains(&share) {
-            Err(serde::de::Error::custom("share must be between 0 and 1"))
-        } else {
-            Ok(Share(share))
-        }
-    }
-}
-
-impl Serialize for Share {
-    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_f32(self.0)
-    }
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub(crate) struct UserId(String);

@@ -24,6 +24,7 @@ use crate::{
     error::UserError,
     handlers::{bases::Financing, units::UnitResponse},
     persistence::MongoPersistence,
+    services::payment_service::Share,
 };
 
 /// Used to query or mutate the state of the [state_loop].
@@ -57,7 +58,7 @@ pub(crate) enum Command {
     PatchBloc {
         id: BlocName,
         chance: Option<Chance>,
-        military_expense: Option<u32>,
+        military_expense: Option<Share>,
         response: Sender<core::result::Result<(), UserError>>,
     },
     /// Persist the current in-memory state to the database. Sent periodically by a background task.

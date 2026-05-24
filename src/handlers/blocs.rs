@@ -5,6 +5,7 @@ use tokio::sync::mpsc;
 use crate::{
     domain::{Bloc, BlocName, Chance},
     error::{Result, UserError},
+    services::payment_service::Share,
     state::Command,
 };
 
@@ -15,7 +16,7 @@ const BLOCS: &str = "blocs";
 pub(crate) struct BlocResponse {
     name: BlocName,
     chance: Chance,
-    military_expense: u32,
+    military_expense: Share,
 }
 
 impl From<&Bloc> for BlocResponse {
@@ -32,7 +33,7 @@ impl From<&Bloc> for BlocResponse {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PatchBlocBody {
     chance: Option<f32>,
-    military_expense: Option<u32>,
+    military_expense: Option<Share>,
 }
 
 /// List all blocs.

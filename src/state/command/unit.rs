@@ -52,14 +52,13 @@ pub(crate) async fn produce_units(
             let bloc = bloc_arc.read().await;
             bloc.military_expense()
         };
-        if military_expense == 0 {
+        if military_expense == Default::default() {
             continue;
         }
 
         let (hourly_money, hourly_resources) = payment_service.hourly_income(bloc_name).await;
-        let factor = military_expense as f32 / 100.0;
-        let mut budget_money = hourly_money * factor;
-        let mut budget_resources = hourly_resources * factor;
+        let mut budget_money = military_expense * hourly_money;
+        let mut budget_resources = military_expense * hourly_resources;
 
         log::info!("Bloc {bloc_name}: hourly income {hourly_money}, production budget {budget_money}");
 
@@ -70,6 +69,7 @@ pub(crate) async fn produce_units(
             if !base.enabled() || base.placement().zone().bloc().name() != bloc_name {
                 continue;
             }
+            // Prioritized bases produce 2 units per pass, non-prioritized produce 1 unit per pass.
             let quota = if base.prioritized() { 2u32 } else { 1u32 };
             let id = base.id();
             drop(base);
@@ -80,8 +80,8 @@ pub(crate) async fn produce_units(
             continue;
         }
 
+        // Round Robin spending of the budget, prioritized bases first, ascending ids.
         enabled_bases_with_quota.sort_by_key(|(id, ..)| *id);
-
         'outer: loop {
             for (_, base_arc, quota) in &enabled_bases_with_quota {
                 for _ in 0..*quota {
