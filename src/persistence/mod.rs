@@ -74,7 +74,7 @@ impl MongoPersistence {
 
         let bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>> = raw_bases
             .iter()
-            .map(|pb| pb.into_base(placements.clone()))
+            .map(|pb| pb.as_base(placements.clone()))
             .collect::<Result<Vec<_>>>()?
             .into_iter()
             .map(|base| (base.id(), Arc::new(RwLock::new(base))))

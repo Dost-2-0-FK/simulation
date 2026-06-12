@@ -68,7 +68,7 @@ impl PersistedBase {
 
     /// Create a [MilitaryBase] with `Target::None`. Call [Self::resolve_target] afterwards to set
     /// the actual target once all bases and trusts are loaded.
-    pub(super) fn into_base(&self, placements: impl Iterator<Item = Arc<Placement>>) -> Result<MilitaryBase> {
+    pub(super) fn as_base(&self, placements: impl Iterator<Item = Arc<Placement>>) -> Result<MilitaryBase> {
         let id = parse_id::<BaseId>(&self.id, "base")?;
         let placement = placement_by_id(placements, &self.placement_id)?;
 
