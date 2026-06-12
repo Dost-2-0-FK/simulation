@@ -32,7 +32,7 @@ impl From<&Bloc> for BlocResponse {
 #[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PatchBlocBody {
-    chance: Option<f32>,
+    chance: Option<u32>,
     military_expense: Option<Share>,
 }
 

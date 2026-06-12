@@ -29,10 +29,10 @@ impl Zone {
 /// When two units of a different [Bloc] meet, they fight: For each unit, a die is rolled, i.e., a  uniform random draw
 /// of [0, [Chance]]. On 0, the other unit is eliminated. If both dice show 0, both units are eliminated.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema)]
-pub(crate) struct Chance(f32);
+pub(crate) struct Chance(u32);
 
 impl Chance {
-    pub(crate) fn new(value: f32) -> Self {
+    pub(crate) fn new(value: u32) -> Self {
         Self(value)
     }
 }
