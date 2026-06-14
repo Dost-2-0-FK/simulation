@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use mongodb::bson::Uuid;
+use ordered_float::NotNan;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
@@ -100,12 +101,14 @@ impl MilitaryUnit {
         let from = self.position;
         let diff = target - from;
         let dist = from.distance_to(&target);
-        self.position = if dist <= step {
-            target
-        } else {
-            let scale = step / dist;
-            from + diff * scale
-        };
+        if dist <= step {
+            self.position = target;
+            // Returning here guarantees that dist is non-zero.
+            return;
+        }
+
+        let scale = NotNan::new(step / dist).expect("We return early above in the case `dist` is 0");
+        self.position = from + diff * scale;
     }
 
     /// Roll the [Chance][crate::domain::politics::Chance]-sided die, and kill the other unit if it's a

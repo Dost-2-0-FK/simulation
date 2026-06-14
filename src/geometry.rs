@@ -1,14 +1,18 @@
-use serde::{Deserialize, Serialize};
 use std::ops::{Add, Mul, Sub};
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema)]
+use ordered_float::NotNan;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema, PartialEq, PartialOrd, Eq, Ord)]
 pub(crate) struct Point {
-    x: f64,
-    y: f64,
+    #[schema(value_type = f64)]
+    x: NotNan<f64>,
+    #[schema(value_type = f64)]
+    y: NotNan<f64>,
 }
 
 impl Point {
-    pub(crate) fn new(x: f64, y: f64) -> Self {
+    pub(crate) fn new(x: NotNan<f64>, y: NotNan<f64>) -> Self {
         Self { x, y }
     }
 }
@@ -27,9 +31,9 @@ impl Sub for Point {
     }
 }
 
-impl Mul<f64> for Point {
+impl Mul<NotNan<f64>> for Point {
     type Output = Self;
-    fn mul(self, scale: f64) -> Self {
+    fn mul(self, scale: NotNan<f64>) -> Self {
         Self::new(self.x * scale, self.y * scale)
     }
 }
