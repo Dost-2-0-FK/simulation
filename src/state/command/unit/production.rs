@@ -74,8 +74,8 @@ pub(crate) async fn produce_units(
                     let base_id = base.id();
                     drop(base);
                     let unit = create(base_arc.clone(), position, payment_service);
-                    let unit_id = unit.id().clone();
-                    units.insert(unit_id.clone(), Arc::new(RwLock::new(unit)));
+                    let unit_id = unit.id();
+                    units.insert(unit_id, Arc::new(RwLock::new(unit)));
                     log::info!("added unit {unit_id:?} to base {base_id:?}");
                     budget_money -= unit_money_cost;
                     budget_resources -= &unit_resource_cost;

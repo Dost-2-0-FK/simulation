@@ -97,7 +97,7 @@ impl PersistedBase {
                     .ok_or_else(|| anyhow!("target base {base_id:?} not found"))?;
                 Ok(Some(Target::Base {
                     id: base_id,
-                    arc: arc.clone(),
+                    base: arc.clone(),
                 }))
             }
             PersistedTarget::Trust { id } => {
@@ -107,7 +107,7 @@ impl PersistedBase {
                     .ok_or_else(|| anyhow!("target trust {trust_id:?} not found"))?;
                 Ok(Some(Target::Trust {
                     id: trust_id,
-                    arc: arc.clone(),
+                    trust: arc.clone(),
                 }))
             }
         }

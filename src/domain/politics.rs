@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use derive_more::Display;
+use rand::RngExt as _;
 use serde::{Deserialize, Serialize};
 
 use crate::services::payment_service::Share;
@@ -31,9 +32,22 @@ impl Zone {
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema)]
 pub(crate) struct Chance(u32);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DieRollOutcome {
+    Hit,
+    Miss,
+}
+
 impl Chance {
     pub(crate) fn new(value: u32) -> Self {
         Self(value)
+    }
+
+    pub(crate) fn roll(&self) -> DieRollOutcome {
+        if rand::rng().random_range(0..=self.0 - 1) == 0 {
+            return DieRollOutcome::Hit;
+        }
+        DieRollOutcome::Miss
     }
 }
 

@@ -52,7 +52,7 @@ impl State {
 
         let units = units
             .into_iter()
-            .map(|unit| (unit.id().clone(), Arc::new(RwLock::new(unit))))
+            .map(|unit| (unit.id(), Arc::new(RwLock::new(unit))))
             .collect::<HashMap<_, _>>();
         // bases and trusts are already HashMaps from LoadedState
 

@@ -20,7 +20,7 @@ pub(crate) async fn get(resp: Sender<Vec<UnitResponse>>, units: &HashMap<UnitId,
         let unit = unit_arc.read().await;
         let base = unit.base().await;
         let bloc_name = base.placement().zone().bloc().name().clone();
-        all_units_snapshot.push((bloc_name, unit_id.clone(), unit.position()));
+        all_units_snapshot.push((bloc_name, *unit_id, unit.position()));
     }
 
     let unit_responses = stream::iter(units.values())
@@ -47,7 +47,7 @@ pub(crate) async fn get(resp: Sender<Vec<UnitResponse>>, units: &HashMap<UnitId,
 /// Computes the effective target a unit would move toward right now and returns it as a
 /// `UnitTargetResponse` suitable for HTTP responses.
 async fn effective_target(
-    unit_id: &UnitId,
+    unit_id: UnitId,
     from: Point,
     unit_bloc: &BlocName,
     target: &Target,
@@ -55,8 +55,8 @@ async fn effective_target(
 ) -> UnitTargetResponse {
     let target_point = match target {
         Target::None => None,
-        Target::Base { arc, .. } => Some(arc.read().await.position()),
-        Target::Trust { arc, .. } => Some(arc.read().await.position()),
+        Target::Base { base, .. } => Some(base.read().await.position()),
+        Target::Trust { trust, .. } => Some(trust.read().await.position()),
     };
 
     match select_move_target(from, unit_id, unit_bloc, target_point, all_units) {

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{Placement, PlacementId, Trust, TrustId},
+    domain::{Bloc, Placement, PlacementId, Trust, TrustId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
     services::payment_service::{Financiers, Money, Payment},
@@ -31,11 +31,11 @@ pub(crate) enum Target {
     None,
     Base {
         id: BaseId,
-        arc: Arc<RwLock<MilitaryBase>>,
+        base: Arc<RwLock<MilitaryBase>>,
     },
     Trust {
         id: TrustId,
-        arc: Arc<RwLock<Trust>>,
+        trust: Arc<RwLock<Trust>>,
     },
 }
 
@@ -105,6 +105,10 @@ impl MilitaryBase {
 
     pub(crate) fn placement_id(&self) -> &PlacementId {
         self.placement.id()
+    }
+
+    pub(crate) fn bloc(&self) -> &Bloc {
+        self.placement().zone().bloc()
     }
 
     pub(crate) fn financiers(&self) -> &[Financing] {

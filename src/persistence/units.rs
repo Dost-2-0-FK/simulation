@@ -1,32 +1,35 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Result, anyhow};
+use mongodb::bson::Uuid;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{BaseId, MilitaryBase, MilitaryUnit},
+    domain::{BaseId, MilitaryBase, MilitaryUnit, UnitState},
     geometry::{Point, Positioned},
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(super) struct PersistedUnit {
     #[serde(rename = "_id")]
-    id: String,
+    id: Uuid,
     base_id: String,
     position: Point,
+    state: UnitState,
 }
 
 impl PersistedUnit {
-    pub(super) fn id(&self) -> &str {
-        &self.id
+    pub(super) fn id(&self) -> Uuid {
+        self.id
     }
 
     pub(super) async fn from_unit(unit: &MilitaryUnit) -> Self {
         Self {
-            id: unit.id().clone().into(),
+            id: unit.id().into(),
             base_id: unit.base().await.id().0.to_string(),
             position: unit.position(),
+            state: unit.state(),
         }
     }
 
@@ -40,6 +43,6 @@ impl PersistedUnit {
             .get(&base_id)
             .ok_or_else(|| anyhow!("unit {} references unknown base {base_id:?}", self.id))?
             .clone();
-        Ok(MilitaryUnit::from_persisted(self.id, base, self.position))
+        Ok(MilitaryUnit::from_persisted(self.id, base, self.position, self.state))
     }
 }

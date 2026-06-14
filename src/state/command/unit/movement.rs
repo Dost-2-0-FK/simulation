@@ -44,7 +44,7 @@ pub(crate) async fn move_units(units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUn
         let unit = unit_arc.read().await;
         let base = unit.base().await;
         let bloc_name = base.placement().zone().bloc().name().clone();
-        blocs_units_points.push((bloc_name, unit_id.clone(), unit.position()));
+        blocs_units_points.push((bloc_name, *unit_id, unit.position()));
     }
 
     for unit in units.values() {
@@ -72,7 +72,7 @@ pub(crate) async fn move_units(units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUn
 /// target. When `target_point` is `None` the closest enemy unit is returned unconditionally.
 pub(super) fn select_move_target(
     from: Point,
-    unit_id: &UnitId,
+    unit_id: UnitId,
     unit_bloc: &BlocName,
     target_point: Option<Point>,
     all_units: &[(BlocName, UnitId, Point)],
@@ -80,7 +80,7 @@ pub(super) fn select_move_target(
     let enemies = || {
         all_units
             .iter()
-            .filter(|(bloc, id, _)| bloc != unit_bloc && id != unit_id)
+            .filter(|(bloc, id, _)| bloc != unit_bloc && *id != unit_id)
     };
 
     match target_point {
@@ -90,7 +90,7 @@ pub(super) fn select_move_target(
                     .partial_cmp(&from.distance_to(b))
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .map(|(_, id, pos)| MoveTo::EnemyUnit(id.clone(), *pos))
+            .map(|(_, id, pos)| MoveTo::EnemyUnit(*id, *pos))
             .unwrap_or(MoveTo::None),
         Some(target) => {
             let target_dist = from.distance_to(&target);
@@ -102,7 +102,7 @@ pub(super) fn select_move_target(
                         .unwrap_or(std::cmp::Ordering::Equal)
                 });
             match closer_enemy {
-                Some((_, id, pos)) => MoveTo::EnemyUnit(id.clone(), *pos),
+                Some((_, id, pos)) => MoveTo::EnemyUnit(*id, *pos),
                 None => MoveTo::Designated(target),
             }
         }
