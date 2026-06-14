@@ -10,8 +10,7 @@ use self::error::{Error, Result};
 use crate::{
     domain::{Bloc, BlocName, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone, ZoneName},
     geometry::{Distance, Point},
-    services::payment_service::Share,
-    services::payment_service::{Cost, PaymentService, VecResourceName},
+    services::payment_service::{Cost, PaymentService, Share, VecResourceName},
 };
 
 const CONFIG_FILE_NAME: &str = "simulation.toml";
@@ -253,6 +252,11 @@ impl Config {
                 Ok(placement)
             })
             .collect::<Result<Vec<_>>>()?;
+
+        assert!(
+            config.time.movement_step > 0.0,
+            "unit movement step must be greater than 0"
+        );
 
         Ok(Self {
             placements,

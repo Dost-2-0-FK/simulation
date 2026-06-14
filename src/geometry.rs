@@ -50,6 +50,17 @@ impl std::ops::Div for Distance {
     }
 }
 
+impl PartialEq<f64> for Distance {
+    fn eq(&self, other: &f64) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialOrd<f64> for Distance {
+    fn partial_cmp(&self, other: &f64) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(other)
+    }
+}
 pub(crate) trait Positioned {
     fn position(&self) -> Point;
 
