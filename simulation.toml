@@ -21,27 +21,41 @@ interval_seconds = 30
 [env]
 credit_exchange_url = "http://127.0.0.1:12345"
 
-[time]
-main_loop_tick_seconds = 1.5
-combat_loop_tick_factor = 2
-production_interval_seconds = 3600
+[combat]
+combat_tick_interval_seconds = 1.5
+production_interval_seconds = 20
 movement_interval_seconds = 60
 movement_step = 1.0
+base_destruction_threshold = 5
+trust_destruction_threshold = 4
 
 [[bloc]]
-name = "bloc_1"
+name = "west"
+chance = 12
+
+[[bloc]]
+name = "east"
 chance = 12
 
 [[zone]]
-name = "zone_1"
-bloc = "bloc_1"
+name = "zone_w"
+bloc = "west"
+
+[[zone]]
+name = "zone_e"
+bloc = "east"
 
 [[placement]]
-id = "placement_1"
-zone = "zone_1"
+id = "placement_1w"
+zone = "zone_w"
 position = { x = 23.2, y = 29.1 }
 
 [[placement]]
-id = "placement_2"
-zone = "zone_1"
-position = { x = 23.2, y = 29.1 }
+id = "placement_2w"
+zone = "zone_w"
+position = { x = 25.2, y = 29.1 }
+
+[[placement]]
+id = "placement_1e"
+zone = "zone_e"
+position = { x = 29.2, y = 29.1 }
