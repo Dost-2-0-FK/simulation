@@ -39,8 +39,7 @@ struct TomlConfig {
 pub(crate) struct Config {
     placements: Vec<Arc<Placement>>,
     zones: Vec<Arc<Zone>>,
-    main_loop_tick: Duration,
-    combat_loop_tick_factor: u8,
+    combat_tick_interval: Duration,
     blocs: Vec<Arc<Bloc>>,
     port: TcpListener,
     payment_service: PaymentService,
@@ -94,10 +93,9 @@ impl PersistenceConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CombatConfig {
-    #[serde(rename = "main_loop_tick_seconds")]
+    #[serde(rename = "combat_tick_interval_seconds")]
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
-    main_loop_tick: Duration,
-    combat_loop_tick_factor: u8,
+    combat_tick_interval: Duration,
     #[serde(rename = "production_interval_seconds")]
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     production_interval: Duration,
@@ -173,6 +171,10 @@ impl Config {
 
     pub(crate) fn movement_interval(&self) -> Duration {
         self.movement_interval
+    }
+
+    pub(crate) fn combat_tick_interval(&self) -> Duration {
+        self.combat_tick_interval
     }
 
     pub(crate) fn movement_step(&self) -> Distance {
@@ -273,8 +275,7 @@ impl Config {
         Ok(Self {
             placements,
             zones,
-            main_loop_tick: config.combat.main_loop_tick,
-            combat_loop_tick_factor: config.combat.combat_loop_tick_factor,
+            combat_tick_interval: config.combat.combat_tick_interval,
             blocs,
             port: TcpListener::bind(format!("127.0.0.1:{}", config.server.unwrap_or_default().port))
                 .await
@@ -313,8 +314,7 @@ mod tests {
         credit_exchange_url = "http://0.0.0.0:4534"
 
         [combat]
-        main_loop_tick_seconds = 1.2
-        combat_loop_tick_factor = 2
+        combat_tick_interval_seconds = 1.2
         production_interval_seconds = 3600
         movement_interval_seconds = 60
         movement_step = 1.0

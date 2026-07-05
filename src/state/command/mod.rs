@@ -74,6 +74,8 @@ pub(crate) enum Command {
     ProduceMilitaryUnits,
     /// Move all military units one step toward their closest enemy target. Sent periodically by a background task.
     MoveMilitaryUnits,
+    /// On all combats, execute a [Combat::tick].
+    CombatTick,
 }
 
 /// The core of the state is this loop, where it accepts commands to be read or mutated.
@@ -211,6 +213,9 @@ pub(crate) async fn run(
                     config.trust_destruction_threshold(),
                 )
                 .await;
+            }
+            Command::CombatTick => {
+                combat::tick(&mut combats).await;
             }
         }
     }

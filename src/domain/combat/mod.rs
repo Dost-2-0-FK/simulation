@@ -56,7 +56,7 @@ pub(crate) enum CombatStructureSnapshot {
     Base { id: BaseId, destruction_threshold: u32 },
 }
 
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, utoipa::ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum CombatState {
     #[default]
