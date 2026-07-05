@@ -5,6 +5,7 @@ use tokio::sync::RwLock;
 use crate::domain::{BlocName, MilitaryBase, Trust};
 
 /// Whether a structure exists at a combat's position. Note: this may change when a structure is destroyed.
+#[derive(Debug)]
 pub(super) enum CombatStructure {
     /// No structure at the combat's position
     None,

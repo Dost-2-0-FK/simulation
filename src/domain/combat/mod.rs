@@ -217,12 +217,41 @@ impl Combat {
         }
     }
 
-    /// Merge this combat with another existing combat
+    /// Merge this (already existing) combat with another combat, i.e., make the units join the existing combat.
     pub(crate) fn merge(&mut self, other: Self) {
         assert_eq!(
             self.position, other.position,
             "merged combats must be in the same position"
         );
+
+        // We make the assumption that we don't need to deal with combat structures, since they are static and should be
+        // equal between the two combats. So let's assert that.
+        match (&self.structure, &other.structure) {
+            (CombatStructure::Trust { trust: self_trust, .. }, CombatStructure::Trust { trust: other_trust, .. }) => {
+                assert!(
+                    Arc::ptr_eq(self_trust, other_trust),
+                    "The trust should be identical when merging combats."
+                )
+            }
+            (CombatStructure::Base { base: self_base, .. }, CombatStructure::Base { base: other_base, .. }) => {
+                assert!(
+                    Arc::ptr_eq(self_base, other_base),
+                    "The base should be identical when merging combats."
+                )
+            }
+            // If the other combat doesn't have a structure, we're fine.
+            (_, CombatStructure::None) => {}
+            _ => {
+                panic!(
+                    "Combat structures must be equal or the `other` combat must have no structure when combats are merged. However, self: {:#?}, other: {:#?}",
+                    self.structure, other.structure
+                )
+            }
+        }
+
+        for (other_bloc, other_units) in other.units.into_iter() {
+            self.units.entry(other_bloc).or_default().extend(other_units);
+        }
     }
 
     /// Let all blocs of this combat attack each other with their units, or, if there is just a single bloc
