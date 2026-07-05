@@ -48,6 +48,8 @@ pub(crate) struct Config {
     production_interval: Duration,
     movement_interval: Duration,
     movement_step: Distance,
+    base_destruction_threshold: u32,
+    trust_destruction_threshold: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -173,6 +175,14 @@ impl Config {
 
     pub(crate) fn movement_step(&self) -> Distance {
         self.movement_step
+    }
+
+    pub(crate) fn base_destruction_threshold(&self) -> u32 {
+        self.base_destruction_threshold
+    }
+
+    pub(crate) fn trust_destruction_threshold(&self) -> u32 {
+        self.trust_destruction_threshold
     }
 
     async fn parse_from_str(config: &str) -> Result<Self> {
