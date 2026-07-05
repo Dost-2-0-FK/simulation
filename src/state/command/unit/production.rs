@@ -34,14 +34,13 @@ pub(crate) async fn produce_units(
             bloc.military_expense()
         };
         if military_expense == Default::default() {
+            log::info!("Bloc \"{bloc_name}\" has no military expense, no units are produced.");
             continue;
         }
 
         let (hourly_money, hourly_resources) = payment_service.hourly_income(bloc_name).await;
         let mut budget_money = military_expense * hourly_money;
         let mut budget_resources = military_expense * hourly_resources;
-
-        log::info!("Bloc {bloc_name}: hourly income {hourly_money}, production budget {budget_money}");
 
         // Collect enabled bases for this bloc sorted by id ascending.
         let mut enabled_bases_with_quota: Vec<(BaseId, Arc<RwLock<MilitaryBase>>, u32)> = Vec::new();
@@ -58,8 +57,11 @@ pub(crate) async fn produce_units(
         }
 
         if enabled_bases_with_quota.is_empty() {
+            log::info!("Bloc \"{bloc_name}\" has no enabled bases, no units are produced.");
             continue;
         }
+
+        log::info!("Bloc {bloc_name}: hourly income {hourly_money}, production budget {budget_money}");
 
         // Round Robin spending of the budget, prioritized bases first, ascending ids.
         enabled_bases_with_quota.sort_by_key(|(id, ..)| *id);

@@ -75,6 +75,7 @@ pub(crate) async fn move_units(
         let should_start_combat =
             move_toward_target(&mut unit_write_guard, &unit_bloc, &target, &blocs_units_points, step).await;
         let self_position = unit_write_guard.position();
+        let unit_id = unit_write_guard.id();
         drop(unit_write_guard);
         if should_start_combat {
             // If target is a base or trust and the unit is there, the combat is initiated accordingly
@@ -91,6 +92,7 @@ pub(crate) async fn move_units(
                     // Note: we need to account for the case where the unit has moved to a position where there are
                     // multiple units of an enemy bloc.
 
+                    log::info!("Unit {} engages in combat with other units", unit_id);
                     let mut units_by_bloc = HashMap::from([(unit_bloc.clone(), vec![unit.clone()])]);
 
                     for other_unit in units.values() {

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use derive_more::Display;
 use mongodb::bson::Uuid;
 use ordered_float::NotNan;
 use serde::{Deserialize, Serialize};
@@ -24,6 +25,7 @@ use crate::{
     utoipa::ToSchema,
     derive_more::From,
     derive_more::Into,
+    Display,
 )]
 pub(crate) struct UnitId(Uuid);
 

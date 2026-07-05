@@ -1,7 +1,19 @@
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Copy, Clone, Deserialize, Serialize, Display, utoipa::ToSchema, PartialOrd, PartialEq)]
+#[derive(
+    Debug,
+    Default,
+    Copy,
+    Clone,
+    Deserialize,
+    Serialize,
+    Display,
+    utoipa::ToSchema,
+    PartialOrd,
+    PartialEq,
+    derive_more::From,
+)]
 pub(crate) struct Money(f32);
 
 impl std::ops::Sub for Money {
