@@ -27,7 +27,7 @@ pub(crate) enum UnitTargetResponse {
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct UnitResponse {
-    base_id: Option<BaseId>,
+    id: UnitId,
     base: Option<BaseResponse>,
     bloc: Option<BlocName>,
     position: Point,
@@ -37,9 +37,8 @@ pub(crate) struct UnitResponse {
 impl UnitResponse {
     pub(crate) fn new(unit: &MilitaryUnit, base: Option<BaseResponse>, target: UnitTargetResponse) -> Self {
         let bloc = base.as_ref().map(|b| b.bloc.clone());
-        let base_id = base.as_ref().map(|b| b.id);
         Self {
-            base_id,
+            id: unit.id(),
             base,
             bloc,
             position: unit.position(),
