@@ -22,8 +22,10 @@ use crate::{
         UnitId, Zone,
     },
     error::UserError,
-    handlers::bases::{Financing, TargetBody},
-    handlers::units::UnitResponse,
+    handlers::{
+        bases::{Financing, TargetBody},
+        units::UnitResponse,
+    },
     persistence::MongoPersistence,
     services::payment_service::Share,
 };
@@ -121,14 +123,14 @@ pub(crate) async fn run(
                             let arc = bases.get(&base_id).ok_or(UserError::NotFound("Base"))?;
                             Some(Target::Base {
                                 id: base_id,
-                                arc: arc.clone(),
+                                base: arc.clone(),
                             })
                         }
                         Some(TargetBody::Trust { id: trust_id }) => {
                             let arc = trusts.get(&trust_id).ok_or(UserError::NotFound("Trust"))?;
                             Some(Target::Trust {
                                 id: trust_id,
-                                arc: arc.clone(),
+                                trust: arc.clone(),
                             })
                         }
                     };
@@ -192,7 +194,13 @@ pub(crate) async fn run(
                 unit::produce_units(&blocs, &bases, &mut units, config.payment_service()).await;
             }
             Command::MoveMilitaryUnits => {
-                unit::move_units(&mut units, config.movement_step()).await;
+                unit::move_units(
+                    &mut units,
+                    config.movement_step(),
+                    config.base_destruction_threshold(),
+                    config.trust_destruction_threshold(),
+                )
+                .await;
             }
         }
     }
