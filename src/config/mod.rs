@@ -24,7 +24,7 @@ struct TomlConfig {
     server: Option<ServerConfig>,
     env: EnvConfig,
     resources: VecResourceName,
-    time: TimeConfig,
+    combat: CombatConfig,
     persistence: PersistenceConfig,
     costs: CostsConfig,
     #[serde(rename = "bloc")]
@@ -93,7 +93,7 @@ impl PersistenceConfig {
 #[serde_as]
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct TimeConfig {
+struct CombatConfig {
     #[serde(rename = "main_loop_tick_seconds")]
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     main_loop_tick: Duration,
@@ -105,6 +105,8 @@ struct TimeConfig {
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     movement_interval: Duration,
     movement_step: Distance,
+    base_destruction_threshold: u32,
+    trust_destruction_threshold: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -264,23 +266,25 @@ impl Config {
             .collect::<Result<Vec<_>>>()?;
 
         assert!(
-            config.time.movement_step > 0.0,
+            config.combat.movement_step > 0.0,
             "unit movement step must be greater than 0"
         );
 
         Ok(Self {
             placements,
             zones,
-            main_loop_tick: config.time.main_loop_tick,
-            combat_loop_tick_factor: config.time.combat_loop_tick_factor,
+            main_loop_tick: config.combat.main_loop_tick,
+            combat_loop_tick_factor: config.combat.combat_loop_tick_factor,
             blocs,
             port: TcpListener::bind(format!("127.0.0.1:{}", config.server.unwrap_or_default().port))
                 .await
                 .map_err(Error::Io)?,
             persistence: config.persistence,
-            production_interval: config.time.production_interval,
-            movement_interval: config.time.movement_interval,
-            movement_step: config.time.movement_step,
+            production_interval: config.combat.production_interval,
+            movement_interval: config.combat.movement_interval,
+            movement_step: config.combat.movement_step,
+            trust_destruction_threshold: config.combat.trust_destruction_threshold,
+            base_destruction_threshold: config.combat.base_destruction_threshold,
             payment_service: PaymentService::new(
                 config.env.credit_exchange_url,
                 config.costs.unit,
@@ -308,12 +312,14 @@ mod tests {
         [env]
         credit_exchange_url = "http://0.0.0.0:4534"
 
-        [time]
+        [combat]
         main_loop_tick_seconds = 1.2
         combat_loop_tick_factor = 2
         production_interval_seconds = 3600
         movement_interval_seconds = 60
         movement_step = 1.0
+        base_destruction_threshold = 4
+        trust_destruction_threshold = 4
 
         [costs]
         base = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }
