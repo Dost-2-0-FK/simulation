@@ -13,13 +13,14 @@ use crate::{
     geometry::{Point, Positioned},
 };
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct UnitKilled {
     killer: UnitId,
     killed: UnitId,
 }
 
 /// What may happen during a combat tick?
+#[derive(Debug)]
 pub(crate) enum CombatEvent {
     /// Nothing happened. This can be the case when
     /// - units in combat rolled the dice and survived
@@ -42,7 +43,21 @@ pub(crate) enum CombatParameters {
     Base(Arc<RwLock<MilitaryUnit>>, Arc<RwLock<MilitaryBase>>, u32),
 }
 
-#[derive(Clone, Copy, Default)]
+pub(crate) enum CombatStructureParameters {
+    None,
+    Trust(Arc<RwLock<Trust>>, u32),
+    Base(Arc<RwLock<MilitaryBase>>, u32),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CombatStructureSnapshot {
+    None,
+    Trust { id: TrustId, destruction_threshold: u32 },
+    Base { id: BaseId, destruction_threshold: u32 },
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "lowercase")]
 pub(crate) enum CombatState {
     #[default]
     Ongoing,
@@ -132,6 +147,74 @@ impl Combat {
 
     pub(crate) fn position(&self) -> Point {
         self.position
+    }
+
+    pub(crate) fn id(&self) -> CombatId {
+        self.id
+    }
+
+    pub(crate) fn state(&self) -> CombatState {
+        self.state
+    }
+
+    pub(crate) fn from_persisted(
+        id: Uuid,
+        position: Point,
+        units: HashMap<BlocName, Vec<Arc<RwLock<MilitaryUnit>>>>,
+        structure: CombatStructureParameters,
+        state: CombatState,
+    ) -> Self {
+        let structure = match structure {
+            CombatStructureParameters::None => CombatStructure::None,
+            CombatStructureParameters::Trust(trust, destruction_threshold) => CombatStructure::Trust {
+                trust,
+                destruction_threshold,
+            },
+            CombatStructureParameters::Base(base, destruction_threshold) => CombatStructure::Base {
+                base,
+                destruction_threshold,
+            },
+        };
+
+        Self {
+            id: id.into(),
+            position,
+            units,
+            structure,
+            state,
+        }
+    }
+
+    pub(crate) async fn unit_ids_by_bloc(&self) -> Vec<(BlocName, Vec<UnitId>)> {
+        let mut result = Vec::with_capacity(self.units.len());
+        for (bloc, units) in &self.units {
+            let mut unit_ids = Vec::with_capacity(units.len());
+            for unit in units {
+                unit_ids.push(unit.read().await.id());
+            }
+            result.push((bloc.clone(), unit_ids));
+        }
+        result
+    }
+
+    pub(crate) async fn structure_snapshot(&self) -> CombatStructureSnapshot {
+        match &self.structure {
+            CombatStructure::None => CombatStructureSnapshot::None,
+            CombatStructure::Trust {
+                trust,
+                destruction_threshold,
+            } => CombatStructureSnapshot::Trust {
+                id: trust.read().await.id(),
+                destruction_threshold: *destruction_threshold,
+            },
+            CombatStructure::Base {
+                base,
+                destruction_threshold,
+            } => CombatStructureSnapshot::Base {
+                id: base.read().await.id(),
+                destruction_threshold: *destruction_threshold,
+            },
+        }
     }
 
     /// Merge this combat with another existing combat

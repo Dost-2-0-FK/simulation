@@ -34,6 +34,7 @@ impl State {
             trusts,
             units,
             blocs,
+            combats,
         } = self.loaded_state;
 
         let blocs: HashMap<BlocName, Arc<RwLock<Bloc>>> = if blocs.is_empty() {
@@ -50,11 +51,7 @@ impl State {
                 .collect()
         };
 
-        let units = units
-            .into_iter()
-            .map(|unit| (unit.id(), Arc::new(RwLock::new(unit))))
-            .collect::<HashMap<_, _>>();
-        // bases and trusts are already HashMaps from LoadedState
+        // bases, trusts, units, and combats are already shared maps from LoadedState
 
         command::run(
             self.receiver,
@@ -64,6 +61,7 @@ impl State {
             bases,
             trusts,
             blocs,
+            combats,
         )
         .await;
     }

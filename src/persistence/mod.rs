@@ -7,16 +7,19 @@ use tokio::sync::RwLock;
 
 use crate::{
     config::PersistenceConfig,
-    domain::{BaseId, Bloc, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, TrustId},
+    domain::{BaseId, Bloc, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, TrustId, UnitId},
+    geometry::Point,
 };
 
 mod bases;
 mod blocs;
+mod combats;
 mod trusts;
 mod units;
 
 use bases::PersistedBase;
 use blocs::PersistedBloc;
+use combats::PersistedCombat;
 use trusts::PersistedTrust;
 use units::PersistedUnit;
 
@@ -26,13 +29,15 @@ pub(crate) struct MongoPersistence {
     trusts: Collection<PersistedTrust>,
     units: Collection<PersistedUnit>,
     blocs: Collection<PersistedBloc>,
+    combats: Collection<PersistedCombat>,
 }
 
 pub(crate) struct LoadedState {
     pub(crate) bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     pub(crate) trusts: HashMap<TrustId, Arc<RwLock<Trust>>>,
-    pub(crate) units: Vec<MilitaryUnit>,
+    pub(crate) units: HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     pub(crate) blocs: Vec<Bloc>,
+    pub(crate) combats: HashMap<Point, Arc<RwLock<Combat>>>,
 }
 
 impl MongoPersistence {
@@ -58,6 +63,7 @@ impl MongoPersistence {
             trusts: database.collection("trusts"),
             units: database.collection("units"),
             blocs: database.collection("blocs"),
+            combats: database.collection("combats"),
         })
     }
 
@@ -119,6 +125,10 @@ impl MongoPersistence {
             .context("reading persisted units")?
             .into_iter()
             .collect::<Result<Vec<_>>>()?;
+        let units: HashMap<UnitId, Arc<RwLock<MilitaryUnit>>> = units
+            .into_iter()
+            .map(|unit| (unit.id(), Arc::new(RwLock::new(unit))))
+            .collect();
 
         let blocs = self
             .blocs
@@ -130,11 +140,27 @@ impl MongoPersistence {
             .await
             .context("reading persisted bloc overrides")?;
 
+        let combats = self
+            .combats
+            .find(doc! {})
+            .await
+            .context("loading combats from MongoDB")?
+            .map_ok(|combat| combat.into_combat(&units, &bases, &trusts))
+            .try_collect::<Vec<_>>()
+            .await
+            .context("reading persisted combats")?
+            .into_iter()
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .map(|combat| (combat.position(), Arc::new(RwLock::new(combat))))
+            .collect();
+
         Ok(LoadedState {
             bases,
             trusts,
             units,
             blocs,
+            combats,
         })
     }
 
@@ -175,6 +201,16 @@ impl MongoPersistence {
             .upsert(true)
             .await
             .context("saving bloc override to MongoDB")?;
+        Ok(())
+    }
+
+    pub(crate) async fn save_combat(&self, combat: &Combat) -> Result<()> {
+        let persisted = PersistedCombat::from_combat(combat).await;
+        self.combats
+            .replace_one(doc! { "_id": persisted.id() }, persisted)
+            .upsert(true)
+            .await
+            .context("saving combat to MongoDB")?;
         Ok(())
     }
 }

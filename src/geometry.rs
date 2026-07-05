@@ -3,7 +3,7 @@ use std::ops::{Add, Mul, Sub};
 use ordered_float::NotNan;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub(crate) struct Point {
     #[schema(value_type = f64)]
     x: NotNan<f64>,

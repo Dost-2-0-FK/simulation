@@ -54,6 +54,7 @@ pub(crate) fn openapi() -> utoipa::openapi::OpenApi {
             (name = "placements", description = "Endpoints related to placements."),
             (name = "trusts", description = "Endpoints related to trusts."),
             (name = "blocs", description = "Endpoints related to blocs."),
+            (name = "combats", description = "Endpoints related to combats."),
             (name = "zones", description = "Endpoints related to zones.")
         ),
     )]

@@ -1,5 +1,6 @@
 pub(crate) mod base;
 pub(crate) mod bloc;
+pub(crate) mod combat;
 pub(crate) mod persist;
 pub(crate) mod placement;
 pub(crate) mod trust;
@@ -18,12 +19,14 @@ use tokio::sync::{RwLock, mpsc::Receiver, oneshot::Sender};
 use crate::{
     config::Config,
     domain::{
-        BaseId, Bloc, BlocName, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust, TrustId,
-        UnitId, Zone,
+        BaseId, Bloc, BlocName, Chance, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust,
+        TrustId, UnitId, Zone,
     },
     error::UserError,
+    geometry::Point,
     handlers::{
         bases::{Financing, TargetBody},
+        combats::CombatResponse,
         units::UnitResponse,
     },
     persistence::MongoPersistence,
@@ -34,6 +37,7 @@ use crate::{
 #[derive(Debug)]
 pub(crate) enum Command {
     GetUnits(Sender<Vec<UnitResponse>>),
+    GetCombats(Sender<Vec<CombatResponse>>),
     CreateBase {
         placement_id: PlacementId,
         financing: Vec<Financing>,
@@ -73,6 +77,7 @@ pub(crate) enum Command {
 }
 
 /// The core of the state is this loop, where it accepts commands to be read or mutated.
+#[expect(clippy::too_many_arguments)]
 pub(crate) async fn run(
     mut receiver: Receiver<Command>,
     config: &Config,
@@ -81,11 +86,15 @@ pub(crate) async fn run(
     mut bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     mut trusts: HashMap<TrustId, Arc<RwLock<Trust>>>,
     blocs: HashMap<BlocName, Arc<RwLock<Bloc>>>,
+    mut combats: HashMap<Point, Arc<RwLock<Combat>>>,
 ) {
     while let Some(cmd) = receiver.recv().await {
         match cmd {
             Command::GetUnits(resp) => {
                 unit::get(resp, &units).await;
+            }
+            Command::GetCombats(resp) => {
+                combat::get_all(resp, &combats).await;
             }
             Command::CreateBase {
                 placement_id,
@@ -188,7 +197,7 @@ pub(crate) async fn run(
                 let _ = response.send(result);
             }
             Command::Persist => {
-                persist::persist_all(persistence, &units, &bases, &trusts, &blocs).await;
+                persist::persist_all(persistence, &units, &bases, &trusts, &blocs, &combats).await;
             }
             Command::ProduceMilitaryUnits => {
                 unit::produce_units(&blocs, &bases, &mut units, config.payment_service()).await;
@@ -196,6 +205,7 @@ pub(crate) async fn run(
             Command::MoveMilitaryUnits => {
                 unit::move_units(
                     &mut units,
+                    &mut combats,
                     config.movement_step(),
                     config.base_destruction_threshold(),
                     config.trust_destruction_threshold(),
