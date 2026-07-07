@@ -18,7 +18,7 @@ pub(crate) async fn get_all(resp: Sender<Vec<CombatResponse>>, combats: &HashMap
     let combat_responses: Vec<_> = stream::iter(combats.values())
         .then(async |combat| {
             let combat = combat.read().await;
-            if combat.state() == CombatState::Ended || combat.is_empty() {
+            if combat.is_empty() {
                 None
             } else {
                 Some(CombatResponse::from_combat(&combat).await)
@@ -34,19 +34,14 @@ pub(crate) async fn get_all(resp: Sender<Vec<CombatResponse>>, combats: &HashMap
 /// Execute a [Combat::tick] on each combat and clear ended combats from the map.
 pub(crate) async fn tick(combats: &mut HashMap<Point, Arc<RwLock<Combat>>>) -> Vec<CombatEvent> {
     let mut events = Vec::new();
-    let mut positions_to_clear = HashSet::new();
-    for (position, combat) in combats.iter() {
+    for combat in combats.values() {
         let mut combat_guard = combat.write().await;
         let event = combat_guard.tick().await;
         if event != CombatEvent::None {
             events.push(event);
         }
-        if combat_guard.state() == CombatState::Ended {
-            positions_to_clear.insert(*position);
-        }
     }
 
-    combats.retain(|position, _| !positions_to_clear.contains(position));
     events
 }
 
