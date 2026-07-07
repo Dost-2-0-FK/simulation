@@ -262,10 +262,10 @@ impl Combat {
         }
     }
 
-    pub(crate) async fn include_unit(&mut self, unit: Arc<RwLock<MilitaryUnit>>) {
+    pub(crate) async fn include_unit(&mut self, unit: Arc<RwLock<MilitaryUnit>>) -> bool {
         let bloc = unit_bloc_name(&unit).await;
         let id = unit.read().await.id();
-        self.units.entry(bloc).or_default().insert(id, unit);
+        self.units.entry(bloc).or_default().insert(id, unit).is_none()
     }
 
     /// Let all blocs of this combat attack each other with their units, or, if there is just a single bloc

@@ -7,7 +7,9 @@ use futures_util::{StreamExt, stream};
 use tokio::sync::{RwLock, oneshot::Sender};
 
 use crate::{
-    domain::{Combat, CombatState, MilitaryUnit, UnitId, UnitState},
+    domain::{
+        BaseId, Combat, CombatEvent, CombatState, MilitaryBase, MilitaryUnit, Target, Trust, TrustId, UnitId, UnitState,
+    },
     geometry::Point,
     handlers::combats::CombatResponse,
 };
@@ -30,17 +32,66 @@ pub(crate) async fn get_all(resp: Sender<Vec<CombatResponse>>, combats: &HashMap
 }
 
 /// Execute a [Combat::tick] on each combat and clear ended combats from the map.
-pub(crate) async fn tick(combats: &mut HashMap<Point, Arc<RwLock<Combat>>>) {
+pub(crate) async fn tick(combats: &mut HashMap<Point, Arc<RwLock<Combat>>>) -> Vec<CombatEvent> {
+    let mut events = Vec::new();
     let mut positions_to_clear = HashSet::new();
     for (position, combat) in combats.iter() {
         let mut combat_guard = combat.write().await;
-        combat_guard.tick().await;
+        let event = combat_guard.tick().await;
+        if event != CombatEvent::None {
+            events.push(event);
+        }
         if combat_guard.state() == CombatState::Ended {
             positions_to_clear.insert(*position);
         }
     }
 
     combats.retain(|position, _| !positions_to_clear.contains(position));
+    events
+}
+
+pub(crate) async fn apply_events(
+    events: &[CombatEvent],
+    bases: &mut HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
+    trusts: &mut HashMap<TrustId, Arc<RwLock<Trust>>>,
+) {
+    for event in events {
+        match event {
+            CombatEvent::None | CombatEvent::UnitsKilled { .. } => {}
+            CombatEvent::BaseDestroyed { id } => destroy_base(*id, bases).await,
+            CombatEvent::TrustDestroyed { id } => destroy_trust(*id, bases, trusts).await,
+        }
+    }
+}
+
+async fn destroy_base(id: BaseId, bases: &mut HashMap<BaseId, Arc<RwLock<MilitaryBase>>>) {
+    if bases.remove(&id).is_some() {
+        log::info!("base {id:?} was destroyed");
+    }
+
+    for base in bases.values() {
+        let mut base = base.write().await;
+        if matches!(base.target(), Target::Base { id: target_id, .. } if *target_id == id) {
+            base.set_target(Target::None);
+        }
+    }
+}
+
+async fn destroy_trust(
+    id: TrustId,
+    bases: &mut HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
+    trusts: &mut HashMap<TrustId, Arc<RwLock<Trust>>>,
+) {
+    if trusts.remove(&id).is_some() {
+        log::info!("trust {id:?} was destroyed");
+    }
+
+    for base in bases.values() {
+        let mut base = base.write().await;
+        if matches!(base.target(), Target::Trust { id: target_id, .. } if *target_id == id) {
+            base.set_target(Target::None);
+        }
+    }
 }
 
 pub(crate) async fn clear_dead_units(units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>) {

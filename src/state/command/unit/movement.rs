@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{BlocName, Combat, CombatParameters, MilitaryUnit, Target, UnitId},
+    domain::{BlocName, Combat, CombatParameters, CombatState, MilitaryUnit, Target, UnitId},
     geometry::{Distance, Point, Positioned},
 };
 
@@ -55,6 +55,14 @@ pub(crate) async fn move_units(
     base_destruction_threshold: u32,
     trust_destruction_threshold: u32,
 ) {
+    let mut ended_combats = Vec::new();
+    for (position, combat) in combats.iter() {
+        if combat.read().await.state() == CombatState::Ended {
+            ended_combats.push(*position);
+        }
+    }
+    combats.retain(|position, _| !ended_combats.contains(position));
+
     for unit in units.values() {
         let mut unit_write_guard = unit.write().await;
         let (unit_bloc, target) = {
@@ -68,8 +76,9 @@ pub(crate) async fn move_units(
         drop(unit_write_guard);
         if should_start_combat {
             if let Some(existing_combat) = combats.get(&self_position) {
-                log::debug!("Unit {} joins existing combat at position {self_position:?}", unit_id);
-                existing_combat.write().await.include_unit(unit.clone()).await;
+                if existing_combat.write().await.include_unit(unit.clone()).await {
+                    log::debug!("Unit {} joins existing combat at position {self_position:?}", unit_id);
+                }
                 continue;
             }
 

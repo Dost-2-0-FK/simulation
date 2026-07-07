@@ -221,7 +221,8 @@ pub(crate) async fn run(
             }
             Command::CombatTick => {
                 let _combat_lock_guard = combat_lock.lock().await;
-                combat::tick(&mut combats).await;
+                let events = combat::tick(&mut combats).await;
+                combat::apply_events(&events, &mut bases, &mut trusts).await;
                 combat::clear_dead_units(&mut units).await;
             }
         }
