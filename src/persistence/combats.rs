@@ -129,13 +129,13 @@ impl PersistedCombat {
     ) -> Result<Combat> {
         let mut units_by_bloc = HashMap::with_capacity(self.units.len());
         for group in self.units {
-            let mut combat_units = Vec::with_capacity(group.unit_ids.len());
+            let mut combat_units = HashMap::with_capacity(group.unit_ids.len());
             for unit_id in group.unit_ids {
                 let unit_id = UnitId::from(unit_id);
                 let unit = units
                     .get(&unit_id)
                     .ok_or_else(|| anyhow!("combat {} references unknown unit {unit_id:?}", self.id))?;
-                combat_units.push(unit.clone());
+                combat_units.insert(unit_id, unit.clone());
             }
             units_by_bloc.insert(group.bloc, combat_units);
         }

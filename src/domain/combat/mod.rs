@@ -8,7 +8,8 @@ use tokio::sync::RwLock;
 
 use crate::{
     domain::{
-        BaseId, BlocName, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId, combat::structure::CombatStructure,
+        AttackOutcome, BaseId, BlocName, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId, UnitState,
+        combat::structure::CombatStructure,
     },
     geometry::{Point, Positioned},
 };
@@ -36,7 +37,7 @@ pub(crate) enum CombatEvent {
 /// These are the possible initial states of a combat
 pub(crate) enum CombatParameters {
     /// Just units in a combat
-    Units(HashMap<BlocName, Vec<Arc<RwLock<MilitaryUnit>>>>),
+    Units(HashMap<BlocName, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>),
     /// A trust is attacked
     Trust(Arc<RwLock<MilitaryUnit>>, Arc<RwLock<Trust>>, u32),
     /// A base is attacked
@@ -85,7 +86,7 @@ pub(crate) struct CombatId(Uuid);
 pub(crate) struct Combat {
     id: CombatId,
     position: Point,
-    units: HashMap<BlocName, Vec<Arc<RwLock<MilitaryUnit>>>>,
+    units: HashMap<BlocName, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>,
     structure: CombatStructure,
     state: CombatState,
 }
@@ -106,8 +107,10 @@ impl Combat {
             }
             CombatParameters::Trust(unit, trust, threshold) => {
                 let bloc = unit_bloc_name(&unit).await;
+                let id = unit.read().await.id();
+                let units = HashMap::from([(id, unit.clone())]);
                 (
-                    HashMap::from([(bloc, vec![unit])]),
+                    HashMap::from([(bloc, units)]),
                     CombatStructure::Trust {
                         trust: trust.clone(),
                         destruction_threshold: threshold,
@@ -116,8 +119,10 @@ impl Combat {
             }
             CombatParameters::Base(unit, base, threshold) => {
                 let bloc = unit_bloc_name(&unit).await;
+                let id = unit.read().await.id();
+                let units = HashMap::from([(id, unit.clone())]);
                 (
-                    HashMap::from([(bloc, vec![unit])]),
+                    HashMap::from([(bloc, units)]),
                     CombatStructure::Base {
                         base: base.clone(),
                         destruction_threshold: threshold,
@@ -130,7 +135,8 @@ impl Combat {
             .values()
             .next()
             .expect("we just created the map with at least 1 bloc")
-            .first()
+            .values()
+            .next()
             .expect("we just created the unit list with at least 1 unit")
             .read()
             .await
@@ -157,10 +163,14 @@ impl Combat {
         self.state
     }
 
+    pub(crate) fn is_empty(&self) -> bool {
+        self.units.is_empty()
+    }
+
     pub(crate) fn from_persisted(
         id: Uuid,
         position: Point,
-        units: HashMap<BlocName, Vec<Arc<RwLock<MilitaryUnit>>>>,
+        units: HashMap<BlocName, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>,
         structure: CombatStructureParameters,
         state: CombatState,
     ) -> Self {
@@ -188,10 +198,7 @@ impl Combat {
     pub(crate) async fn unit_ids_by_bloc(&self) -> Vec<(BlocName, Vec<UnitId>)> {
         let mut result = Vec::with_capacity(self.units.len());
         for (bloc, units) in &self.units {
-            let mut unit_ids = Vec::with_capacity(units.len());
-            for unit in units {
-                unit_ids.push(unit.read().await.id());
-            }
+            let unit_ids = units.keys().copied().collect();
             result.push((bloc.clone(), unit_ids));
         }
         result
@@ -217,41 +224,10 @@ impl Combat {
         }
     }
 
-    /// Merge this (already existing) combat with another combat, i.e., make the units join the existing combat.
-    pub(crate) fn merge(&mut self, other: Self) {
-        assert_eq!(
-            self.position, other.position,
-            "merged combats must be in the same position"
-        );
-
-        // We make the assumption that we don't need to deal with combat structures, since they are static and should be
-        // equal between the two combats. So let's assert that.
-        match (&self.structure, &other.structure) {
-            (CombatStructure::Trust { trust: self_trust, .. }, CombatStructure::Trust { trust: other_trust, .. }) => {
-                assert!(
-                    Arc::ptr_eq(self_trust, other_trust),
-                    "The trust should be identical when merging combats."
-                )
-            }
-            (CombatStructure::Base { base: self_base, .. }, CombatStructure::Base { base: other_base, .. }) => {
-                assert!(
-                    Arc::ptr_eq(self_base, other_base),
-                    "The base should be identical when merging combats."
-                )
-            }
-            // If the other combat doesn't have a structure, we're fine.
-            (_, CombatStructure::None) => {}
-            _ => {
-                panic!(
-                    "Combat structures must be equal or the `other` combat must have no structure when combats are merged. However, self: {:#?}, other: {:#?}",
-                    self.structure, other.structure
-                )
-            }
-        }
-
-        for (other_bloc, other_units) in other.units.into_iter() {
-            self.units.entry(other_bloc).or_default().extend(other_units);
-        }
+    pub(crate) async fn include_unit(&mut self, unit: Arc<RwLock<MilitaryUnit>>) {
+        let bloc = unit_bloc_name(&unit).await;
+        let id = unit.read().await.id();
+        self.units.entry(bloc).or_default().insert(id, unit);
     }
 
     /// Let all blocs of this combat attack each other with their units, or, if there is just a single bloc
@@ -310,30 +286,37 @@ impl Combat {
 
     async fn units_fight(&mut self) -> CombatEvent {
         let mut killed_events = Vec::new();
-        // Pointers to the killed units
-        let mut killed_units = Vec::new();
+        let mut killed_units = HashMap::new();
+        let mut alive_units = Vec::new();
 
-        for (bloc_a, units_a) in self.units.iter() {
-            for (bloc_b, units_b) in self.units.iter() {
+        for (bloc, units) in &self.units {
+            for (unit_id, unit) in units {
+                if unit.read().await.state() == UnitState::Alive {
+                    alive_units.push((bloc.clone(), *unit_id, unit.clone()));
+                }
+            }
+        }
+
+        for (bloc_a, unit_a_id, unit_a) in &alive_units {
+            for (bloc_b, unit_b_id, _) in &alive_units {
                 if bloc_a == bloc_b {
                     continue;
                 }
 
-                for unit_a in units_a {
-                    for unit_b in units_b {
-                        let unit_a_guard = unit_a.read().await;
-                        let mut unit_b_guard = unit_b.write().await;
+                let unit_a_guard = unit_a.read().await;
 
-                        unit_a_guard.attack(&mut unit_b_guard).await;
-
-                        if unit_b_guard.was_killed_by(unit_a_guard.id()) {
+                match unit_a_guard.attack().await {
+                    AttackOutcome::Killed => {
+                        if killed_units.insert(*unit_b_id, *unit_a_id).is_none() {
+                            log::debug!("unit {} ({bloc_a}) killed unit {} ({bloc_b})", unit_a_id, unit_b_id);
                             killed_events.push(UnitKilled {
-                                killed: unit_b_guard.id(),
-                                killer: unit_a_guard.id(),
+                                killed: *unit_b_id,
+                                killer: *unit_a_id,
                             });
-
-                            killed_units.push(Arc::clone(unit_b));
                         }
+                    }
+                    AttackOutcome::Miss => {
+                        log::debug!("{} didn't hit {}", unit_a_id, unit_b_id);
                     }
                 }
             }
@@ -343,18 +326,30 @@ impl Combat {
             return CombatEvent::None;
         }
 
+        // Resolve deaths after all units that were alive at the start of the tick attacked.
+        for (unit_id, killer_id) in &killed_units {
+            if let Some(unit) = alive_units
+                .iter()
+                .find_map(|(_, candidate_id, unit)| (candidate_id == unit_id).then_some(unit))
+            {
+                unit.write().await.kill(*killer_id);
+            }
+        }
+
         // Remove killed units from combat.
         for units in self.units.values_mut() {
-            units.retain(|unit| !killed_units.iter().any(|killed| Arc::ptr_eq(unit, killed)));
+            units.retain(|unit_id, _| !killed_units.contains_key(unit_id));
         }
 
         // Remove blocs that have no units left.
         self.units.retain(|_, units| !units.is_empty());
 
-        // If we have only units of a single bloc and there is no structure, the combat has ended.
-        let combat_end = self.units.len() == 1 && self.structure.destruction_threshold().is_none();
+        // If no units remain, or if only one bloc remains without a structure to attack, the combat has ended.
+        let combat_end =
+            self.units.is_empty() || self.units.len() == 1 && self.structure.destruction_threshold().is_none();
         if combat_end {
-            self.state = CombatState::Ended
+            self.state = CombatState::Ended;
+            log::info!("combat at position {:?} has ended", self.position)
         }
 
         CombatEvent::UnitsKilled(killed_events)

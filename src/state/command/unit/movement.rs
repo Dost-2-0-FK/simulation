@@ -78,6 +78,12 @@ pub(crate) async fn move_units(
         let unit_id = unit_write_guard.id();
         drop(unit_write_guard);
         if should_start_combat {
+            if let Some(existing_combat) = combats.get(&self_position) {
+                log::debug!("Unit {} joins existing combat at position {self_position:?}", unit_id);
+                existing_combat.write().await.include_unit(unit.clone()).await;
+                continue;
+            }
+
             // If target is a base or trust and the unit is there, the combat is initiated accordingly
             let combat_params = match target {
                 Target::Base { base, .. } => {
@@ -92,8 +98,9 @@ pub(crate) async fn move_units(
                     // Note: we need to account for the case where the unit has moved to a position where there are
                     // multiple units of an enemy bloc.
 
-                    log::info!("Unit {} engages in combat with other units", unit_id);
-                    let mut units_by_bloc = HashMap::from([(unit_bloc.clone(), vec![unit.clone()])]);
+                    log::debug!("Unit {} engages in new combat with other units", unit_id);
+                    let mut units_by_bloc =
+                        HashMap::from([(unit_bloc.clone(), HashMap::from([(unit_id, unit.clone())]))]);
 
                     for other_unit in units.values() {
                         if Arc::ptr_eq(unit, other_unit) {
@@ -107,11 +114,12 @@ pub(crate) async fn move_units(
                         }
 
                         let other_unit_bloc = other_unit_guard.base().await.bloc().name().clone();
+                        let other_unit_id = other_unit_guard.id();
                         // and group them by bloc
                         units_by_bloc
                             .entry(other_unit_bloc)
                             .or_default()
-                            .push(other_unit.clone());
+                            .insert(other_unit_id, other_unit.clone());
                     }
 
                     // instantiate unit combat
@@ -120,12 +128,7 @@ pub(crate) async fn move_units(
             };
 
             let new_combat = Combat::new(combat_params).await;
-            if let Some(existing_combat) = combats.get(&new_combat.position()) {
-                let mut exististing_combat_guard = existing_combat.write().await;
-                exististing_combat_guard.merge(new_combat);
-            } else {
-                combats.insert(new_combat.position(), Arc::new(RwLock::new(new_combat)));
-            }
+            combats.insert(new_combat.position(), Arc::new(RwLock::new(new_combat)));
         }
     }
 }
