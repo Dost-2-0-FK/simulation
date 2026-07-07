@@ -12,4 +12,4 @@ pub(crate) use combat::{
 pub(crate) use placement::{Placement, PlacementId};
 pub(crate) use politics::{Bloc, BlocName, Chance, Zone, ZoneName};
 pub(crate) use trust::{Trust, TrustId};
-pub(crate) use unit::{MilitaryUnit, UnitId, UnitState};
+pub(crate) use unit::{AttackOutcome, MilitaryUnit, UnitId, UnitState};

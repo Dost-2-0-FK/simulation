@@ -55,6 +55,12 @@ pub(crate) enum UnitState {
     Killed { by: UnitId },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AttackOutcome {
+    Miss,
+    Killed,
+}
+
 crate::impl_positioned!(MilitaryUnit => position);
 
 impl MilitaryUnit {
@@ -75,8 +81,8 @@ impl MilitaryUnit {
         self.state
     }
 
-    pub(crate) fn was_killed_by(&self, other: UnitId) -> bool {
-        self.state() == UnitState::Killed { by: other }
+    pub(crate) fn kill(&mut self, by: UnitId) {
+        self.state = UnitState::Killed { by };
     }
 
     pub(crate) fn from_persisted(id: Uuid, base: Arc<RwLock<MilitaryBase>>, position: Point, state: UnitState) -> Self {
@@ -113,17 +119,16 @@ impl MilitaryUnit {
         self.position = from + diff * scale;
     }
 
-    /// Roll the [Chance][crate::domain::politics::Chance]-sided die, and kill the other unit if it's a
-    /// [hit][crate::domain::politics::DieRollOutcome::Hit].
-    pub(crate) async fn attack(&self, other: &mut Self) {
-        // Can't kill a unit twice!
-        if other.state() != UnitState::Alive {
-            return;
-        }
+    /// Roll the [Chance][crate::domain::politics::Chance]-sided die for this unit's attack.
+    ///
+    /// This does not mutate the target immediately. Combat resolution applies deaths after all units that were alive at
+    /// the beginning of the tick have attacked.
+    pub(crate) async fn attack(&self) -> AttackOutcome {
         let base = self.base().await;
         let roll = base.bloc().chance().roll();
         if roll == DieRollOutcome::Hit {
-            other.state = UnitState::Killed { by: self.id }
+            return AttackOutcome::Killed;
         }
+        AttackOutcome::Miss
     }
 }
