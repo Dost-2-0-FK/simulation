@@ -213,6 +213,38 @@ impl MongoPersistence {
             .context("saving combat to MongoDB")?;
         Ok(())
     }
+
+    pub(crate) async fn delete_units_except(&self, ids: Vec<mongodb::bson::Uuid>) -> Result<()> {
+        self.units
+            .delete_many(doc! { "_id": { "$nin": ids } })
+            .await
+            .context("deleting stale units from MongoDB")?;
+        Ok(())
+    }
+
+    pub(crate) async fn delete_bases_except(&self, ids: Vec<String>) -> Result<()> {
+        self.bases
+            .delete_many(doc! { "_id": { "$nin": ids } })
+            .await
+            .context("deleting stale bases from MongoDB")?;
+        Ok(())
+    }
+
+    pub(crate) async fn delete_trusts_except(&self, ids: Vec<String>) -> Result<()> {
+        self.trusts
+            .delete_many(doc! { "_id": { "$nin": ids } })
+            .await
+            .context("deleting stale trusts from MongoDB")?;
+        Ok(())
+    }
+
+    pub(crate) async fn delete_combats_except(&self, ids: Vec<mongodb::bson::Uuid>) -> Result<()> {
+        self.combats
+            .delete_many(doc! { "_id": { "$nin": ids } })
+            .await
+            .context("deleting stale combats from MongoDB")?;
+        Ok(())
+    }
 }
 
 fn placement_by_id(mut placements: impl Iterator<Item = Arc<Placement>>, id: &PlacementId) -> Result<Arc<Placement>> {
