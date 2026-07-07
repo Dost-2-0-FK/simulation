@@ -98,7 +98,7 @@ impl Combat {
                 // assert implementation correctness
                 assert!(
                     units.len() >= 2,
-                    "In a unit-only combat, there must be units of at least 2 blocs."
+                    "In a unit-only combat, there must be units of at least 2 blocs. Instead, had {units:?}"
                 );
                 for bloc_units in units.values() {
                     assert!(!bloc_units.is_empty(), "In each bloc, there must be at least 1 unit.");
@@ -305,19 +305,14 @@ impl Combat {
 
                 let unit_a_guard = unit_a.read().await;
 
-                match unit_a_guard.attack().await {
-                    AttackOutcome::Killed => {
-                        if killed_units.insert(*unit_b_id, *unit_a_id).is_none() {
-                            log::debug!("unit {} ({bloc_a}) killed unit {} ({bloc_b})", unit_a_id, unit_b_id);
-                            killed_events.push(UnitKilled {
-                                killed: *unit_b_id,
-                                killer: *unit_a_id,
-                            });
-                        }
-                    }
-                    AttackOutcome::Miss => {
-                        log::debug!("{} didn't hit {}", unit_a_id, unit_b_id);
-                    }
+                if unit_a_guard.attack().await == AttackOutcome::Killed
+                    && killed_units.insert(*unit_b_id, *unit_a_id).is_none()
+                {
+                    log::debug!("unit {} ({bloc_a}) killed unit {} ({bloc_b})", unit_a_id, unit_b_id);
+                    killed_events.push(UnitKilled {
+                        killed: *unit_b_id,
+                        killer: *unit_a_id,
+                    });
                 }
             }
         }
@@ -349,7 +344,7 @@ impl Combat {
             self.units.is_empty() || self.units.len() == 1 && self.structure.destruction_threshold().is_none();
         if combat_end {
             self.state = CombatState::Ended;
-            log::info!("combat at position {:?} has ended", self.position)
+            log::debug!("combat {:?} at position {:?} has ended", self.id, self.position)
         }
 
         CombatEvent::UnitsKilled(killed_events)
