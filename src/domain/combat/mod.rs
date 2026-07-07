@@ -419,5 +419,5 @@ impl Combat {
 async fn unit_bloc_name(unit_a: &RwLock<MilitaryUnit>) -> BlocName {
     let military_unit = unit_a.read().await;
     let military_base = military_unit.base().await;
-    military_base.bloc().name().clone()
+    military_base.bloc_name().clone()
 }

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use derive_more::Display;
 use rand::RngExt as _;
 use serde::{Deserialize, Serialize};
+use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::services::payment_service::Share;
 
@@ -10,19 +11,27 @@ use crate::services::payment_service::Share;
 pub(crate) struct ZoneName(String);
 
 #[derive(Debug)]
-pub(crate) struct Zone(ZoneName, Arc<Bloc>);
+pub(crate) struct Zone {
+    name: ZoneName,
+    bloc_name: BlocName,
+    bloc: Arc<RwLock<Bloc>>,
+}
 
 impl Zone {
-    pub(crate) fn new(name: ZoneName, bloc: Arc<Bloc>) -> Self {
-        Self(name, bloc)
+    pub(crate) fn new(name: ZoneName, bloc_name: BlocName, bloc: Arc<RwLock<Bloc>>) -> Self {
+        Self { name, bloc_name, bloc }
     }
 
     pub(crate) fn name(&self) -> &ZoneName {
-        &self.0
+        &self.name
     }
 
-    pub(crate) fn bloc(&self) -> &Bloc {
-        &self.1
+    pub(crate) fn bloc_name(&self) -> &BlocName {
+        &self.bloc_name
+    }
+
+    pub(crate) async fn bloc(&self) -> RwLockReadGuard<'_, Bloc> {
+        self.bloc.read().await
     }
 }
 

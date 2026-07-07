@@ -46,7 +46,7 @@ pub(crate) async fn produce_units(
         let mut enabled_bases_with_quota: Vec<(BaseId, Arc<RwLock<MilitaryBase>>, u32)> = Vec::new();
         for base_arc in bases.values() {
             let base = base_arc.read().await;
-            if !base.enabled() || base.placement().zone().bloc().name() != bloc_name {
+            if !base.enabled() || base.bloc_name() != bloc_name {
                 continue;
             }
             // Prioritized bases produce 2 units per pass, non-prioritized produce 1 unit per pass.

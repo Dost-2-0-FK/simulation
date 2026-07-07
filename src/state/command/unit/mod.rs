@@ -18,7 +18,7 @@ pub(crate) async fn get(resp: Sender<Vec<UnitResponse>>, units: &HashMap<UnitId,
         .then(async |unit| {
             let unit_guard = unit.read().await;
             let base_guard = unit_guard.base().await;
-            let bloc_name = base_guard.placement().zone().bloc().name().clone();
+            let bloc_name = base_guard.bloc_name().clone();
             let target = effective_target(
                 unit_guard.id(),
                 unit_guard.position(),

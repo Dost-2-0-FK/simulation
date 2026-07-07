@@ -1,15 +1,14 @@
 //! This module contains the simulation state that is queried or mutated by users or the simulation itself.
 
 mod command;
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 pub(crate) use command::Command;
-use tokio::sync::{RwLock, mpsc::Receiver};
+use tokio::sync::mpsc::Receiver;
 use typed_builder::TypedBuilder;
 
 use crate::{
     config::Config,
-    domain::{Bloc, BlocName},
     persistence::{LoadedState, MongoPersistence},
 };
 
@@ -37,19 +36,27 @@ impl State {
             combats,
         } = self.loaded_state;
 
-        let blocs: HashMap<BlocName, Arc<RwLock<Bloc>>> = if blocs.is_empty() {
+        let live_blocs = self.config.blocs().collect::<Vec<_>>();
+        let mut blocs_by_name = HashMap::with_capacity(live_blocs.len());
+        for bloc in live_blocs {
+            let name = bloc.read().await.name().clone();
+            blocs_by_name.insert(name, bloc);
+        }
+
+        if blocs.is_empty() {
             log::info!("No blocs persisted, instantiating from config.");
-            self.config
-                .blocs()
-                .map(|bloc| (bloc.name().clone(), Arc::new(RwLock::new((*bloc).clone()))))
-                .collect()
         } else {
-            log::info!("Loaded blocs from database, ignoring blocs listed in config.");
-            blocs
-                .into_iter()
-                .map(|bloc| (bloc.name().clone(), Arc::new(RwLock::new(bloc))))
-                .collect()
-        };
+            log::info!("Loaded blocs from database, applying persisted bloc overrides.");
+            for persisted_bloc in blocs {
+                match blocs_by_name.get(persisted_bloc.name()) {
+                    Some(live_bloc) => *live_bloc.write().await = persisted_bloc,
+                    None => log::warn!(
+                        "Ignoring persisted bloc {} because it is not present in config.",
+                        persisted_bloc.name()
+                    ),
+                }
+            }
+        }
 
         // bases, trusts, units, and combats are already shared maps from LoadedState
 
@@ -60,7 +67,7 @@ impl State {
             units,
             bases,
             trusts,
-            blocs,
+            blocs_by_name,
             combats,
         )
         .await;

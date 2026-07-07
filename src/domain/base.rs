@@ -4,10 +4,10 @@ use std::sync::{
 };
 
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
-    domain::{Bloc, Placement, PlacementId, Trust, TrustId},
+    domain::{Bloc, BlocName, Placement, PlacementId, Trust, TrustId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
     services::payment_service::{Financiers, Money, Payment},
@@ -107,8 +107,12 @@ impl MilitaryBase {
         self.placement.id()
     }
 
-    pub(crate) fn bloc(&self) -> &Bloc {
-        self.placement().zone().bloc()
+    pub(crate) fn bloc_name(&self) -> &BlocName {
+        self.placement().zone().bloc_name()
+    }
+
+    pub(crate) async fn bloc(&self) -> RwLockReadGuard<'_, Bloc> {
+        self.placement().zone().bloc().await
     }
 
     pub(crate) fn financiers(&self) -> &[Financing] {

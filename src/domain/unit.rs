@@ -125,7 +125,8 @@ impl MilitaryUnit {
     /// the beginning of the tick have attacked.
     pub(crate) async fn attack(&self) -> AttackOutcome {
         let base = self.base().await;
-        let roll = base.bloc().chance().roll();
+        let bloc = base.bloc().await;
+        let roll = bloc.chance().roll();
         if roll == DieRollOutcome::Hit {
             return AttackOutcome::Killed;
         }

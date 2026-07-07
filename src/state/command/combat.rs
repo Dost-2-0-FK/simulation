@@ -7,9 +7,7 @@ use futures_util::{StreamExt, stream};
 use tokio::sync::{RwLock, oneshot::Sender};
 
 use crate::{
-    domain::{
-        BaseId, Combat, CombatEvent, CombatState, MilitaryBase, MilitaryUnit, Target, Trust, TrustId, UnitId, UnitState,
-    },
+    domain::{BaseId, Combat, CombatEvent, MilitaryBase, MilitaryUnit, Target, Trust, TrustId, UnitId, UnitState},
     geometry::Point,
     handlers::combats::CombatResponse,
 };

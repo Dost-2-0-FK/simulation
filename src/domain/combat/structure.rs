@@ -42,12 +42,12 @@ impl CombatStructure {
             CombatStructure::None => None,
             CombatStructure::Trust { trust, .. } => {
                 let trust = trust.read().await;
-                Some(trust.placement().zone().bloc().name().clone())
+                Some(trust.placement().zone().bloc_name().clone())
             }
 
             CombatStructure::Base { base, .. } => {
                 let trust = base.read().await;
-                Some(trust.placement().zone().bloc().name().clone())
+                Some(trust.placement().zone().bloc_name().clone())
             }
         }
     }

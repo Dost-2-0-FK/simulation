@@ -79,7 +79,7 @@ impl From<&MilitaryBase> for BaseResponse {
             id: base.id(),
             placement_id: placement.id().clone(),
             zone: zone.name().clone(),
-            bloc: zone.bloc().name().clone(),
+            bloc: zone.bloc_name().clone(),
             payment: base.financiers().to_vec(),
             enabled: base.enabled(),
             prioritized: base.prioritized(),

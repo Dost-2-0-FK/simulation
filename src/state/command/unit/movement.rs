@@ -67,7 +67,7 @@ pub(crate) async fn move_units(
         let mut unit_write_guard = unit.write().await;
         let (unit_bloc, target) = {
             let base = unit_write_guard.base().await;
-            (base.placement().zone().bloc().name().clone(), base.target().clone())
+            (base.bloc_name().clone(), base.target().clone())
         };
 
         let should_start_combat = move_toward_target(&mut unit_write_guard, &unit_bloc, &target, units, step).await;
@@ -111,7 +111,7 @@ pub(crate) async fn move_units(
                             continue;
                         }
 
-                        let other_unit_bloc = other_unit_guard.base().await.bloc().name().clone();
+                        let other_unit_bloc = other_unit_guard.base().await.bloc_name().clone();
                         let other_unit_id = other_unit_guard.id();
                         // and group them by bloc
                         units_by_bloc
@@ -151,7 +151,7 @@ pub(super) async fn select_move_target(
         }
 
         let other_unit = other_unit.read().await;
-        let other_unit_bloc = other_unit.base().await.bloc().name().clone();
+        let other_unit_bloc = other_unit.base().await.bloc_name().clone();
         if other_unit_bloc == *unit_bloc {
             continue;
         }

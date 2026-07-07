@@ -1,10 +1,10 @@
 mod error;
 
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use serde::Deserialize;
 use serde_with::{DurationSecondsWithFrac, serde_as};
-use tokio::{fs, net::TcpListener};
+use tokio::{fs, net::TcpListener, sync::RwLock};
 
 use self::error::{Error, Result};
 use crate::{
@@ -40,7 +40,7 @@ pub(crate) struct Config {
     placements: Vec<Arc<Placement>>,
     zones: Vec<Arc<Zone>>,
     combat_tick_interval: Duration,
-    blocs: Vec<Arc<Bloc>>,
+    blocs: Vec<Arc<RwLock<Bloc>>>,
     port: TcpListener,
     payment_service: PaymentService,
     persistence: PersistenceConfig,
@@ -157,7 +157,7 @@ impl Config {
         self.zones.iter().cloned()
     }
 
-    pub(crate) fn blocs(&self) -> impl Iterator<Item = Arc<Bloc>> + '_ {
+    pub(crate) fn blocs(&self) -> impl Iterator<Item = Arc<RwLock<Bloc>>> + '_ {
         self.blocs.iter().cloned()
     }
 
@@ -212,31 +212,34 @@ impl Config {
             .blocs
             .iter()
             .map(|bloc_config| {
-                Arc::new(Bloc::new(
+                Arc::new(RwLock::new(Bloc::new(
                     bloc_config.name.clone(),
                     bloc_config.chance,
                     bloc_config.military_expense,
-                ))
+                )))
             })
             .collect::<Vec<_>>();
+
+        let blocs_by_name = config
+            .blocs
+            .iter()
+            .zip(blocs.iter())
+            .map(|(bloc_config, bloc)| (bloc_config.name.clone(), bloc.clone()))
+            .collect::<HashMap<_, _>>();
 
         let zones = config
             .zones
             .iter()
             .map(|zone_config| {
-                let bloc = blocs
-                    .iter()
-                    .find(|bloc| bloc.name() == &zone_config.bloc)
-                    .cloned()
-                    .ok_or_else(|| {
-                        Error::ConfigValidation(format!(
-                            "zone {zone} references unknown bloc {bloc}",
-                            zone = &zone_config.name,
-                            bloc = &zone_config.bloc,
-                        ))
-                    })?;
+                let bloc = blocs_by_name.get(&zone_config.bloc).cloned().ok_or_else(|| {
+                    Error::ConfigValidation(format!(
+                        "zone {zone} references unknown bloc {bloc}",
+                        zone = &zone_config.name,
+                        bloc = &zone_config.bloc,
+                    ))
+                })?;
 
-                let zone = Arc::new(Zone::new(zone_config.name.clone(), bloc));
+                let zone = Arc::new(Zone::new(zone_config.name.clone(), zone_config.bloc.clone(), bloc));
 
                 Ok(zone)
             })

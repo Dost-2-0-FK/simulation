@@ -21,7 +21,7 @@ impl From<&Zone> for ZoneResponse {
     fn from(zone: &Zone) -> Self {
         Self {
             name: zone.name().clone(),
-            bloc: zone.bloc().name().clone(),
+            bloc: zone.bloc_name().clone(),
         }
     }
 }
