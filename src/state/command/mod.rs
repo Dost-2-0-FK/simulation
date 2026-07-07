@@ -14,7 +14,7 @@ pub(crate) enum CommandError {
 
 use std::{collections::HashMap, sync::Arc};
 
-use tokio::sync::{RwLock, mpsc::Receiver, oneshot::Sender};
+use tokio::sync::{Mutex, RwLock, mpsc::Receiver, oneshot::Sender};
 
 use crate::{
     config::Config,
@@ -90,6 +90,9 @@ pub(crate) async fn run(
     blocs: HashMap<BlocName, Arc<RwLock<Bloc>>>,
     mut combats: HashMap<Point, Arc<RwLock<Combat>>>,
 ) {
+    // We need this because combat tick and combat initiation should never happen concurrently.
+    let combat_lock = Mutex::new(());
+
     while let Some(cmd) = receiver.recv().await {
         match cmd {
             Command::GetUnits(resp) => {
@@ -205,6 +208,8 @@ pub(crate) async fn run(
                 unit::produce_units(&blocs, &bases, &mut units, config.payment_service()).await;
             }
             Command::MoveMilitaryUnits => {
+                let _combat_lock_guard = combat_lock.lock().await;
+                combat::clear_dead_units(&mut units).await;
                 unit::move_units(
                     &mut units,
                     &mut combats,
@@ -215,6 +220,7 @@ pub(crate) async fn run(
                 .await;
             }
             Command::CombatTick => {
+                let _combat_lock_guard = combat_lock.lock().await;
                 combat::tick(&mut combats).await;
                 combat::clear_dead_units(&mut units).await;
             }
