@@ -322,20 +322,17 @@ impl Combat {
     }
 
     async fn check_for_structure_destruction(&mut self) -> CombatEvent {
-        #[cfg(debug_assertions)]
-        {
-            let structure_bloc = self
-                .structure
-                .bloc()
-                .await
-                .expect("we should be in a combat with a structure");
+        let structure_bloc = self
+            .structure
+            .bloc()
+            .await
+            .expect("we should be in a combat with a structure");
 
-            assert_ne!(
-                structure_bloc,
-                self.units.keys().next().expect("we have exactly 1 bloc").clone(),
-                "we cannot be in a state where units of a bloc attack their own structure"
-            );
-        }
+        assert_ne!(
+            structure_bloc,
+            self.units.keys().next().expect("we have exactly 1 bloc").clone(),
+            "we cannot be in a state where units of a bloc attack their own structure"
+        );
 
         let destruction_threshold = self
             .structure
