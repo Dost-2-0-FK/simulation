@@ -216,6 +216,7 @@ pub(crate) async fn run(
             }
             Command::CombatTick => {
                 combat::tick(&mut combats).await;
+                combat::clear_dead_units(&mut units).await;
             }
         }
     }
