@@ -1,6 +1,9 @@
 mod structure;
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use mongodb::bson::Uuid;
 use serde::{Deserialize, Serialize};
@@ -268,6 +271,11 @@ impl Combat {
     /// Let all blocs of this combat attack each other with their units, or, if there is just a single bloc
     /// present in this combat and a structure, destroy the structure, if applicable.
     pub(crate) async fn tick(&mut self) -> CombatEvent {
+        self.prune_dead_units().await;
+        if self.state == CombatState::Ended {
+            return CombatEvent::None;
+        }
+
         // There is only units of a single bloc and the combat is still running, ...
         let event = if self.units.len() == 1 {
             // ... this means we're in a situation where we're waiting for more units of the same bloc to arrive before
@@ -282,6 +290,35 @@ impl Combat {
         }
 
         event
+    }
+
+    async fn prune_dead_units(&mut self) {
+        let mut dead_units = HashSet::new();
+        for units in self.units.values() {
+            for (unit_id, unit) in units {
+                if unit.read().await.state() != UnitState::Alive {
+                    dead_units.insert(*unit_id);
+                }
+            }
+        }
+
+        if !dead_units.is_empty() {
+            for units in self.units.values_mut() {
+                units.retain(|unit_id, _| !dead_units.contains(unit_id));
+            }
+            self.units.retain(|_, units| !units.is_empty());
+        }
+
+        self.end_if_finished();
+    }
+
+    fn end_if_finished(&mut self) {
+        let combat_end =
+            self.units.is_empty() || self.units.len() == 1 && self.structure.destruction_threshold().is_none();
+        if combat_end && self.state != CombatState::Ended {
+            self.state = CombatState::Ended;
+            log::debug!("combat {:?} at position {:?} has ended", self.id, self.position)
+        }
     }
 
     async fn check_for_structure_destruction(&mut self) -> CombatEvent {
@@ -376,21 +413,7 @@ impl Combat {
             }
         }
 
-        // Remove killed units from combat.
-        for units in self.units.values_mut() {
-            units.retain(|unit_id, _| !killed_units.contains_key(unit_id));
-        }
-
-        // Remove blocs that have no units left.
-        self.units.retain(|_, units| !units.is_empty());
-
-        // If no units remain, or if only one bloc remains without a structure to attack, the combat has ended.
-        let combat_end =
-            self.units.is_empty() || self.units.len() == 1 && self.structure.destruction_threshold().is_none();
-        if combat_end {
-            self.state = CombatState::Ended;
-            log::debug!("combat {:?} at position {:?} has ended", self.id, self.position)
-        }
+        self.prune_dead_units().await;
 
         CombatEvent::UnitsKilled { units: killed_events }
     }

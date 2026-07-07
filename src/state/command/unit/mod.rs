@@ -14,15 +14,6 @@ use crate::{
 };
 
 pub(crate) async fn get(resp: Sender<Vec<UnitResponse>>, units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>) {
-    // Pre-collect (BlocName, UnitId, Point) for enemy-unit detection.
-    let mut all_units_snapshot: Vec<(BlocName, UnitId, Point)> = Vec::with_capacity(units.len());
-    for (unit_id, unit_arc) in units.iter() {
-        let unit = unit_arc.read().await;
-        let base = unit.base().await;
-        let bloc_name = base.placement().zone().bloc().name().clone();
-        all_units_snapshot.push((bloc_name, *unit_id, unit.position()));
-    }
-
     let unit_responses = stream::iter(units.values())
         .then(async |unit| {
             let unit_guard = unit.read().await;
@@ -33,7 +24,7 @@ pub(crate) async fn get(resp: Sender<Vec<UnitResponse>>, units: &HashMap<UnitId,
                 unit_guard.position(),
                 &bloc_name,
                 base_guard.target(),
-                &all_units_snapshot,
+                units,
             )
             .await;
             let base_response = (&(*base_guard)).into();
@@ -51,7 +42,7 @@ async fn effective_target(
     from: Point,
     unit_bloc: &BlocName,
     target: &Target,
-    all_units: &[(BlocName, UnitId, Point)],
+    units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
 ) -> UnitTargetResponse {
     let target_point = match target {
         Target::None => None,
@@ -59,7 +50,7 @@ async fn effective_target(
         Target::Trust { trust, .. } => Some(trust.read().await.position()),
     };
 
-    match select_move_target(from, unit_id, unit_bloc, target_point, all_units) {
+    match select_move_target(from, unit_id, unit_bloc, target_point, units).await {
         MoveTo::None => UnitTargetResponse::None,
         MoveTo::EnemyUnit(id, position) => UnitTargetResponse::Unit { id, position },
         MoveTo::Designated(position) => match target {
