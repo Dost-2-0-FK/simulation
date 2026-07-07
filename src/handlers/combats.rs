@@ -3,7 +3,10 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
-    domain::{BaseId, BlocName, Combat, CombatId, CombatState, CombatStructureSnapshot, TrustId, UnitId},
+    domain::{
+        BaseId, BlocName, Combat, CombatEvent, CombatId, CombatState, CombatStructureSnapshot, TrustId, UnitId,
+        UnitKilled,
+    },
     error::{Result, UserError},
     geometry::Point,
     state::Command,
@@ -50,12 +53,50 @@ impl From<CombatStructureSnapshot> for CombatStructureResponse {
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct UnitKilledResponse {
+    killer: UnitId,
+    killed: UnitId,
+}
+
+impl From<UnitKilled> for UnitKilledResponse {
+    fn from(event: UnitKilled) -> Self {
+        Self {
+            killer: event.killer(),
+            killed: event.killed(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub(crate) enum CombatEventResponse {
+    UnitsKilled { units: Vec<UnitKilledResponse> },
+    TrustDestroyed { id: TrustId },
+    BaseDestroyed { id: BaseId },
+}
+
+impl CombatEventResponse {
+    fn from_event(event: &CombatEvent) -> Option<Self> {
+        match event {
+            CombatEvent::None => None,
+            CombatEvent::UnitsKilled { units } => Some(Self::UnitsKilled {
+                units: units.iter().copied().map(Into::into).collect(),
+            }),
+            CombatEvent::TrustDestroyed { id } => Some(Self::TrustDestroyed { id: *id }),
+            CombatEvent::BaseDestroyed { id } => Some(Self::BaseDestroyed { id: *id }),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct CombatResponse {
     id: CombatId,
     position: Point,
     units: Vec<CombatUnitsResponse>,
     structure: CombatStructureResponse,
     state: CombatState,
+    events: Vec<CombatEventResponse>,
 }
 
 impl CombatResponse {
@@ -73,6 +114,11 @@ impl CombatResponse {
             units,
             structure: combat.structure_snapshot().await.into(),
             state: combat.state(),
+            events: combat
+                .events()
+                .iter()
+                .filter_map(CombatEventResponse::from_event)
+                .collect(),
         }
     }
 }

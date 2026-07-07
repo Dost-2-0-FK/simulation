@@ -7,8 +7,8 @@ use tokio::sync::RwLock;
 
 use crate::{
     domain::{
-        BaseId, BlocName, Combat, CombatState, CombatStructureParameters, CombatStructureSnapshot, MilitaryBase,
-        MilitaryUnit, Trust, TrustId, UnitId,
+        BaseId, BlocName, Combat, CombatEvent, CombatState, CombatStructureParameters, CombatStructureSnapshot,
+        MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId,
     },
     geometry::Point,
 };
@@ -94,6 +94,8 @@ pub(super) struct PersistedCombat {
     structure: PersistedCombatStructure,
     #[serde(default)]
     state: CombatState,
+    #[serde(default)]
+    events: Vec<CombatEvent>,
 }
 
 impl PersistedCombat {
@@ -114,6 +116,7 @@ impl PersistedCombat {
             units,
             structure: PersistedCombatStructure::from_combat(combat).await,
             state: combat.state(),
+            events: combat.events().to_vec(),
         }
     }
 
@@ -146,6 +149,7 @@ impl PersistedCombat {
             units_by_bloc,
             self.structure.into_structure(bases, trusts)?,
             self.state,
+            self.events,
         ))
     }
 }

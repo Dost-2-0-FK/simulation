@@ -14,24 +14,51 @@ use crate::{
     geometry::{Point, Positioned},
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema, PartialEq, Eq)]
 pub(crate) struct UnitKilled {
     killer: UnitId,
     killed: UnitId,
 }
 
+impl UnitKilled {
+    pub(crate) fn killer(&self) -> UnitId {
+        self.killer
+    }
+
+    pub(crate) fn killed(&self) -> UnitId {
+        self.killed
+    }
+}
+
 /// What may happen during a combat tick?
-#[derive(Debug)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub(crate) enum CombatEvent {
     /// Nothing happened. This can be the case when
     /// - units in combat rolled the dice and survived
     /// - units are attacking a structure but are too few to destroy it
     None,
-    UnitsKilled(Vec<UnitKilled>),
+    UnitsKilled {
+        units: Vec<UnitKilled>,
+    },
     /// The trust was destroyed, this implies combat end.
-    TrustDestroyed(TrustId),
+    TrustDestroyed {
+        id: TrustId,
+    },
     /// The base was destroyed, this implies combat end.
-    BaseDestroyed(BaseId),
+    BaseDestroyed {
+        id: BaseId,
+    },
+}
+
+impl CombatEvent {
+    fn should_persist(&self) -> bool {
+        match self {
+            Self::None => false,
+            Self::UnitsKilled { units } => !units.is_empty(),
+            Self::TrustDestroyed { .. } | Self::BaseDestroyed { .. } => true,
+        }
+    }
 }
 
 /// These are the possible initial states of a combat
@@ -89,6 +116,7 @@ pub(crate) struct Combat {
     units: HashMap<BlocName, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>,
     structure: CombatStructure,
     state: CombatState,
+    events: Vec<CombatEvent>,
 }
 
 impl Combat {
@@ -148,6 +176,7 @@ impl Combat {
             position,
             structure,
             state: Default::default(),
+            events: Vec::new(),
         }
     }
 
@@ -167,12 +196,17 @@ impl Combat {
         self.units.is_empty()
     }
 
+    pub(crate) fn events(&self) -> &[CombatEvent] {
+        &self.events
+    }
+
     pub(crate) fn from_persisted(
         id: Uuid,
         position: Point,
         units: HashMap<BlocName, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>,
         structure: CombatStructureParameters,
         state: CombatState,
+        events: Vec<CombatEvent>,
     ) -> Self {
         let structure = match structure {
             CombatStructureParameters::None => CombatStructure::None,
@@ -192,6 +226,7 @@ impl Combat {
             units,
             structure,
             state,
+            events,
         }
     }
 
@@ -234,13 +269,19 @@ impl Combat {
     /// present in this combat and a structure, destroy the structure, if applicable.
     pub(crate) async fn tick(&mut self) -> CombatEvent {
         // There is only units of a single bloc and the combat is still running, ...
-        if self.units.len() == 1 {
+        let event = if self.units.len() == 1 {
             // ... this means we're in a situation where we're waiting for more units of the same bloc to arrive before
             // the threshold is reached to destroy the structure.
             self.check_for_structure_destruction().await
         } else {
             self.units_fight().await
+        };
+
+        if event.should_persist() {
+            self.events.push(event.clone());
         }
+
+        event
     }
 
     async fn check_for_structure_destruction(&mut self) -> CombatEvent {
@@ -279,8 +320,12 @@ impl Combat {
         self.state = CombatState::Ended;
         match &self.structure {
             CombatStructure::None => panic!("We shouldn't be reaching this point in a combat without structures"),
-            CombatStructure::Trust { trust, .. } => CombatEvent::TrustDestroyed(trust.read().await.id()),
-            CombatStructure::Base { base, .. } => CombatEvent::BaseDestroyed(base.read().await.id()),
+            CombatStructure::Trust { trust, .. } => CombatEvent::TrustDestroyed {
+                id: trust.read().await.id(),
+            },
+            CombatStructure::Base { base, .. } => CombatEvent::BaseDestroyed {
+                id: base.read().await.id(),
+            },
         }
     }
 
@@ -347,7 +392,7 @@ impl Combat {
             log::debug!("combat {:?} at position {:?} has ended", self.id, self.position)
         }
 
-        CombatEvent::UnitsKilled(killed_events)
+        CombatEvent::UnitsKilled { units: killed_events }
     }
 }
 

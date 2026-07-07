@@ -7,7 +7,8 @@ mod unit;
 
 pub(crate) use base::{BaseId, MilitaryBase, Target};
 pub(crate) use combat::{
-    Combat, CombatId, CombatParameters, CombatState, CombatStructureParameters, CombatStructureSnapshot,
+    Combat, CombatEvent, CombatId, CombatParameters, CombatState, CombatStructureParameters, CombatStructureSnapshot,
+    UnitKilled,
 };
 pub(crate) use placement::{Placement, PlacementId};
 pub(crate) use politics::{Bloc, BlocName, Chance, Zone, ZoneName};

@@ -34,8 +34,7 @@ pub(crate) async fn tick(combats: &mut HashMap<Point, Arc<RwLock<Combat>>>) {
     let mut positions_to_clear = HashSet::new();
     for (position, combat) in combats.iter() {
         let mut combat_guard = combat.write().await;
-        // TODO? Persist events on the combat struct?
-        let _event = combat_guard.tick().await;
+        combat_guard.tick().await;
         if combat_guard.state() == CombatState::Ended {
             positions_to_clear.insert(*position);
         }
