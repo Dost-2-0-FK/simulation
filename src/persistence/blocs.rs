@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     domain::{Bloc, BlocName, Chance},
-    services::payment_service::Share,
+    services::credit_exchange_service::Share,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

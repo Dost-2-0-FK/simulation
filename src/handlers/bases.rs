@@ -6,7 +6,7 @@ use crate::{
     domain::{BaseId, BlocName, MilitaryBase, PlacementId, Target, TrustId, ZoneName},
     error::{Result, UserError},
     geometry::{Point, Positioned},
-    services::payment_service::Share,
+    services::credit_exchange_service::Share,
     state::Command,
 };
 
@@ -14,6 +14,12 @@ const BASES: &str = "bases";
 
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub(crate) struct UserId(String);
+
+impl UserId {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 pub(crate) struct Financing {

@@ -10,7 +10,7 @@ use self::error::{Error, Result};
 use crate::{
     domain::{Bloc, BlocName, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone, ZoneName},
     geometry::{Distance, Point},
-    services::payment_service::{Cost, PaymentService, Share, VecResourceName},
+    services::credit_exchange_service::{Cost, CreditExchangeService, Share, VecResourceName},
 };
 
 const CONFIG_FILE_NAME: &str = "simulation.toml";
@@ -42,7 +42,7 @@ pub(crate) struct Config {
     combat_tick_interval: Duration,
     blocs: Vec<Arc<RwLock<Bloc>>>,
     port: TcpListener,
-    payment_service: PaymentService,
+    credit_exchange_service: CreditExchangeService,
     persistence: PersistenceConfig,
     production_interval: Duration,
     movement_interval: Duration,
@@ -145,8 +145,8 @@ impl Config {
         Self::parse_from_str(&config).await
     }
 
-    pub(crate) fn payment_service(&self) -> &PaymentService {
-        &self.payment_service
+    pub(crate) fn credit_exchange_service(&self) -> &CreditExchangeService {
+        &self.credit_exchange_service
     }
 
     pub(crate) fn placements(&self) -> impl Iterator<Item = Arc<Placement>> + Clone + '_ {
@@ -289,7 +289,7 @@ impl Config {
             movement_step: config.combat.movement_step,
             trust_destruction_threshold: config.combat.trust_destruction_threshold,
             base_destruction_threshold: config.combat.base_destruction_threshold,
-            payment_service: PaymentService::new(
+            credit_exchange_service: CreditExchangeService::new(
                 config.env.credit_exchange_url,
                 config.costs.unit,
                 config.costs.base,

@@ -1,1 +1,1 @@
-pub(crate) mod payment_service;
+pub(crate) mod credit_exchange_service;

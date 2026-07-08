@@ -9,7 +9,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use crate::{
     domain::{MilitaryBase, politics::DieRollOutcome},
     geometry::{Distance, Point, Positioned},
-    services::payment_service::{Payment, SinglePayer},
+    services::credit_exchange_service::{Payment, SinglePayer},
 };
 
 /// Identifies a [MilitaryUnit].

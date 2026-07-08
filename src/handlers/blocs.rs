@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use crate::{
     domain::{Bloc, BlocName, Chance},
     error::{Result, UserError},
-    services::payment_service::Share,
+    services::credit_exchange_service::Share,
     state::Command,
 };
 

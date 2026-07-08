@@ -7,6 +7,16 @@ use serde::{Deserialize, Deserializer};
 #[derive(Debug, Clone, Hash, PartialEq, Eq, derive_more::Display)]
 pub(crate) struct ResourceName(String);
 
+impl ResourceName {
+    pub(crate) fn new(name: String) -> Self {
+        Self(name.to_lowercase())
+    }
+
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 // Ensure that a resource name is always a lowercase string
 impl<'de> Deserialize<'de> for ResourceName {
     fn deserialize<D>(d: D) -> core::result::Result<Self, D::Error>
@@ -41,6 +51,10 @@ impl ResourceValue<'_> {
     pub(crate) fn name(&self) -> &ResourceName {
         &self.0
     }
+
+    pub(crate) fn value(&self) -> f32 {
+        self.1.0
+    }
 }
 
 /// A set of resources with corresponding amounts
@@ -54,6 +68,10 @@ impl ResourceValue<'_> {
 pub(crate) struct Resources(HashMap<ResourceName, OrderedFloat<f32>>);
 
 impl Resources {
+    pub(crate) fn insert(&mut self, name: ResourceName, amount: f32) {
+        self.0.insert(name, OrderedFloat(amount));
+    }
+
     /// Returns true if `self` has enough of every resource required by `cost`.
     pub(crate) fn covers(&self, cost: &Resources) -> bool {
         cost.0

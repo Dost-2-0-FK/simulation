@@ -5,7 +5,7 @@ use rand::RngExt as _;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
-use crate::services::payment_service::Share;
+use crate::services::credit_exchange_service::Share;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, derive_more::Display, utoipa::ToSchema)]
 pub(crate) struct ZoneName(String);

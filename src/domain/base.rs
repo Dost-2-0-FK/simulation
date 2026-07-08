@@ -10,7 +10,7 @@ use crate::{
     domain::{Bloc, BlocName, Placement, PlacementId, Trust, TrustId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
-    services::payment_service::{Financiers, Money, Payment},
+    services::credit_exchange_service::{Financiers, Money, Payment},
 };
 
 static BASE_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);

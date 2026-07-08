@@ -30,7 +30,7 @@ use crate::{
         units::UnitResponse,
     },
     persistence::MongoPersistence,
-    services::payment_service::Share,
+    services::credit_exchange_service::Share,
 };
 
 /// Used to query or mutate the state of the [state_loop].
@@ -107,7 +107,7 @@ pub(crate) async fn run(
                 response,
             } => {
                 let result = async {
-                    let base = base::create(placement_id, financing, config.payment_service(), config.placements())
+                    let base = base::create(placement_id, financing, config.credit_exchange_service(), config.placements())
                         .await
                         .map_err(|CommandError::NotFound(n)| UserError::NotFound(n))?;
                     bases.insert(base.id(), Arc::new(RwLock::new(base)));
@@ -162,7 +162,7 @@ pub(crate) async fn run(
                 response,
             } => {
                 let result = async {
-                    let trust = trust::create(placement_id, financing, config.payment_service(), config.placements())
+                    let trust = trust::create(placement_id, financing, config.credit_exchange_service(), config.placements())
                         .await
                         .map_err(|CommandError::NotFound(n)| UserError::NotFound(n))?;
                     trusts.insert(trust.id(), Arc::new(RwLock::new(trust)));
@@ -205,7 +205,7 @@ pub(crate) async fn run(
                 persist::persist_all(persistence, &units, &bases, &trusts, &blocs, &combats).await;
             }
             Command::ProduceMilitaryUnits => {
-                unit::produce_units(&blocs, &bases, &mut units, config.payment_service()).await;
+                unit::produce_units(&blocs, &bases, &mut units, config.credit_exchange_service()).await;
             }
             Command::MoveMilitaryUnits => {
                 let _combat_lock_guard = combat_lock.lock().await;

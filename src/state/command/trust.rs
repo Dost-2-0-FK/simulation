@@ -6,7 +6,7 @@ use super::CommandError;
 use crate::{
     domain::{Placement, PlacementId, Trust, TrustId},
     handlers::bases::Financing,
-    services::payment_service::PaymentService,
+    services::credit_exchange_service::CreditExchangeService,
 };
 
 pub(crate) async fn get_all(resp: Sender<Vec<Trust>>, trusts: &HashMap<TrustId, Arc<RwLock<Trust>>>) {
@@ -28,11 +28,11 @@ pub(crate) async fn get(id: TrustId, resp: Sender<Option<Trust>>, trusts: &HashM
 pub(crate) async fn create(
     placement_id: PlacementId,
     financing: Vec<Financing>,
-    payment_service: &PaymentService,
+    credit_exchange_service: &CreditExchangeService,
     mut placements: impl Iterator<Item = Arc<Placement>>,
 ) -> Result<Trust, CommandError> {
     log::debug!("received command to create trust on placement with id {placement_id:?}");
-    let payment = payment_service.pay_for_trust(financing).await;
+    let payment = credit_exchange_service.pay_for_trust(financing).await;
     let Some(placement) = placements.find(|p| p.id() == &placement_id) else {
         return Err(CommandError::NotFound("Placement"));
     };

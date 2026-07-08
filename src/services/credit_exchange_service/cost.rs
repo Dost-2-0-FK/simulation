@@ -3,7 +3,7 @@ use std::{any::type_name, marker::PhantomData};
 use derive_more::Display;
 use serde::Deserialize;
 
-use crate::services::payment_service::{Money, ResourceValue, Resources};
+use crate::services::credit_exchange_service::{Money, ResourceValue, Resources};
 
 #[derive(Debug, Deserialize, Display)]
 #[display("{}: {} ({})", type_name::<T>(), money, resources)]

@@ -4,7 +4,7 @@ use tokio::sync::{RwLock, oneshot::Sender};
 
 use crate::{
     domain::{Bloc, BlocName, Chance},
-    services::payment_service::Share,
+    services::credit_exchange_service::Share,
 };
 
 pub(crate) async fn get_all(resp: Sender<Vec<Bloc>>, blocs: &HashMap<BlocName, Arc<RwLock<Bloc>>>) {

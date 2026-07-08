@@ -9,7 +9,7 @@ use crate::{
     domain::{Placement, PlacementId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
-    services::payment_service::{Financiers, Payment},
+    services::credit_exchange_service::{Financiers, Payment},
 };
 
 static TRUST_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);

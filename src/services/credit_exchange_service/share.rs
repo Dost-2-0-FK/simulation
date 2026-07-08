@@ -7,6 +7,18 @@ use super::{Money, Resources};
 #[derive(Debug, Default, Copy, Clone, PartialEq, utoipa::ToSchema, Serialize)]
 pub struct Share(f32);
 
+impl Share {
+    pub(crate) fn value(self) -> f32 {
+        self.0
+    }
+}
+
+impl From<f32> for Share {
+    fn from(value: f32) -> Self {
+        Self(value)
+    }
+}
+
 impl<'de> Deserialize<'de> for Share {
     fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
     where

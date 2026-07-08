@@ -5,11 +5,11 @@ use tokio::sync::RwLock;
 use crate::{
     domain::{BaseId, Bloc, BlocName, MilitaryBase, MilitaryUnit, UnitId},
     geometry::{Point, Positioned},
-    services::payment_service::PaymentService,
+    services::credit_exchange_service::CreditExchangeService,
 };
 
-fn create(base: Arc<RwLock<MilitaryBase>>, position: Point, payment_service: &PaymentService) -> MilitaryUnit {
-    let payment = payment_service.pay_for_military_unit();
+fn create(base: Arc<RwLock<MilitaryBase>>, position: Point, credit_exchange_service: &CreditExchangeService) -> MilitaryUnit {
+    let payment = credit_exchange_service.pay_for_military_unit();
     MilitaryUnit::new(payment, base, position)
 }
 
@@ -23,10 +23,10 @@ pub(crate) async fn produce_units(
     blocs: &HashMap<BlocName, Arc<RwLock<Bloc>>>,
     bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
-    payment_service: &PaymentService,
+    credit_exchange_service: &CreditExchangeService,
 ) {
-    let unit_money_cost = payment_service.military_unit.money();
-    let unit_resource_cost = payment_service.military_unit.resources_owned();
+    let unit_money_cost = credit_exchange_service.military_unit.money();
+    let unit_resource_cost = credit_exchange_service.military_unit.resources_owned();
 
     for (bloc_name, bloc_arc) in blocs {
         let military_expense = {
@@ -38,7 +38,7 @@ pub(crate) async fn produce_units(
             continue;
         }
 
-        let (hourly_money, hourly_resources) = payment_service.hourly_income(bloc_name).await;
+        let (hourly_money, hourly_resources) = credit_exchange_service.hourly_income(bloc_name).await;
         let mut budget_money = military_expense * hourly_money;
         let mut budget_resources = military_expense * hourly_resources;
 
@@ -75,7 +75,7 @@ pub(crate) async fn produce_units(
                     let position = base.position();
                     let base_id = base.id();
                     drop(base);
-                    let unit = create(base_arc.clone(), position, payment_service);
+                    let unit = create(base_arc.clone(), position, credit_exchange_service);
                     let unit_id = unit.id();
                     units.insert(unit_id, Arc::new(RwLock::new(unit)));
                     log::info!("added unit {unit_id:?} to base {base_id:?}");

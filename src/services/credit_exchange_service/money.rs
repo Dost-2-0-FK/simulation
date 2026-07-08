@@ -16,6 +16,12 @@ use serde::{Deserialize, Serialize};
 )]
 pub(crate) struct Money(f32);
 
+impl Money {
+    pub(crate) fn value(self) -> f32 {
+        self.0
+    }
+}
+
 impl std::ops::Sub for Money {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
