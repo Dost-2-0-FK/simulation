@@ -48,6 +48,24 @@ RUST_LOG=debug cargo run
 
 To see all available endpoints, navigate to http://127.0.0.1:8080/swagger-ui/.
 
+To run only the dependencies in Docker while iterating on the simulation server from the host:
+
+```sh
+RUN_CREDIT_EXCHANGER_SEED=true docker compose up --force-recreate credit-exchanger mongodb
+```
+
+In another terminal:
+
+```sh
+RUST_LOG=debug cargo run
+```
+
+This uses the host-facing ports from `docker-compose.yml`: MongoDB on `localhost:27017` and credit-exchanger on
+`http://127.0.0.1:18080`.
+
+The seed file is mounted into the credit-exchanger container from `docker/credit-exchanger/db-seeding-example.json`.
+Use `--force-recreate` when changing seed data so the credit-exchanger entrypoint runs the seed script again.
+
 ## Run With Docker Compose<a name="run-with-docker-compose"></a>
 
 The Compose setup runs the stack as three services:

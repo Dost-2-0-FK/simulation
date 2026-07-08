@@ -1,6 +1,8 @@
 services:
   mongodb:
     image: mongo:7
+    ports:
+      - "27017:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -13,6 +15,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.credit-exchanger
+    ports:
+      - "18080:18080"
+    volumes:
+      - ./docker/credit-exchanger/db-seeding-example.json:/app/credit-exchanger/src/db-seeding-example.json:ro
     environment:
       DB_URI: mongodb://mongodb:27017
       DB_DATABASE: credit_exchanger
