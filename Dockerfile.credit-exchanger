@@ -1,0 +1,22 @@
+# syntax=docker/dockerfile:1
+
+FROM mongo:7
+
+ARG CREDIT_EXCHANGER_INSTALLER_URL=https://github.com/Dost-2-0-FK/credit-exchanger/releases/latest/download/credit-exchanger-installer.sh
+
+WORKDIR /app/credit-exchanger
+COPY docker-credit-exchanger-entrypoint.sh /usr/local/bin/credit-exchanger-entrypoint
+COPY docker/credit-exchanger/seed-db.sh ./scripts/seed-db.sh
+COPY docker/credit-exchanger/db-seeding-example.json ./src/db-seeding-example.json
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl socat xz-utils \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl --proto '=https' --tlsv1.2 -LsSf "${CREDIT_EXCHANGER_INSTALLER_URL}" | sh \
+    && install -m 0755 /data/db/.cargo/bin/credit-exchanger /usr/local/bin/credit-exchanger \
+    && printf 'resources = []\n' > credit-exchanger.toml \
+    && chmod +x /usr/local/bin/credit-exchanger-entrypoint scripts/seed-db.sh
+
+EXPOSE 18080
+
+ENTRYPOINT ["credit-exchanger-entrypoint"]

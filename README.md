@@ -9,6 +9,7 @@ Economy and military simulation
     - [Download Prebuilt Artifact](#download-prebuilt-artifact)
     - [Install from source](#install-from-source)
   - [Run From Source Without Installing](#run-from-source-without-installing)
+  - [Run With Docker Compose](#run-with-docker-compose)
   - [Persistence](#persistence)
   - [Specification](#specification)
     - [Trusts](#trusts)
@@ -46,6 +47,53 @@ RUST_LOG=debug cargo run
 ```
 
 To see all available endpoints, navigate to http://127.0.0.1:8080/swagger-ui/.
+
+## Run With Docker Compose<a name="run-with-docker-compose"></a>
+
+The Compose setup runs the stack as three services:
+
+- MongoDB
+- credit-exchanger
+- simulation
+
+Start the stack with Docker Compose:
+
+```sh
+docker compose up --build
+```
+
+Or with Podman Compose:
+
+```sh
+podman compose up --build
+```
+
+Then open http://127.0.0.1:8080/swagger-ui/.
+
+If port `8080` is already in use on the host, change the `simulation` port mapping in `docker-compose.yml`, for example
+to `"8081:8080"`.
+
+The credit-exchanger image installs the latest published release with the GitHub release installer instead of compiling
+credit-exchanger from source.
+
+MongoDB data is stored in the named Compose volume `simulation_mongo-data`. To remove the stack and the persisted
+database:
+
+```sh
+docker compose down --volumes
+```
+
+To seed the credit-exchanger database on startup:
+
+```sh
+RUN_CREDIT_EXCHANGER_SEED=true docker compose up --build
+```
+
+To run in the background:
+
+```sh
+docker compose up --build -d
+```
 
 ## Persistence<a name="persistence"></a>
 

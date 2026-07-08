@@ -1,0 +1,8 @@
+target/
+mongo-data/
+.git/
+.github/
+.agents/
+.codex/
+Dockerfile
+.dockerignore
