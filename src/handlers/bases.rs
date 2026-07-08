@@ -138,7 +138,7 @@ pub(crate) async fn post(
 
     result
         .inspect_err(|err| match err {
-            UserError::InternalError => todo!(),
+            UserError::InternalError => log::error!("internal error while creating base"),
             UserError::NotFound(err) => log::info!("not found: {err}"),
         })
         .map(|()| HttpResponse::Ok())

@@ -32,9 +32,14 @@ pub(crate) async fn create(
     mut placements: impl Iterator<Item = Arc<Placement>>,
 ) -> Result<Trust, CommandError> {
     log::debug!("received command to create trust on placement with id {placement_id:?}");
-    let payment = credit_exchange_service.pay_for_trust(financing).await;
     let Some(placement) = placements.find(|p| p.id() == &placement_id) else {
         return Err(CommandError::NotFound("Placement"));
     };
-    Ok(Trust::new(payment, placement))
+    let payment = credit_exchange_service.pay_for_trust(financing).await;
+    let trust = Trust::new(payment, placement);
+    credit_exchange_service
+        .register_trust(&trust)
+        .await
+        .map_err(|err| CommandError::CreditExchange(err.to_string()))?;
+    Ok(trust)
 }

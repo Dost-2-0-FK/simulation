@@ -36,11 +36,16 @@ pub(crate) async fn create(
     mut placements: impl Iterator<Item = Arc<Placement>>,
 ) -> Result<MilitaryBase, CommandError> {
     log::debug!("received command to create base on placement with id {placement_id:?}");
-    let payment = credit_exchange_service.pay_for_military_base(financing).await;
     let Some(placement) = placements.find(|p| p.id() == &placement_id) else {
         return Err(CommandError::NotFound("Placement"));
     };
-    Ok(MilitaryBase::new(payment, placement))
+    let payment = credit_exchange_service.pay_for_military_base(financing).await;
+    let base = MilitaryBase::new(payment, placement);
+    credit_exchange_service
+        .register_military_base(&base)
+        .await
+        .map_err(|err| CommandError::CreditExchange(err.to_string()))?;
+    Ok(base)
 }
 
 pub(crate) fn patch(

@@ -8,7 +8,11 @@ use crate::{
     services::credit_exchange_service::CreditExchangeService,
 };
 
-fn create(base: Arc<RwLock<MilitaryBase>>, position: Point, credit_exchange_service: &CreditExchangeService) -> MilitaryUnit {
+fn create(
+    base: Arc<RwLock<MilitaryBase>>,
+    position: Point,
+    credit_exchange_service: &CreditExchangeService,
+) -> MilitaryUnit {
     let payment = credit_exchange_service.pay_for_military_unit();
     MilitaryUnit::new(payment, base, position)
 }
@@ -84,5 +88,27 @@ pub(crate) async fn produce_units(
                 }
             }
         }
+    }
+}
+
+async fn publish_base_production(
+    bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
+    credit_exchange_service: &CreditExchangeService,
+) {
+    for base_arc in bases.values() {
+        let (base_id, production_count) = {
+            let base = base_arc.read().await;
+            (base.id(), base.production_count())
+        };
+
+        if let Err(err) = credit_exchange_service
+            .set_base_credit_production(base_id, production_count)
+            .await
+        {
+            log::error!("failed to publish credit production for base {base_id:?}: {err}");
+            continue;
+        }
+
+        base_arc.write().await.clear_production_count();
     }
 }

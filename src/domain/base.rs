@@ -131,6 +131,14 @@ impl MilitaryBase {
         &self.target
     }
 
+    pub(crate) fn production_count(&self) -> Money {
+        self.production_count
+    }
+
+    pub(crate) fn clear_production_count(&mut self) -> Money {
+        std::mem::take(&mut self.production_count)
+    }
+
     pub(crate) fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }

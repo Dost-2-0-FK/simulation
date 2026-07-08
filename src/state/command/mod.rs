@@ -10,6 +10,7 @@ pub(crate) mod zone;
 #[derive(Debug)]
 pub(crate) enum CommandError {
     NotFound(&'static str),
+    CreditExchange(String),
 }
 
 use std::{collections::HashMap, sync::Arc};
@@ -107,9 +108,20 @@ pub(crate) async fn run(
                 response,
             } => {
                 let result = async {
-                    let base = base::create(placement_id, financing, config.credit_exchange_service(), config.placements())
-                        .await
-                        .map_err(|CommandError::NotFound(n)| UserError::NotFound(n))?;
+                    let base = base::create(
+                        placement_id,
+                        financing,
+                        config.credit_exchange_service(),
+                        config.placements(),
+                    )
+                    .await
+                    .map_err(|err| match err {
+                        CommandError::NotFound(n) => UserError::NotFound(n),
+                        CommandError::CreditExchange(err) => {
+                            log::error!("credit exchange error while creating base: {err}");
+                            UserError::InternalError
+                        }
+                    })?;
                     bases.insert(base.id(), Arc::new(RwLock::new(base)));
                     Ok(())
                 }
@@ -162,9 +174,20 @@ pub(crate) async fn run(
                 response,
             } => {
                 let result = async {
-                    let trust = trust::create(placement_id, financing, config.credit_exchange_service(), config.placements())
-                        .await
-                        .map_err(|CommandError::NotFound(n)| UserError::NotFound(n))?;
+                    let trust = trust::create(
+                        placement_id,
+                        financing,
+                        config.credit_exchange_service(),
+                        config.placements(),
+                    )
+                    .await
+                    .map_err(|err| match err {
+                        CommandError::NotFound(n) => UserError::NotFound(n),
+                        CommandError::CreditExchange(err) => {
+                            log::error!("credit exchange error while creating trust: {err}");
+                            UserError::InternalError
+                        }
+                    })?;
                     trusts.insert(trust.id(), Arc::new(RwLock::new(trust)));
                     Ok(())
                 }
