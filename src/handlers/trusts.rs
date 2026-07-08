@@ -74,7 +74,8 @@ pub(crate) async fn post(
         UserError::InternalError
     })?;
 
-    result.map(|()| HttpResponse::Ok())
+    result?;
+    Ok(HttpResponse::Ok().finish())
 }
 
 /// List all trusts.

@@ -136,12 +136,15 @@ pub(crate) async fn post(
         UserError::InternalError
     })?;
 
-    result
-        .inspect_err(|err| match err {
+    if let Err(err) = &result {
+        match err {
             UserError::InternalError => log::error!("internal error while creating base"),
             UserError::NotFound(err) => log::info!("not found: {err}"),
-        })
-        .map(|()| HttpResponse::Ok())
+        }
+    }
+
+    result?;
+    Ok(HttpResponse::Ok().finish())
 }
 
 /// List all bases.
