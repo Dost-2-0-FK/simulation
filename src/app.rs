@@ -5,7 +5,7 @@ use utoipa::OpenApi;
 use crate::{
     config::Config,
     persistence::MongoPersistence,
-    simulation::{periodic_combat_tick, periodic_move, periodic_persist, periodic_produce, simulation},
+    simulation::{periodic_combat_tick, periodic_move, periodic_persist, simulation},
     state::{Command, State},
 };
 
@@ -23,7 +23,6 @@ pub(crate) async fn setup_state() -> Result<mpsc::Sender<Command>> {
         .context("loading simulation state from persistence".to_string())?;
 
     let persist_interval = config.persistence().interval();
-    let production_interval = config.production_interval();
     let movement_interval = config.movement_interval();
     let combat_tick_interval = config.combat_tick_interval();
 
@@ -37,7 +36,6 @@ pub(crate) async fn setup_state() -> Result<mpsc::Sender<Command>> {
     tokio::spawn(state.run());
     tokio::spawn(simulation(tx.clone()));
     tokio::spawn(periodic_persist(tx.clone(), persist_interval));
-    tokio::spawn(periodic_produce(tx.clone(), production_interval));
     tokio::spawn(periodic_move(tx.clone(), movement_interval));
     tokio::spawn(periodic_combat_tick(tx.clone(), combat_tick_interval));
 

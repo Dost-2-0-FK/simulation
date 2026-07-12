@@ -197,6 +197,34 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
     Ok(response)
 }
 
+/// Publish accumulated base loot to the credit service.
+#[utoipa::path(
+    operation_id = "publishBaseProduction",
+    tag = BASES,
+    responses(
+        (status = 200, description = "Base production published successfully")
+    )
+)]
+#[post("/bases/publish-production")]
+pub(crate) async fn publish_production(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+
+    tx.send(Command::PublishBaseProduction { response: sender })
+        .await
+        .map_err(|e| {
+            log::error!("Error sending base production publish command: {e}");
+            UserError::InternalError
+        })?;
+
+    let result = receiver.await.map_err(|e| {
+        log::error!("Error receiving base production publish result: {e}");
+        UserError::InternalError
+    })?;
+
+    result?;
+    Ok(HttpResponse::Ok().finish())
+}
+
 /// Get a base by ID.
 #[utoipa::path(
     operation_id = "getBase",

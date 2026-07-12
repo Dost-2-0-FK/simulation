@@ -47,7 +47,6 @@ pub(crate) struct Config {
     port: TcpListener,
     credit_exchange_service: CreditExchangeService,
     persistence: PersistenceConfig,
-    production_interval: Duration,
     movement_interval: Duration,
     movement_step: Distance,
     base_destruction_threshold: u32,
@@ -99,9 +98,6 @@ struct CombatConfig {
     #[serde(rename = "combat_tick_interval_seconds")]
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     combat_tick_interval: Duration,
-    #[serde(rename = "production_interval_seconds")]
-    #[serde_as(as = "DurationSecondsWithFrac<f64>")]
-    production_interval: Duration,
     #[serde(rename = "movement_interval_seconds")]
     #[serde_as(as = "DurationSecondsWithFrac<f64>")]
     movement_interval: Duration,
@@ -168,10 +164,6 @@ impl Config {
 
     pub(crate) fn persistence(&self) -> &PersistenceConfig {
         &self.persistence
-    }
-
-    pub(crate) fn production_interval(&self) -> Duration {
-        self.production_interval
     }
 
     pub(crate) fn movement_interval(&self) -> Duration {
@@ -298,7 +290,6 @@ impl Config {
                 .await
                 .map_err(Error::Io)?,
             persistence: config.persistence,
-            production_interval: config.combat.production_interval,
             movement_interval: config.combat.movement_interval,
             movement_step: config.combat.movement_step,
             trust_destruction_threshold: config.combat.trust_destruction_threshold,
@@ -336,7 +327,6 @@ mod tests {
 
         [combat]
         combat_tick_interval_seconds = 1.2
-        production_interval_seconds = 3600
         movement_interval_seconds = 60
         movement_step = 1.0
         base_destruction_threshold = 4

@@ -71,8 +71,14 @@ pub(crate) enum Command {
     },
     /// Persist the current in-memory state to the database. Sent periodically by a background task.
     Persist,
-    /// Run one hourly military unit production cycle for all blocs. Sent periodically by a background task.
-    ProduceMilitaryUnits,
+    /// Publish accumulated base loot to the credit service.
+    PublishBaseProduction {
+        response: Sender<core::result::Result<(), UserError>>,
+    },
+    /// Run a military unit production cycle for all blocs.
+    ProduceMilitaryUnits {
+        response: Sender<core::result::Result<(), UserError>>,
+    },
     /// Move all military units one step toward their closest enemy target. Sent periodically by a background task.
     MoveMilitaryUnits,
     /// On all combats, execute a [Combat::tick].
@@ -227,12 +233,31 @@ pub(crate) async fn run(
             Command::Persist => {
                 persist::persist_all(persistence, &units, &bases, &trusts, &blocs, &combats).await;
             }
-            Command::ProduceMilitaryUnits => {
-                if let Err(err) =
-                    unit::produce_units(&blocs, &bases, &mut units, config.credit_exchange_service()).await
-                {
-                    log::error!("failed to produce military units: {err:#}");
+            Command::PublishBaseProduction { response } => {
+                let result = async {
+                    base::publish_production(&bases, config.credit_exchange_service())
+                        .await
+                        .map_err(|err| {
+                            log::error!("failed to publish base production: {err:#}");
+                            UserError::InternalError
+                        })?;
+                    Ok(())
                 }
+                .await;
+                let _ = response.send(result);
+            }
+            Command::ProduceMilitaryUnits { response } => {
+                let result = async {
+                    unit::produce_units(&blocs, &bases, &mut units, config.credit_exchange_service())
+                        .await
+                        .map_err(|err| {
+                            log::error!("failed to produce military units: {err:#}");
+                            UserError::InternalError
+                        })?;
+                    Ok(())
+                }
+                .await;
+                let _ = response.send(result);
             }
             Command::MoveMilitaryUnits => {
                 let _combat_lock_guard = combat_lock.lock().await;

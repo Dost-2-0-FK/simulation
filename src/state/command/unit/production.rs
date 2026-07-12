@@ -96,26 +96,3 @@ pub(crate) async fn produce_units(
     }
     Ok(())
 }
-
-async fn publish_base_production(
-    bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
-    credit_exchange_service: &CreditExchangeService,
-) -> Result<()> {
-    for base_arc in bases.values() {
-        let (base_id, production_count) = {
-            let base = base_arc.read().await;
-            (base.id(), base.production_count().clone())
-        };
-
-        if let Err(err) = credit_exchange_service
-            .set_base_production(base_id, &production_count)
-            .await
-        {
-            log::error!("failed to publish credit production for base {base_id:?}: {err}");
-            continue;
-        }
-
-        base_arc.write().await.clear_production_count();
-    }
-    Ok(())
-}

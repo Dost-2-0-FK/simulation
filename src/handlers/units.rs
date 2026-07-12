@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, Responder, get, web};
+use actix_web::{HttpResponse, Responder, get, post, web};
 use serde::Serialize;
 use tokio::sync::mpsc;
 
@@ -75,4 +75,32 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
 
     let response = HttpResponse::Ok().json(units);
     Ok(response)
+}
+
+/// Produce military units.
+#[utoipa::path(
+    operation_id = "produceMilitaryUnits",
+    tag = UNITS,
+    responses(
+        (status = 200, description = "Production task completed successfully")
+    )
+)]
+#[post("/units/produce")]
+pub(crate) async fn produce(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+
+    tx.send(Command::ProduceMilitaryUnits { response: sender })
+        .await
+        .map_err(|e| {
+            log::error!("Error sending production command: {e}");
+            UserError::InternalError
+        })?;
+
+    let result = receiver.await.map_err(|e| {
+        log::error!("Error receiving production result: {e}");
+        UserError::InternalError
+    })?;
+
+    result?;
+    Ok(HttpResponse::Ok().finish())
 }

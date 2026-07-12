@@ -24,7 +24,6 @@ credit_exchange_url = "http://127.0.0.1:18080"
 
 [combat]
 combat_tick_interval_seconds = 1.5
-production_interval_seconds = 20
 movement_interval_seconds = 60
 movement_step = 1.0
 base_destruction_threshold = 5

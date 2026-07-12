@@ -204,8 +204,8 @@ There are four fundamental types:
 
 ### Logic<a name="logic"></a>
 
-- Every hour, credit-/resource-production of trusts and bases is updated (see above)
-- Every hour, military units are produced in bases:
+- When `POST /api/bases/publish-production` is called, accumulated base loot is published to the credit service.
+- When `POST /api/units/produce` is called, military units are produced in bases:
   - Get the blocs' hourly income: `CREDIT-EXCHANGE-SERVICE/api/credits/hourly?id=<bloc_id>`
   - Each bloc can define what percentage of the hourly income shall be used for creating military units (can be set by
     `PATCH /api/blocs/{id}` with body `{militaryExpense: <value: int>}`)
@@ -236,6 +236,7 @@ trusts are returned or only a subset (only associated by block/zone financed by 
 - `GET /api/bases/{id}`
 - `POST /api/bases` (payload:
   `{placementId: <placement id>, payment: [{financierId: <financier_id (str)>, share: <value (float, 0-1)>}]}`)
+- `POST /api/bases/publish-production` (publishes accumulated base loot)
 - `PATCH /api/bases/{id}` (payload:
   `{(optional) enabled: <true|false>, (optional) prioritized: <true|false>, (optional) target: <trust|base|unit>}`)
 - `GET /api/blocs`
@@ -249,4 +250,5 @@ trusts are returned or only a subset (only associated by block/zone financed by 
 - `POST /api/trusts` (payload:
   `{placementId: <placement id>, payment: [{financierId: <financier_id (str)>, share: <value (float, 0-1)>}]}`)
 - `GET /api/units` (returns units and associated Bloc and Base)
+- `POST /api/units/produce` (produces military units)
 - `GET /api/zones`

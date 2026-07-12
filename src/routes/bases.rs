@@ -6,6 +6,7 @@ pub(crate) fn configure(config: &mut ServiceConfig<'_>) {
     config
         .service(bases::post)
         .service(bases::list)
+        .service(bases::publish_production)
         .service(bases::get)
         .service(bases::patch);
 }
