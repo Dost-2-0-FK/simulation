@@ -23,6 +23,7 @@ utoipa = { version = "5.4.0", features = ["actix_extras", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
 futures-util = "0.3.32"
 rand = "0.10.1"
+reqwest = { version = "0.12.22", default-features = false, features = ["json", "rustls-tls"] }
 
 # The profile that 'dist' will build with
 [profile.dist]
