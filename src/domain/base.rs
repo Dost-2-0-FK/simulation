@@ -55,7 +55,7 @@ pub(crate) struct MilitaryBase {
     #[serde(skip)]
     #[schema(ignore)]
     loot: Loot,
-    /// How much credit has been produced since the last full hour?
+    /// How much loot has accumulated since the last full hour?
     #[serde(skip)]
     #[schema(ignore)]
     production_count: Loot,
