@@ -9,7 +9,7 @@ money = 12
 resources = {}
 
 [costs.unit]
-money = 12
+money = 2
 resources = {}
 
 [server]
@@ -36,11 +36,13 @@ resources = {}
 
 [[bloc]]
 name = "west"
-chance = 12
+chance = 100
+military_expense = 0.1
 
 [[bloc]]
 name = "east"
-chance = 12
+chance = 100
+military_expense = 0.1
 
 [[zone]]
 name = "zone_w"

@@ -4,10 +4,10 @@
       "id": "west",
       "credit": {
         "total": 500,
-        "last_day_average": 120,
+        "last_day_average": 0,
         "subscriptions": [],
         "history": [
-          120
+          20
         ]
       },
       "resources": {}
@@ -16,10 +16,10 @@
       "id": "east",
       "credit": {
         "total": 500,
-        "last_day_average": 120,
+        "last_day_average": 0,
         "subscriptions": [],
         "history": [
-          120
+          20
         ]
       },
       "resources": {}
@@ -30,10 +30,10 @@
       "id": "zone_w",
       "credit": {
         "total": 500,
-        "last_day_average": 120,
+        "last_day_average": 0,
         "subscriptions": [],
         "history": [
-          120
+          20
         ]
       },
       "resources": {}
@@ -42,10 +42,10 @@
       "id": "zone_e",
       "credit": {
         "total": 500,
-        "last_day_average": 120,
+        "last_day_average": 0,
         "subscriptions": [],
         "history": [
-          120
+          20
         ]
       },
       "resources": {}
