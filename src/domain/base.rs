@@ -41,23 +41,17 @@ pub(crate) enum Target {
 
 /// A [MilitaryBase] is built on a placement, and associated with a [Zone] and a [Bloc]. The associations are given
 /// implicitly via the [Placement], as well as its the position/coordinates.
-#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone)]
 pub(crate) struct MilitaryBase {
     id: BaseId,
-    #[serde(skip)]
     placement: Arc<Placement>,
     financiers: Vec<Financing>,
     enabled: bool,
     prioritized: bool,
-    #[serde(skip)]
     target: Target,
     /// The loot that will be collected if this base is destroyed.
-    #[serde(skip)]
-    #[schema(ignore)]
     loot: Loot,
     /// How much loot has accumulated since the last full hour?
-    #[serde(skip)]
-    #[schema(ignore)]
     production_count: Loot,
 }
 
