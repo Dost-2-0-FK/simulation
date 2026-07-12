@@ -88,6 +88,7 @@ pub(crate) struct CreditExchangeService {
     client: reqwest::Client,
     url: Url,
     bank_user_id: String,
+    resources: VecResourceName,
     pub(crate) military_unit: Cost<MilitaryUnit>,
     pub(crate) trust: Cost<Trust>,
     pub(crate) military_base: Cost<MilitaryBase>,
@@ -101,6 +102,7 @@ impl CreditExchangeService {
         military_unit_cost: Cost<MilitaryUnit>,
         military_base_cost: Cost<MilitaryBase>,
         trust_cost: Cost<Trust>,
+        resources: VecResourceName,
         loot_factors: LootFactors,
     ) -> Self {
         Self {
@@ -111,6 +113,7 @@ impl CreditExchangeService {
             trust: trust_cost,
             military_base: military_base_cost,
             loot_factors,
+            resources,
         }
     }
 
@@ -148,8 +151,7 @@ impl CreditExchangeService {
     pub(crate) async fn register_military_base(&self, base: &MilitaryBase, policy: Financiers) -> Result<()> {
         let producer = Self::base_credit_user_id(base.id());
         self.ensure_unit_user(&producer).await?;
-        self.create_cost_subscriptions(policy.payers(), &producer, &self.military_base)
-            .await?;
+        self.create_subscriptions(policy.payers(), &producer).await?;
         Ok(())
     }
 
@@ -166,8 +168,7 @@ impl CreditExchangeService {
     pub(crate) async fn register_trust(&self, trust: &Trust, policy: &Financiers) -> Result<()> {
         let producer = Self::trust_credit_user_id(trust.id());
         self.ensure_unit_user(&producer).await?;
-        self.create_cost_subscriptions(policy.payers(), &producer, &self.trust)
-            .await?;
+        self.create_subscriptions(policy.payers(), &producer).await?;
         Ok(())
     }
 
@@ -291,17 +292,12 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    async fn create_cost_subscriptions<T: std::fmt::Debug>(
-        &self,
-        payers: impl IntoIterator<Item = PayerShare>,
-        producer: &str,
-        cost: &Cost<T>,
-    ) -> Result<()> {
+    async fn create_subscriptions(&self, payers: impl IntoIterator<Item = PayerShare>, producer: &str) -> Result<()> {
         for payer in payers {
             self.create_subscription(producer, payer.payer_id.as_str(), "money", payer.share)
                 .await?;
-            for resource in cost.resources() {
-                self.create_subscription(producer, payer.payer_id.as_str(), resource.name().as_str(), payer.share)
+            for resource in self.resources.iter() {
+                self.create_subscription(producer, payer.payer_id.as_str(), resource.as_str(), payer.share)
                     .await?;
             }
         }

@@ -309,6 +309,7 @@ impl Config {
                 config.costs.unit,
                 config.costs.base,
                 config.costs.trust,
+                config.resources,
                 config.combat.loot_factors,
             ),
         })
