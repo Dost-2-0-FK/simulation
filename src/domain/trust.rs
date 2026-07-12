@@ -6,7 +6,7 @@ use std::sync::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    domain::{Placement, PlacementId},
+    domain::{Loot, Placement, PlacementId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
     services::credit_exchange_service::{Financiers, Payment},
@@ -25,6 +25,10 @@ pub(crate) struct Trust {
     #[serde(skip)]
     placement: Arc<Placement>,
     financing: Vec<Financing>,
+    /// The loot that will be collected if this trust is destroyed.
+    #[serde(skip)]
+    #[schema(ignore)]
+    loot: Loot,
 }
 
 crate::impl_positioned_as_ref!(Trust => placement);
@@ -34,15 +38,22 @@ impl Trust {
     pub(crate) fn new(payment: Payment<'_, Self, Financiers>, placement: Arc<Placement>) -> Self {
         let id = TRUST_INSTANCE_COUNT.fetch_add(1, SeqCst);
         assert_ne!(id, u64::MAX, "ID counter has overflowed and is no longer unique");
+        let loot = payment.loot().clone();
 
         Self {
             id: TrustId(id),
             financing: payment.consume(),
             placement,
+            loot,
         }
     }
 
-    pub(crate) fn from_persisted(id: TrustId, placement: Arc<Placement>, financing: Vec<Financing>) -> Self {
+    pub(crate) fn from_persisted(
+        id: TrustId,
+        placement: Arc<Placement>,
+        financing: Vec<Financing>,
+        loot: Loot,
+    ) -> Self {
         assert_ne!(id.0, u64::MAX, "ID counter has overflowed and is no longer unique");
         TRUST_INSTANCE_COUNT.fetch_max(id.0 + 1, SeqCst);
 
@@ -50,6 +61,7 @@ impl Trust {
             id,
             financing,
             placement,
+            loot,
         }
     }
 
@@ -67,5 +79,9 @@ impl Trust {
 
     pub(crate) fn financing(&self) -> &[Financing] {
         &self.financing
+    }
+
+    pub(crate) fn loot(&self) -> &Loot {
+        &self.loot
     }
 }

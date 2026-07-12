@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{parse_id, placement_by_id};
 use crate::{
-    domain::{Placement, PlacementId, Trust, TrustId},
+    domain::{Loot, Placement, PlacementId, Trust, TrustId},
     handlers::bases::Financing,
 };
 
@@ -15,6 +15,8 @@ pub(super) struct PersistedTrust {
     id: String,
     placement_id: PlacementId,
     financing: Vec<Financing>,
+    #[serde(default)]
+    loot: Loot,
 }
 
 impl PersistedTrust {
@@ -23,6 +25,7 @@ impl PersistedTrust {
             id: trust.id().0.to_string(),
             placement_id: trust.placement_id().clone(),
             financing: trust.financing().to_vec(),
+            loot: trust.loot().clone(),
         }
     }
 
@@ -34,6 +37,6 @@ impl PersistedTrust {
         let id = parse_id::<TrustId>(&self.id, "trust")?;
         let placement = placement_by_id(placements, &self.placement_id)?;
 
-        Ok(Trust::from_persisted(id, placement, self.financing))
+        Ok(Trust::from_persisted(id, placement, self.financing, self.loot))
     }
 }

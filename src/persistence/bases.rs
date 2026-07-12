@@ -6,7 +6,7 @@ use tokio::sync::RwLock;
 
 use super::{parse_id, placement_by_id};
 use crate::{
-    domain::{BaseId, MilitaryBase, Placement, PlacementId, Target, Trust, TrustId},
+    domain::{BaseId, Loot, MilitaryBase, Placement, PlacementId, Target, Trust, TrustId},
     handlers::bases::Financing,
 };
 
@@ -44,6 +44,7 @@ pub(super) struct PersistedBase {
     prioritized: bool,
     #[serde(default)]
     target: PersistedTarget,
+    loot: Loot,
 }
 
 fn default_enabled() -> bool {
@@ -59,6 +60,7 @@ impl PersistedBase {
             enabled: base.enabled(),
             prioritized: base.prioritized(),
             target: base.target().into(),
+            loot: base.loot().clone(),
         }
     }
 
@@ -78,6 +80,7 @@ impl PersistedBase {
             self.financiers.clone(),
             self.enabled,
             self.prioritized,
+            self.loot.clone(),
         ))
     }
 

@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
-    domain::{MilitaryBase, politics::DieRollOutcome},
+    domain::{Loot, MilitaryBase, politics::DieRollOutcome},
     geometry::{Distance, Point, Positioned},
-    services::credit_exchange_service::{Money, Payment, SinglePayer},
+    services::credit_exchange_service::{Payment, SinglePayer},
 };
 
 /// Identifies a [MilitaryUnit].
@@ -44,7 +44,7 @@ pub(crate) struct MilitaryUnit {
     position: Point,
     state: UnitState,
     /// The loot that will be collected if this unit is killed.
-    loot: Money,
+    loot: Loot,
 }
 
 #[derive(Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -67,7 +67,7 @@ crate::impl_positioned!(MilitaryUnit => position);
 
 impl MilitaryUnit {
     pub(crate) fn new(payment: Payment<Self, SinglePayer>, base: Arc<RwLock<MilitaryBase>>, position: Point) -> Self {
-        let loot = payment.cost().money() * 0.5;
+        let loot = payment.loot().clone();
         Self {
             id: UnitId::new(),
             base,
@@ -85,8 +85,8 @@ impl MilitaryUnit {
         self.state
     }
 
-    pub(crate) fn loot(&self) -> Money {
-        self.loot
+    pub(crate) fn loot(&self) -> &Loot {
+        &self.loot
     }
 
     pub(crate) fn kill(&mut self, by: UnitId) {
@@ -98,7 +98,7 @@ impl MilitaryUnit {
         base: Arc<RwLock<MilitaryBase>>,
         position: Point,
         state: UnitState,
-        loot: Money,
+        loot: Loot,
     ) -> Self {
         Self {
             id: id.into(),

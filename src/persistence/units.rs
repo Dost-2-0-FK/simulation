@@ -6,9 +6,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{BaseId, MilitaryBase, MilitaryUnit, UnitState},
+    domain::{BaseId, Loot, MilitaryBase, MilitaryUnit, UnitState},
     geometry::{Point, Positioned},
-    services::credit_exchange_service::Money,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -18,7 +17,8 @@ pub(super) struct PersistedUnit {
     base_id: String,
     position: Point,
     state: UnitState,
-    loot: Money,
+    #[serde(default)]
+    loot: Loot,
 }
 
 impl PersistedUnit {
@@ -32,7 +32,7 @@ impl PersistedUnit {
             base_id: unit.base().await.id().0.to_string(),
             position: unit.position(),
             state: unit.state(),
-            loot: unit.loot(),
+            loot: unit.loot().clone(),
         }
     }
 

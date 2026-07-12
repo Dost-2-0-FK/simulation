@@ -10,7 +10,7 @@ use crate::{
     domain::{Bloc, BlocName, Loot, Placement, PlacementId, Trust, TrustId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
-    services::credit_exchange_service::{Financiers, Money, Payment},
+    services::credit_exchange_service::{Financiers, Payment},
 };
 
 static BASE_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -51,7 +51,13 @@ pub(crate) struct MilitaryBase {
     prioritized: bool,
     #[serde(skip)]
     target: Target,
+    /// The loot that will be collected if this base is destroyed.
+    #[serde(skip)]
+    #[schema(ignore)]
+    loot: Loot,
     /// How much credit has been produced since the last full hour?
+    #[serde(skip)]
+    #[schema(ignore)]
     production_count: Loot,
 }
 
@@ -62,6 +68,7 @@ impl MilitaryBase {
     pub(crate) fn new(payment: Payment<'_, Self, Financiers>, placement: Arc<Placement>) -> Self {
         let id = BASE_INSTANCE_COUNT.fetch_add(1, SeqCst);
         assert_ne!(id, u64::MAX, "ID counter has overflowed and is no longer unique");
+        let loot = payment.loot().clone();
 
         Self {
             id: BaseId(id),
@@ -70,6 +77,7 @@ impl MilitaryBase {
             enabled: true,
             prioritized: false,
             target: Target::None,
+            loot,
             production_count: Default::default(),
         }
     }
@@ -80,6 +88,7 @@ impl MilitaryBase {
         financiers: Vec<Financing>,
         enabled: bool,
         prioritized: bool,
+        loot: Loot,
     ) -> Self {
         assert_ne!(id.0, u64::MAX, "ID counter has overflowed and is no longer unique");
         BASE_INSTANCE_COUNT.fetch_max(id.0 + 1, SeqCst);
@@ -91,6 +100,7 @@ impl MilitaryBase {
             enabled,
             prioritized,
             target: Target::None,
+            loot,
             production_count: Default::default(),
         }
     }
@@ -131,12 +141,20 @@ impl MilitaryBase {
         &self.target
     }
 
-    pub(crate) fn production_count(&self) -> Money {
-        self.production_count
+    pub(crate) fn loot(&self) -> &Loot {
+        &self.loot
     }
 
-    pub(crate) fn clear_production_count(&mut self) -> Money {
+    pub(crate) fn production_count(&self) -> &Loot {
+        &self.production_count
+    }
+
+    pub(crate) fn clear_production_count(&mut self) -> Loot {
         std::mem::take(&mut self.production_count)
+    }
+
+    pub(crate) fn add_production(&mut self, loot: &Loot) {
+        self.production_count += loot;
     }
 
     pub(crate) fn set_enabled(&mut self, enabled: bool) {

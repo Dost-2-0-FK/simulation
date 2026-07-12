@@ -13,11 +13,11 @@ use url::Url;
 pub(crate) use self::{
     cost::Cost,
     money::Money,
-    resources::{ResourceName, ResourceValue, Resources, VecResourceName},
+    resources::{ResourceName, ResourceValue, Resources, ResourcesFactors, VecResourceName},
     share::Share,
 };
 use crate::{
-    domain::{BaseId, BlocName, MilitaryBase, MilitaryUnit, Trust, TrustId},
+    domain::{BaseId, BlocName, Loot, LootFactors, MilitaryBase, MilitaryUnit, Trust, TrustId},
     handlers::bases::Financing,
 };
 
@@ -32,26 +32,33 @@ pub(crate) struct Financiers {
 pub(crate) struct Payment<'a, T, P> {
     policy: P,
     cost: &'a Cost<T>,
+    loot: Loot,
 }
 
 impl<'a, T, P> Payment<'a, T, P> {
+    #[expect(dead_code)]
     pub(crate) fn cost(&self) -> &Cost<T> {
         self.cost
+    }
+
+    pub(crate) fn loot(&self) -> &Loot {
+        &self.loot
     }
 }
 
 impl<'a, T> Payment<'a, T, SinglePayer> {
-    pub(crate) fn new(cost: &'a Cost<T>) -> Self {
+    pub(crate) fn new(cost: &'a Cost<T>, loot: Loot) -> Self {
         Self {
             cost,
+            loot,
             policy: SinglePayer,
         }
     }
 }
 
 impl<'a, T> Payment<'a, T, Financiers> {
-    pub(crate) fn new(cost: &'a Cost<T>, policy: Financiers) -> Self {
-        Self { cost, policy }
+    pub(crate) fn new(cost: &'a Cost<T>, loot: Loot, policy: Financiers) -> Self {
+        Self { cost, loot, policy }
     }
 
     pub(crate) fn consume(self) -> Vec<Financing> {
@@ -134,6 +141,7 @@ pub(crate) struct CreditExchangeService {
     pub(crate) military_unit: Cost<MilitaryUnit>,
     pub(crate) trust: Cost<Trust>,
     pub(crate) military_base: Cost<MilitaryBase>,
+    loot_factors: LootFactors,
 }
 
 impl CreditExchangeService {
@@ -143,6 +151,7 @@ impl CreditExchangeService {
         military_unit_cost: Cost<MilitaryUnit>,
         military_base_cost: Cost<MilitaryBase>,
         trust_cost: Cost<Trust>,
+        loot_factors: LootFactors,
     ) -> Self {
         Self {
             client: reqwest::Client::new(),
@@ -151,6 +160,7 @@ impl CreditExchangeService {
             military_unit: military_unit_cost,
             trust: trust_cost,
             military_base: military_base_cost,
+            loot_factors,
         }
     }
 
@@ -161,7 +171,10 @@ impl CreditExchangeService {
 
     pub(crate) fn pay_for_military_unit(&self) -> Payment<'_, MilitaryUnit, SinglePayer> {
         self.log_payment(&self.military_unit);
-        Payment::<_, SinglePayer>::new(&self.military_unit)
+        Payment::<_, SinglePayer>::new(
+            &self.military_unit,
+            Loot::from_cost(&self.military_unit, &self.loot_factors),
+        )
     }
 
     /// Returns the hourly income for the given bloc.
@@ -181,13 +194,21 @@ impl CreditExchangeService {
     ) -> Payment<'_, MilitaryBase, Financiers> {
         log::info!("booking military base payment with {:?}", financiers,);
         self.log_payment(&self.military_base);
-        Payment::<_, Financiers>::new(&self.military_base, Financiers { financiers })
+        Payment::<_, Financiers>::new(
+            &self.military_base,
+            Loot::from_cost(&self.military_base, &self.loot_factors),
+            Financiers { financiers },
+        )
     }
 
     pub(crate) async fn pay_for_trust(&'_ self, financiers: Vec<Financing>) -> Payment<'_, Trust, Financiers> {
         log::info!("booking trust payment with {:?}", financiers,);
         self.log_payment(&self.trust);
-        Payment::<_, Financiers>::new(&self.trust, Financiers { financiers })
+        Payment::<_, Financiers>::new(
+            &self.trust,
+            Loot::from_cost(&self.trust, &self.loot_factors),
+            Financiers { financiers },
+        )
     }
 
     pub(crate) async fn register_military_base(&self, base: &MilitaryBase) -> Result<()> {
@@ -209,9 +230,14 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    pub(crate) async fn set_base_credit_production(&self, base_id: BaseId, value: Money) -> Result<()> {
-        self.set_credit_production(&Self::base_credit_user_id(base_id), value)
-            .await
+    pub(crate) async fn set_base_production(&self, base_id: BaseId, value: &Loot) -> Result<()> {
+        self.set_credit_production(&Self::base_credit_user_id(base_id), value.money())
+            .await?;
+        for resource in value.resources() {
+            self.set_resource_production(&Self::base_credit_user_id(base_id), resource.name(), resource.value())
+                .await?;
+        }
+        Ok(())
     }
 
     #[expect(dead_code)]
