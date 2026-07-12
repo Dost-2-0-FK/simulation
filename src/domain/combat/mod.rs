@@ -398,12 +398,15 @@ impl Combat {
         }
     }
 
+    /// A destroyed structure results in multiple loot transfers because the participating units may come from different
+    /// bases.
     async fn structure_loot_transfers(&self, loot: &Loot) -> Vec<LootTransfer> {
         let units = self
             .units
             .values()
             .next()
             .expect("structure destruction requires exactly one attacking bloc");
+        // We need to split the loot because the units could be coming from different bases.
         let split_loot = loot.split(units.len());
         let mut transfers = Vec::with_capacity(units.len());
         for unit in units.values() {
