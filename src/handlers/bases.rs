@@ -1,12 +1,14 @@
+use std::collections::BTreeMap;
+
 use actix_web::{HttpResponse, Responder, get, patch, post, web};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
-    domain::{BaseId, BlocName, MilitaryBase, PlacementId, Target, TrustId, ZoneName},
+    domain::{BaseId, BlocName, Loot, MilitaryBase, PlacementId, Target, TrustId, ZoneName},
     error::{Result, UserError},
     geometry::{Point, Positioned},
-    services::credit_exchange_service::Share,
+    services::credit_exchange_service::{Money, Share},
     state::Command,
 };
 
@@ -65,6 +67,25 @@ struct PostBaseBody {
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct ProductionCountResponse {
+    money: Money,
+    resources: BTreeMap<String, f32>,
+}
+
+impl From<&Loot> for ProductionCountResponse {
+    fn from(loot: &Loot) -> Self {
+        Self {
+            money: loot.money(),
+            resources: loot
+                .resources()
+                .map(|resource| (resource.name().as_str().to_string(), resource.value()))
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct BaseResponse {
     pub(crate) id: BaseId,
     pub(crate) placement_id: PlacementId,
@@ -75,6 +96,8 @@ pub(crate) struct BaseResponse {
     pub(crate) prioritized: bool,
     pub(crate) target: BaseTargetResponse,
     pub(crate) position: Point,
+    /// How much loot has accumulated since the last transfer?
+    pub(crate) production_count: ProductionCountResponse,
 }
 
 impl From<&MilitaryBase> for BaseResponse {
@@ -91,6 +114,7 @@ impl From<&MilitaryBase> for BaseResponse {
             prioritized: base.prioritized(),
             target: base.target().into(),
             position: base.position(),
+            production_count: base.production_count().into(),
         }
     }
 }
