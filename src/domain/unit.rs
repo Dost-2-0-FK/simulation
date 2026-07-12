@@ -9,7 +9,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use crate::{
     domain::{MilitaryBase, politics::DieRollOutcome},
     geometry::{Distance, Point, Positioned},
-    services::credit_exchange_service::{Payment, SinglePayer},
+    services::credit_exchange_service::{Money, Payment, SinglePayer},
 };
 
 /// Identifies a [MilitaryUnit].
@@ -43,6 +43,8 @@ pub(crate) struct MilitaryUnit {
     base: Arc<RwLock<MilitaryBase>>,
     position: Point,
     state: UnitState,
+    /// The loot that will be collected if this unit is killed.
+    loot: Money,
 }
 
 #[derive(Debug, Default, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -64,12 +66,14 @@ pub(crate) enum AttackOutcome {
 crate::impl_positioned!(MilitaryUnit => position);
 
 impl MilitaryUnit {
-    pub(crate) fn new(_payment: Payment<Self, SinglePayer>, base: Arc<RwLock<MilitaryBase>>, position: Point) -> Self {
+    pub(crate) fn new(payment: Payment<Self, SinglePayer>, base: Arc<RwLock<MilitaryBase>>, position: Point) -> Self {
+        let loot = payment.cost().money() * 0.5;
         Self {
             id: UnitId::new(),
             base,
             position,
             state: Default::default(),
+            loot,
         }
     }
 
@@ -81,16 +85,27 @@ impl MilitaryUnit {
         self.state
     }
 
+    pub(crate) fn loot(&self) -> Money {
+        self.loot
+    }
+
     pub(crate) fn kill(&mut self, by: UnitId) {
         self.state = UnitState::Killed { by };
     }
 
-    pub(crate) fn from_persisted(id: Uuid, base: Arc<RwLock<MilitaryBase>>, position: Point, state: UnitState) -> Self {
+    pub(crate) fn from_persisted(
+        id: Uuid,
+        base: Arc<RwLock<MilitaryBase>>,
+        position: Point,
+        state: UnitState,
+        loot: Money,
+    ) -> Self {
         Self {
             id: id.into(),
             base,
             position,
             state,
+            loot,
         }
     }
 

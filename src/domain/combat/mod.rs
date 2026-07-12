@@ -1,3 +1,4 @@
+pub(super) mod loot;
 mod structure;
 
 use std::{
@@ -15,12 +16,16 @@ use crate::{
         combat::structure::CombatStructure,
     },
     geometry::{Point, Positioned},
+    services::credit_exchange_service::Money,
 };
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema)]
 pub(crate) struct UnitKilled {
     killer: UnitId,
+    killer_base_id: BaseId,
     killed: UnitId,
+    /// The loot transferred to the killer's base
+    loot: Money,
 }
 
 impl UnitKilled {
@@ -34,7 +39,7 @@ impl UnitKilled {
 }
 
 /// What may happen during a combat tick?
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub(crate) enum CombatEvent {
     /// Nothing happened. This can be the case when
@@ -55,6 +60,10 @@ pub(crate) enum CombatEvent {
 }
 
 impl CombatEvent {
+    pub(crate) fn destroyed_or_killed(&self) -> bool {
+        !matches!(self, CombatEvent::None)
+    }
+
     fn should_persist(&self) -> bool {
         match self {
             Self::None => false,
@@ -377,7 +386,7 @@ impl Combat {
         }
 
         for (bloc_a, unit_a_id, unit_a) in &alive_units {
-            for (bloc_b, unit_b_id, _) in &alive_units {
+            for (bloc_b, unit_b_id, unit_b) in &alive_units {
                 if bloc_a == bloc_b {
                     continue;
                 }
@@ -387,10 +396,19 @@ impl Combat {
                 if unit_a_guard.attack().await == AttackOutcome::Killed
                     && killed_units.insert(*unit_b_id, *unit_a_id).is_none()
                 {
-                    log::debug!("unit {} ({bloc_a}) killed unit {} ({bloc_b})", unit_a_id, unit_b_id);
+                    let unit_b_guard = unit_b.read().await;
+                    let killer_base = unit_b_guard.base().await.id();
+                    let loot = unit_b_guard.loot();
+                    log::debug!(
+                        "unit {killer} ({bloc_a}) killed unit {killed} ({bloc_b}). Base {killer_base:?} receives loot {loot}.",
+                        killer = unit_a_id,
+                        killed = unit_b_id,
+                    );
                     killed_events.push(UnitKilled {
                         killed: *unit_b_id,
                         killer: *unit_a_id,
+                        killer_base_id: killer_base,
+                        loot,
                     });
                 }
             }

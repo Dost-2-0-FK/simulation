@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
-    domain::{Bloc, BlocName, Placement, PlacementId, Trust, TrustId},
+    domain::{Bloc, BlocName, Loot, Placement, PlacementId, Trust, TrustId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
     services::credit_exchange_service::{Financiers, Money, Payment},
@@ -52,7 +52,7 @@ pub(crate) struct MilitaryBase {
     #[serde(skip)]
     target: Target,
     /// How much credit has been produced since the last full hour?
-    production_count: Money,
+    production_count: Loot,
 }
 
 crate::impl_positioned_as_ref!(MilitaryBase => placement);

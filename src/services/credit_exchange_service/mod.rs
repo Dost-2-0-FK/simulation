@@ -35,7 +35,6 @@ pub(crate) struct Payment<'a, T, P> {
 }
 
 impl<'a, T, P> Payment<'a, T, P> {
-    #[expect(dead_code)]
     pub(crate) fn cost(&self) -> &Cost<T> {
         self.cost
     }

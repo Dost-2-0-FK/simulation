@@ -78,6 +78,10 @@ impl Resources {
             .iter()
             .all(|(name, amount)| self.0.get(name).is_some_and(|a| a >= amount))
     }
+
+    fn expect_value(&self, name: &ResourceName) -> f32 {
+        (*self.0.get(name).expect("expecting value")).into()
+    }
 }
 
 impl std::ops::Mul<f32> for Resources {
@@ -109,5 +113,26 @@ impl<'r> IntoIterator for &'r Resources {
         self.0
             .iter()
             .map(|(name, value)| ResourceValue(Cow::Borrowed(name), *value))
+    }
+}
+
+struct ResourcesFactors(Resources);
+
+impl std::ops::Mul<ResourcesFactors> for Resources {
+    type Output = Self;
+    fn mul(self, factors: ResourcesFactors) -> Self {
+        Self(
+            self.0
+                .into_iter()
+                .map(|(name, value)| {
+                    let factor = factors
+                        .0
+                        .0
+                        .get(&name)
+                        .expect("config parsing ensures that resources factors and resources have matching keys");
+                    (name, value * factor)
+                })
+                .collect(),
+        )
     }
 }

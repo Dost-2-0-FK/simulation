@@ -35,7 +35,7 @@ pub(crate) async fn tick(combats: &mut HashMap<Point, Arc<RwLock<Combat>>>) -> V
     for combat in combats.values() {
         let mut combat_guard = combat.write().await;
         let event = combat_guard.tick().await;
-        if event != CombatEvent::None {
+        if event.destroyed_or_killed() {
             events.push(event);
         }
     }

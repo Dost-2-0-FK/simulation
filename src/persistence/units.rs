@@ -8,6 +8,7 @@ use tokio::sync::RwLock;
 use crate::{
     domain::{BaseId, MilitaryBase, MilitaryUnit, UnitState},
     geometry::{Point, Positioned},
+    services::credit_exchange_service::Money,
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -17,6 +18,7 @@ pub(super) struct PersistedUnit {
     base_id: String,
     position: Point,
     state: UnitState,
+    loot: Money,
 }
 
 impl PersistedUnit {
@@ -30,6 +32,7 @@ impl PersistedUnit {
             base_id: unit.base().await.id().0.to_string(),
             position: unit.position(),
             state: unit.state(),
+            loot: unit.loot(),
         }
     }
 
@@ -43,6 +46,12 @@ impl PersistedUnit {
             .get(&base_id)
             .ok_or_else(|| anyhow!("unit {} references unknown base {base_id:?}", self.id))?
             .clone();
-        Ok(MilitaryUnit::from_persisted(self.id, base, self.position, self.state))
+        Ok(MilitaryUnit::from_persisted(
+            self.id,
+            base,
+            self.position,
+            self.state,
+            self.loot,
+        ))
     }
 }
