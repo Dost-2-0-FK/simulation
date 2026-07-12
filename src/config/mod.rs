@@ -125,7 +125,7 @@ pub(crate) struct PlacementConfig {
 struct BlocConfig {
     name: BlocName,
     chance: Chance,
-    #[serde(default, rename = "militaryExpense")]
+    #[serde(default)]
     military_expense: Share,
 }
 
