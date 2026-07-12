@@ -51,6 +51,17 @@
       "resources": {}
     }
   ],
-  "individuals": [],
+  "individuals": [
+    {
+      "id": "bank",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {}
+    }
+  ],
   "units": []
 }

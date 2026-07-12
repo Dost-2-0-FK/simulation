@@ -1,3 +1,4 @@
+bank_user_id = "bank"
 resources = [""]
 [costs.trust]
 money = 2

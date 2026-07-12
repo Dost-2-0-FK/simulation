@@ -127,6 +127,12 @@ database = "simulation"
 interval_seconds = 30
 ```
 
+Configure `bank_user_id` to the credit-exchanger user that receives structure build costs:
+
+```toml
+bank_user_id = "bank"
+```
+
 ## Specification<a name="specification"></a>
 
 There are four fundamental types:

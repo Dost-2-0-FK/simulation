@@ -23,6 +23,7 @@ const CONFIG_FILE_NAME: &str = "simulation.toml";
 struct TomlConfig {
     server: Option<ServerConfig>,
     env: EnvConfig,
+    bank_user_id: String,
     resources: VecResourceName,
     combat: CombatConfig,
     persistence: PersistenceConfig,
@@ -291,6 +292,7 @@ impl Config {
             base_destruction_threshold: config.combat.base_destruction_threshold,
             credit_exchange_service: CreditExchangeService::new(
                 config.env.credit_exchange_url,
+                config.bank_user_id,
                 config.costs.unit,
                 config.costs.base,
                 config.costs.trust,
@@ -309,6 +311,7 @@ mod tests {
             "Lithium",
             "Iron",
         ]
+        bank_user_id = "bank"
 
         [server]
         # No port: defaults to 0.

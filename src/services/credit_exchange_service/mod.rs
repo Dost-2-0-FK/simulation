@@ -131,6 +131,7 @@ struct PayerShare {
 pub(crate) struct CreditExchangeService {
     client: reqwest::Client,
     url: Url,
+    bank_user_id: String,
     pub(crate) military_unit: Cost<MilitaryUnit>,
     pub(crate) trust: Cost<Trust>,
     pub(crate) military_base: Cost<MilitaryBase>,
@@ -139,6 +140,7 @@ pub(crate) struct CreditExchangeService {
 impl CreditExchangeService {
     pub(crate) fn new(
         url: Url,
+        bank_user_id: String,
         military_unit_cost: Cost<MilitaryUnit>,
         military_base_cost: Cost<MilitaryBase>,
         trust_cost: Cost<Trust>,
@@ -146,6 +148,7 @@ impl CreditExchangeService {
         Self {
             client: reqwest::Client::new(),
             url,
+            bank_user_id,
             military_unit: military_unit_cost,
             trust: trust_cost,
             military_base: military_base_cost,
@@ -189,21 +192,21 @@ impl CreditExchangeService {
     }
 
     pub(crate) async fn register_military_base(&self, base: &MilitaryBase) -> Result<()> {
-        let receiver = Self::base_credit_user_id(base.id());
-        self.ensure_unit_user(&receiver).await?;
+        let producer = Self::base_credit_user_id(base.id());
+        self.ensure_unit_user(&producer).await?;
         let payers = Self::payers(base.bloc_name().to_string(), base.financiers())?;
-        self.book_cost(&payers, &receiver, &self.military_base).await?;
-        self.create_cost_subscriptions(&payers, &receiver, &self.military_base)
+        self.book_cost(&payers, &self.military_base).await?;
+        self.create_cost_subscriptions(&payers, &producer, &self.military_base)
             .await?;
         Ok(())
     }
 
     pub(crate) async fn register_trust(&self, trust: &Trust) -> Result<()> {
-        let receiver = Self::trust_credit_user_id(trust.id());
-        self.ensure_unit_user(&receiver).await?;
+        let producer = Self::trust_credit_user_id(trust.id());
+        self.ensure_unit_user(&producer).await?;
         let payers = Self::payers(trust.placement().zone().name().to_string(), trust.financing())?;
-        self.book_cost(&payers, &receiver, &self.trust).await?;
-        self.create_cost_subscriptions(&payers, &receiver, &self.trust).await?;
+        self.book_cost(&payers, &self.trust).await?;
+        self.create_cost_subscriptions(&payers, &producer, &self.trust).await?;
         Ok(())
     }
 
@@ -277,12 +280,17 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    async fn book_cost<T: std::fmt::Debug>(&self, payers: &[PayerShare], receiver: &str, cost: &Cost<T>) -> Result<()> {
+    async fn book_cost<T: std::fmt::Debug>(&self, payers: &[PayerShare], cost: &Cost<T>) -> Result<()> {
         for payer in payers {
-            self.book_credit(payer.user_id.as_str(), receiver, "money", payer.share * cost.money())
-                .await?;
+            self.book_credit(
+                payer.user_id.as_str(),
+                &self.bank_user_id,
+                "money",
+                payer.share * cost.money(),
+            )
+            .await?;
             for resource in cost.resources() {
-                self.book_resource(payer.user_id.as_str(), receiver, &resource, payer.share)
+                self.book_resource(payer.user_id.as_str(), &self.bank_user_id, &resource, payer.share)
                     .await?;
             }
         }
