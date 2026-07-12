@@ -444,7 +444,7 @@ impl Combat {
                     let unit_b_guard = unit_b.read().await;
                     let loot = unit_b_guard.loot().clone();
                     log::debug!(
-                        "unit {killer} ({bloc_a}) killed unit {killed} ({bloc_b}). Base {killer_base:?} receives loot {loot:?}.",
+                        "unit {killer} ({bloc_a}) killed unit {killed} ({bloc_b}).",
                         killer = unit_a_id,
                         killed = unit_b_id,
                     );

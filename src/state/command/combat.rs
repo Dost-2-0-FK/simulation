@@ -77,6 +77,7 @@ pub(crate) async fn apply_events(
 
 async fn transfer_loot(transfer: &crate::domain::LootTransfer, bases: &mut HashMap<BaseId, Arc<RwLock<MilitaryBase>>>) {
     if let Some(base) = bases.get(&transfer.base_id()) {
+        log::debug!("base {:?}, receives loot: {:?}", transfer.base_id(), transfer.loot());
         base.write().await.add_production(transfer.loot());
     } else {
         log::info!(
