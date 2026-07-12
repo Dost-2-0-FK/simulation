@@ -6,7 +6,7 @@ use crate::{
     config::Config,
     persistence::MongoPersistence,
     tasks::{periodic_combat_tick, periodic_move, periodic_persist, simulation},
-    state::{Command, State},
+    simulation::{Command, Simulation},
 };
 
 pub(crate) async fn setup_state() -> Result<mpsc::Sender<Command>> {
@@ -26,7 +26,7 @@ pub(crate) async fn setup_state() -> Result<mpsc::Sender<Command>> {
     let movement_interval = config.movement_interval();
     let combat_tick_interval = config.combat_tick_interval();
 
-    let state = State::builder()
+    let state = Simulation::builder()
         .config(config)
         .persistence(persistence)
         .loaded_state(loaded_state)

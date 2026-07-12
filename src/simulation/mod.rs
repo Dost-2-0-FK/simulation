@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[derive(TypedBuilder)]
-pub(crate) struct State {
+pub(crate) struct Simulation {
     config: Config,
     persistence: MongoPersistence,
     loaded_state: LoadedState,
@@ -22,7 +22,7 @@ pub(crate) struct State {
     receiver: Receiver<Command>,
 }
 
-impl State {
+impl Simulation {
     /// Spawn a state loop and wait for [Command]s to query the state or mutate it.
     ///
     /// Returns when the channel is closed and when there are no more messages in the channels buffer, i.e., no more
