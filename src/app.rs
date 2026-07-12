@@ -5,7 +5,7 @@ use utoipa::OpenApi;
 use crate::{
     config::Config,
     persistence::MongoPersistence,
-    simulation::{periodic_combat_tick, periodic_move, periodic_persist, simulation},
+    tasks::{periodic_combat_tick, periodic_move, periodic_persist, simulation},
     state::{Command, State},
 };
 

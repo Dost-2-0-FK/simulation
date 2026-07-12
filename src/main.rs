@@ -7,7 +7,7 @@ mod handlers;
 mod persistence;
 mod routes;
 mod services;
-mod simulation;
+mod tasks;
 mod state;
 
 use actix_web::{App, HttpServer, middleware::Logger, web};
