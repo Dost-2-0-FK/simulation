@@ -2,9 +2,9 @@ use std::{borrow::Cow, collections::HashMap};
 
 use derive_more::Display;
 use ordered_float::OrderedFloat;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, derive_more::Display)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, derive_more::Display)]
 pub(crate) struct ResourceName(String);
 
 impl ResourceName {
@@ -58,7 +58,7 @@ impl ResourceValue<'_> {
 }
 
 /// A set of resources with corresponding amounts
-#[derive(Debug, Clone, Default, Deserialize, Display)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Display)]
 #[display("{}", 
     _0.iter()
         .map(|(k, v)| format!("{k}: {}", v.0))
@@ -78,16 +78,20 @@ impl Resources {
             .iter()
             .all(|(name, amount)| self.0.get(name).is_some_and(|a| a >= amount))
     }
-
-    fn expect_value(&self, name: &ResourceName) -> f32 {
-        (*self.0.get(name).expect("expecting value")).into()
-    }
 }
 
 impl std::ops::Mul<f32> for Resources {
     type Output = Self;
     fn mul(self, rhs: f32) -> Self {
         Self(self.0.into_iter().map(|(k, v)| (k, v * rhs)).collect())
+    }
+}
+
+impl std::ops::AddAssign<&Resources> for Resources {
+    fn add_assign(&mut self, rhs: &Resources) {
+        for (name, amount) in &rhs.0 {
+            *self.0.entry(name.clone()).or_default() += amount;
+        }
     }
 }
 
@@ -116,20 +120,23 @@ impl<'r> IntoIterator for &'r Resources {
     }
 }
 
-struct ResourcesFactors(Resources);
+#[derive(Debug, Clone, Default, Deserialize)]
+pub(crate) struct ResourcesFactors(Resources);
 
-impl std::ops::Mul<ResourcesFactors> for Resources {
+impl ResourcesFactors {
+    pub(crate) fn resources(&self) -> impl Iterator<Item = ResourceValue<'_>> {
+        self.0.into_iter()
+    }
+}
+
+impl std::ops::Mul<&ResourcesFactors> for Resources {
     type Output = Self;
-    fn mul(self, factors: ResourcesFactors) -> Self {
+    fn mul(self, factors: &ResourcesFactors) -> Self {
         Self(
             self.0
                 .into_iter()
                 .map(|(name, value)| {
-                    let factor = factors
-                        .0
-                        .0
-                        .get(&name)
-                        .expect("config parsing ensures that resources factors and resources have matching keys");
+                    let factor = factors.0.0.get(&name).copied().unwrap_or_default();
                     (name, value * factor)
                 })
                 .collect(),

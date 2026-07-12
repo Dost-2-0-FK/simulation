@@ -133,6 +133,15 @@ Configure `bank_user_id` to the credit-exchanger user that receives structure bu
 bank_user_id = "bank"
 ```
 
+Configure combat loot factors for destroyed structures and killed units in `simulation.toml`. Omitted factors default to
+`0`.
+
+```toml
+[combat.loot_factors]
+money = 0.5
+resources = { lithium = 0.5, iron = 0.5 }
+```
+
 ## Specification<a name="specification"></a>
 
 There are four fundamental types:
@@ -209,13 +218,13 @@ There are four fundamental types:
   the base the unit was created at)
 - If two units of different blocs meet, always roll the dice for *both* units to decide which unit is destroyed: each
   bloc has a chance (0-1) (can be set by calling the corresponding endpoint, see below)
-- If a unit is killed, increase the `production_count` of the base of the enemy unit by half the amount of money spent
-  to create the unit
+- If a unit is killed, increase the `production_count` of the killer's base by the configured loot factors applied to
+  the killed unit's cost
 - If a unit meets an enemy base/trust, it stays there until at least X units "attack" the base/trust, and no enemy units
   are in a radius of Y -> in that case, the base/trust is destroyed
 - If enemy units are in radius of Y, the unity prioritizes attacking those units.
-- If a base/trust is destroyed, increase the `production_count` of the base of the enemy unit by half the amount of
-  money spent to create the base/trust
+- If a base/trust is destroyed, increase the `production_count` of the attacking units' bases by the configured loot
+  factors applied to the destroyed base/trust's cost
 
 ### API<a name="api"></a>
 

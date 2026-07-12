@@ -30,6 +30,10 @@ movement_step = 1.0
 base_destruction_threshold = 5
 trust_destruction_threshold = 4
 
+[combat.loot_factors]
+money = 0.5
+resources = {}
+
 [[bloc]]
 name = "west"
 chance = 12

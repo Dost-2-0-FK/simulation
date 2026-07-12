@@ -8,7 +8,9 @@ use tokio::{fs, net::TcpListener, sync::RwLock};
 
 use self::error::{Error, Result};
 use crate::{
-    domain::{Bloc, BlocName, Chance, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone, ZoneName},
+    domain::{
+        Bloc, BlocName, Chance, LootFactors, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone, ZoneName,
+    },
     geometry::{Distance, Point},
     services::credit_exchange_service::{Cost, CreditExchangeService, Share, VecResourceName},
 };
@@ -106,6 +108,8 @@ struct CombatConfig {
     movement_step: Distance,
     base_destruction_threshold: u32,
     trust_destruction_threshold: u32,
+    #[serde(default)]
+    loot_factors: LootFactors,
 }
 
 #[derive(Debug, Deserialize)]
@@ -209,6 +213,15 @@ impl Config {
             }
         }
 
+        for resource_value in config.combat.loot_factors.resources() {
+            if !config.resources.contains(resource_value.name()) {
+                return Err(Error::ConfigValidation(format!(
+                    "resource value {resource_value} is used in loot factors but is not listed in resources {resources}",
+                    resources = &config.resources,
+                )));
+            }
+        }
+
         let blocs = config
             .blocs
             .iter()
@@ -296,6 +309,7 @@ impl Config {
                 config.costs.unit,
                 config.costs.base,
                 config.costs.trust,
+                config.combat.loot_factors,
             ),
         })
     }
@@ -326,6 +340,10 @@ mod tests {
         movement_step = 1.0
         base_destruction_threshold = 4
         trust_destruction_threshold = 4
+
+        [combat.loot_factors]
+        money = 0.5
+        resources = { lithium = 0.5 }
 
         [costs]
         base = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }
@@ -407,6 +425,41 @@ mod tests {
             }
             Err(error) => panic!("unexpected error: {error}"),
             Ok(_) => panic!("config with unknown cost resource must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_allows_omitted_loot_factors() {
+        let toml_str = base_toml().replace(
+            r#"
+        [combat.loot_factors]
+        money = 0.5
+        resources = { lithium = 0.5 }
+"#,
+            "",
+        );
+
+        Config::parse_from_str(&toml_str)
+            .await
+            .expect("config can be parsed without loot factors");
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_unknown_loot_factor_resource() {
+        let toml_str = base_toml().replace(
+            "        resources = { lithium = 0.5 }",
+            "        resources = { lithium = 0.5, copper = 0.5 }",
+        );
+
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(
+                    error,
+                    "resource value ResourceValue(copper, 0.5) is used in loot factors but is not listed in resources [\"lithium\", \"iron\"]"
+                );
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("config with unknown loot factor resource must fail"),
         }
     }
 }
