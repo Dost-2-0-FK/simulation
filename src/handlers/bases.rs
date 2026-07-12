@@ -88,16 +88,16 @@ impl From<&Loot> for ProductionCountResponse {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct BaseResponse {
     pub(crate) id: BaseId,
+    pub(crate) position: Point,
     pub(crate) placement_id: PlacementId,
-    pub(crate) zone: ZoneName,
     pub(crate) bloc: BlocName,
-    pub(crate) payment: Vec<Financing>,
+    pub(crate) zone: ZoneName,
     pub(crate) enabled: bool,
     pub(crate) prioritized: bool,
-    pub(crate) target: BaseTargetResponse,
-    pub(crate) position: Point,
+    pub(crate) payment: Vec<Financing>,
     /// How much loot has accumulated since the last transfer?
     pub(crate) production_count: ProductionCountResponse,
+    pub(crate) target: BaseTargetResponse,
 }
 
 impl From<&MilitaryBase> for BaseResponse {

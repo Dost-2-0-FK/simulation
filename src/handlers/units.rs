@@ -28,9 +28,9 @@ pub(crate) enum UnitTargetResponse {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct UnitResponse {
     id: UnitId,
+    position: Point,
     base: Option<BaseResponse>,
     bloc: Option<BlocName>,
-    position: Point,
     target: UnitTargetResponse,
 }
 
