@@ -1,0 +1,56 @@
+{
+  "blocs": [
+    {
+      "id": "west",
+      "credit": {
+        "total": 500,
+        "last_day_average": 120,
+        "subscriptions": [],
+        "history": [
+          120
+        ]
+      },
+      "resources": {}
+    },
+    {
+      "id": "east",
+      "credit": {
+        "total": 500,
+        "last_day_average": 120,
+        "subscriptions": [],
+        "history": [
+          120
+        ]
+      },
+      "resources": {}
+    }
+  ],
+  "zones": [
+    {
+      "id": "zone_w",
+      "credit": {
+        "total": 500,
+        "last_day_average": 120,
+        "subscriptions": [],
+        "history": [
+          120
+        ]
+      },
+      "resources": {}
+    },
+    {
+      "id": "zone_e",
+      "credit": {
+        "total": 500,
+        "last_day_average": 120,
+        "subscriptions": [],
+        "history": [
+          120
+        ]
+      },
+      "resources": {}
+    }
+  ],
+  "individuals": [],
+  "units": []
+}
