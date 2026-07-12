@@ -32,14 +32,17 @@ pub(crate) async fn get_all(resp: Sender<Vec<CombatResponse>>, combats: &HashMap
 /// Execute a [Combat::tick] on each combat and clear ended combats from the map.
 pub(crate) async fn tick(combats: &mut HashMap<Point, Arc<RwLock<Combat>>>) -> Vec<CombatEvent> {
     let mut events = Vec::new();
-    for combat in combats.values() {
+    let mut ended_positions = Vec::new();
+    for (position, combat) in combats.iter() {
         let mut combat_guard = combat.write().await;
-        let event = combat_guard.tick().await;
-        if event.destroyed_or_killed() {
-            events.push(event);
+        combat_guard.tick().await;
+        if combat_guard.state() == crate::domain::CombatState::Ended {
+            events.extend_from_slice(combat_guard.events());
+            ended_positions.push(*position);
         }
     }
 
+    combats.retain(|position, _| !ended_positions.contains(position));
     events
 }
 
@@ -50,10 +53,36 @@ pub(crate) async fn apply_events(
 ) {
     for event in events {
         match event {
-            CombatEvent::None | CombatEvent::UnitsKilled { .. } => {}
-            CombatEvent::BaseDestroyed { id } => destroy_base(*id, bases).await,
-            CombatEvent::TrustDestroyed { id } => destroy_trust(*id, bases, trusts).await,
+            CombatEvent::None => {}
+            CombatEvent::UnitsKilled { units } => {
+                for unit in units {
+                    transfer_loot(unit.loot(), bases).await;
+                }
+            }
+            CombatEvent::BaseDestroyed { id, loot: transfers } => {
+                for transfer in transfers {
+                    transfer_loot(transfer, bases).await;
+                }
+                destroy_base(*id, bases).await;
+            }
+            CombatEvent::TrustDestroyed { id, loot } => {
+                for transfer in loot {
+                    transfer_loot(transfer, bases).await;
+                }
+                destroy_trust(*id, bases, trusts).await;
+            }
         }
+    }
+}
+
+async fn transfer_loot(transfer: &crate::domain::LootTransfer, bases: &mut HashMap<BaseId, Arc<RwLock<MilitaryBase>>>) {
+    if let Some(base) = bases.get(&transfer.base_id()) {
+        base.write().await.add_production(transfer.loot());
+    } else {
+        log::info!(
+            "cannot transfer loot to base {:?} because the base no longer exists",
+            transfer.base_id()
+        );
     }
 }
 

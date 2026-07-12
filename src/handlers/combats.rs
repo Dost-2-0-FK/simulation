@@ -58,8 +58,8 @@ pub(crate) struct UnitKilledResponse {
     killed: UnitId,
 }
 
-impl From<UnitKilled> for UnitKilledResponse {
-    fn from(event: UnitKilled) -> Self {
+impl From<&UnitKilled> for UnitKilledResponse {
+    fn from(event: &UnitKilled) -> Self {
         Self {
             killer: event.killer(),
             killed: event.killed(),
@@ -80,10 +80,10 @@ impl CombatEventResponse {
         match event {
             CombatEvent::None => None,
             CombatEvent::UnitsKilled { units } => Some(Self::UnitsKilled {
-                units: units.iter().copied().map(Into::into).collect(),
+                units: units.iter().map(Into::into).collect(),
             }),
-            CombatEvent::TrustDestroyed { id } => Some(Self::TrustDestroyed { id: *id }),
-            CombatEvent::BaseDestroyed { id } => Some(Self::BaseDestroyed { id: *id }),
+            CombatEvent::TrustDestroyed { id, .. } => Some(Self::TrustDestroyed { id: *id }),
+            CombatEvent::BaseDestroyed { id, .. } => Some(Self::BaseDestroyed { id: *id }),
         }
     }
 }

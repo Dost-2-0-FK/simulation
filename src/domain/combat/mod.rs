@@ -12,20 +12,34 @@ use tokio::sync::RwLock;
 
 use crate::{
     domain::{
-        AttackOutcome, BaseId, BlocName, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId, UnitState,
+        AttackOutcome, BaseId, BlocName, Loot, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId, UnitState,
         combat::structure::CombatStructure,
     },
     geometry::{Point, Positioned},
-    services::credit_exchange_service::Money,
 };
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub(crate) struct LootTransfer {
+    base_id: BaseId,
+    loot: Loot,
+}
+
+impl LootTransfer {
+    pub(crate) fn base_id(&self) -> BaseId {
+        self.base_id
+    }
+
+    pub(crate) fn loot(&self) -> &Loot {
+        &self.loot
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct UnitKilled {
     killer: UnitId,
-    killer_base_id: BaseId,
     killed: UnitId,
     /// The loot transferred to the killer's base
-    loot: Money,
+    loot: LootTransfer,
 }
 
 impl UnitKilled {
@@ -36,10 +50,14 @@ impl UnitKilled {
     pub(crate) fn killed(&self) -> UnitId {
         self.killed
     }
+
+    pub(crate) fn loot(&self) -> &LootTransfer {
+        &self.loot
+    }
 }
 
 /// What may happen during a combat tick?
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub(crate) enum CombatEvent {
     /// Nothing happened. This can be the case when
@@ -52,18 +70,18 @@ pub(crate) enum CombatEvent {
     /// The trust was destroyed, this implies combat end.
     TrustDestroyed {
         id: TrustId,
+        #[serde(default)]
+        loot: Vec<LootTransfer>,
     },
     /// The base was destroyed, this implies combat end.
     BaseDestroyed {
         id: BaseId,
+        #[serde(default)]
+        loot: Vec<LootTransfer>,
     },
 }
 
 impl CombatEvent {
-    pub(crate) fn destroyed_or_killed(&self) -> bool {
-        !matches!(self, CombatEvent::None)
-    }
-
     fn should_persist(&self) -> bool {
         match self {
             Self::None => false,
@@ -363,13 +381,39 @@ impl Combat {
         self.state = CombatState::Ended;
         match &self.structure {
             CombatStructure::None => panic!("We shouldn't be reaching this point in a combat without structures"),
-            CombatStructure::Trust { trust, .. } => CombatEvent::TrustDestroyed {
-                id: trust.read().await.id(),
-            },
-            CombatStructure::Base { base, .. } => CombatEvent::BaseDestroyed {
-                id: base.read().await.id(),
-            },
+            CombatStructure::Trust { trust, .. } => {
+                let trust = trust.read().await;
+                CombatEvent::TrustDestroyed {
+                    id: trust.id(),
+                    loot: self.structure_loot_transfers(trust.loot()).await,
+                }
+            }
+            CombatStructure::Base { base, .. } => {
+                let base = base.read().await;
+                CombatEvent::BaseDestroyed {
+                    id: base.id(),
+                    loot: self.structure_loot_transfers(base.loot()).await,
+                }
+            }
         }
+    }
+
+    async fn structure_loot_transfers(&self, loot: &Loot) -> Vec<LootTransfer> {
+        let units = self
+            .units
+            .values()
+            .next()
+            .expect("structure destruction requires exactly one attacking bloc");
+        let split_loot = loot.split(units.len());
+        let mut transfers = Vec::with_capacity(units.len());
+        for unit in units.values() {
+            let base_id = unit.read().await.base().await.id();
+            transfers.push(LootTransfer {
+                base_id,
+                loot: split_loot.clone(),
+            });
+        }
+        transfers
     }
 
     async fn units_fight(&mut self) -> CombatEvent {
@@ -396,19 +440,21 @@ impl Combat {
                 if unit_a_guard.attack().await == AttackOutcome::Killed
                     && killed_units.insert(*unit_b_id, *unit_a_id).is_none()
                 {
+                    let killer_base = unit_a_guard.base().await.id();
                     let unit_b_guard = unit_b.read().await;
-                    let killer_base = unit_b_guard.base().await.id();
-                    let loot = unit_b_guard.loot();
+                    let loot = unit_b_guard.loot().clone();
                     log::debug!(
-                        "unit {killer} ({bloc_a}) killed unit {killed} ({bloc_b}). Base {killer_base:?} receives loot {loot}.",
+                        "unit {killer} ({bloc_a}) killed unit {killed} ({bloc_b}). Base {killer_base:?} receives loot {loot:?}.",
                         killer = unit_a_id,
                         killed = unit_b_id,
                     );
                     killed_events.push(UnitKilled {
                         killed: *unit_b_id,
                         killer: *unit_a_id,
-                        killer_base_id: killer_base,
-                        loot,
+                        loot: LootTransfer {
+                            base_id: killer_base,
+                            loot,
+                        },
                     });
                 }
             }

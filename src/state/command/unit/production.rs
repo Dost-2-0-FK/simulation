@@ -98,11 +98,11 @@ async fn publish_base_production(
     for base_arc in bases.values() {
         let (base_id, production_count) = {
             let base = base_arc.read().await;
-            (base.id(), base.production_count())
+            (base.id(), base.production_count().clone())
         };
 
         if let Err(err) = credit_exchange_service
-            .set_base_credit_production(base_id, production_count)
+            .set_base_production(base_id, &production_count)
             .await
         {
             log::error!("failed to publish credit production for base {base_id:?}: {err}");
