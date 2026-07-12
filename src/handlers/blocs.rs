@@ -6,7 +6,7 @@ use crate::{
     domain::{Bloc, BlocName, Chance},
     error::{Result, UserError},
     services::credit_exchange_service::Share,
-    state::Command,
+    simulation::Command,
 };
 
 const BLOCS: &str = "blocs";

@@ -9,7 +9,7 @@ use crate::{
     error::{Result, UserError},
     geometry::{Point, Positioned},
     services::credit_exchange_service::{Money, Share},
-    state::Command,
+    simulation::Command,
 };
 
 const BASES: &str = "bases";

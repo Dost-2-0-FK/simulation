@@ -6,7 +6,7 @@ use std::{collections::HashMap, sync::Arc};
 use futures_util::{StreamExt, stream};
 use tokio::sync::{RwLock, oneshot::Sender};
 
-pub(crate) use crate::state::command::unit::{movement::*, production::*};
+pub(crate) use crate::simulation::command::unit::{movement::*, production::*};
 use crate::{
     domain::{BlocName, MilitaryUnit, Target, UnitId},
     geometry::{Point, Positioned},

@@ -6,7 +6,7 @@ use crate::{
     domain::{Placement, PlacementId, ZoneName},
     error::{Result, UserError},
     geometry::{Point, Positioned},
-    state::Command,
+    simulation::Command,
 };
 
 const PLACEMENTS: &str = "placements";

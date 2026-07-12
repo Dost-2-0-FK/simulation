@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use crate::{
     domain::{BlocName, Zone, ZoneName},
     error::{Result, UserError},
-    state::Command,
+    simulation::Command,
 };
 
 const ZONES: &str = "zones";

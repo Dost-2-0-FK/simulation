@@ -5,11 +5,11 @@ use utoipa::OpenApi;
 use crate::{
     config::Config,
     persistence::MongoPersistence,
-    tasks::{periodic_combat_tick, periodic_move, periodic_persist, simulation},
     simulation::{Command, Simulation},
+    tasks::{periodic_combat_tick, periodic_move, periodic_persist},
 };
 
-pub(crate) async fn setup_state() -> Result<mpsc::Sender<Command>> {
+pub(crate) async fn start_simulation() -> Result<mpsc::Sender<Command>> {
     env_logger::init();
     let config = Config::parse().await.context("parsing config file".to_string())?;
     const MAX_MESSAGE_COUNT: usize = 100;
@@ -26,15 +26,14 @@ pub(crate) async fn setup_state() -> Result<mpsc::Sender<Command>> {
     let movement_interval = config.movement_interval();
     let combat_tick_interval = config.combat_tick_interval();
 
-    let state = Simulation::builder()
+    let simulation = Simulation::builder()
         .config(config)
         .persistence(persistence)
         .loaded_state(loaded_state)
         .receiver(rx)
         .build();
 
-    tokio::spawn(state.run());
-    tokio::spawn(simulation(tx.clone()));
+    tokio::spawn(simulation.run());
     tokio::spawn(periodic_persist(tx.clone(), persist_interval));
     tokio::spawn(periodic_move(tx.clone(), movement_interval));
     tokio::spawn(periodic_combat_tick(tx.clone(), combat_tick_interval));

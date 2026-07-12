@@ -16,7 +16,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let tx = app::setup_state().await.map_err(|e| {
+    let tx = app::start_simulation().await.map_err(|e| {
         log::error!("{:#}", e);
         std::io::Error::other(e)
     })?;

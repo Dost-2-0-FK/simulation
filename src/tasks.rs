@@ -4,14 +4,7 @@ use std::time::Duration;
 
 use tokio::sync::mpsc;
 
-use crate::state::Command;
-
-/// Run the simulation, allow it to send [Command]s via a channel.
-pub(crate) async fn simulation(_tx: mpsc::Sender<Command>) {
-    loop {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-}
+use crate::simulation::Command;
 
 /// Periodically send [Command::Persist] so the in-memory state is flushed to the database.
 ///

@@ -9,7 +9,7 @@ use crate::{
     },
     error::{Result, UserError},
     geometry::Point,
-    state::Command,
+    simulation::Command,
 };
 
 const COMBATS: &str = "combats";

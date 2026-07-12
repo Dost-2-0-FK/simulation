@@ -7,7 +7,7 @@ use crate::{
     error::{Result, UserError},
     geometry::{Point, Positioned},
     handlers::bases::BaseResponse,
-    state::Command,
+    simulation::Command,
 };
 
 const UNITS: &str = "units";
