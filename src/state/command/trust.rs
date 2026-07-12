@@ -35,10 +35,14 @@ pub(crate) async fn create(
     let Some(placement) = placements.find(|p| p.id() == &placement_id) else {
         return Err(CommandError::NotFound("Placement"));
     };
-    let payment = credit_exchange_service.pay_for_trust(financing).await;
-    let trust = Trust::new(payment, placement);
+    let payment = credit_exchange_service
+        .pay_for_trust(placement.zone().name(), financing)
+        .await
+        .map_err(|e| CommandError::CreditExchange(e.to_string()))?;
+    let payment_policy = payment.policy().clone();
+    let trust = Trust::new(payment, credit_exchange_service.loot_factors(), placement);
     credit_exchange_service
-        .register_trust(&trust)
+        .register_trust(&trust, &payment_policy)
         .await
         .map_err(|err| CommandError::CreditExchange(err.to_string()))?;
     Ok(trust)

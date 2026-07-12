@@ -228,7 +228,11 @@ pub(crate) async fn run(
                 persist::persist_all(persistence, &units, &bases, &trusts, &blocs, &combats).await;
             }
             Command::ProduceMilitaryUnits => {
-                unit::produce_units(&blocs, &bases, &mut units, config.credit_exchange_service()).await;
+                if let Err(err) =
+                    unit::produce_units(&blocs, &bases, &mut units, config.credit_exchange_service()).await
+                {
+                    log::error!("failed to produce military units: {err:#}");
+                }
             }
             Command::MoveMilitaryUnits => {
                 let _combat_lock_guard = combat_lock.lock().await;

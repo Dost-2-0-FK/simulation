@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
-    domain::{Bloc, BlocName, Loot, Placement, PlacementId, Trust, TrustId},
+    domain::{Bloc, BlocName, Loot, LootFactors, Placement, PlacementId, Trust, TrustId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
     services::credit_exchange_service::{Financiers, Payment},
@@ -59,14 +59,18 @@ crate::impl_positioned_as_ref!(MilitaryBase => placement);
 
 impl MilitaryBase {
     /// Create a new base. Panics if the total count of bases becomes > [u64::MAX].
-    pub(crate) fn new(payment: Payment<'_, Self, Financiers>, placement: Arc<Placement>) -> Self {
+    pub(crate) fn new(
+        payment: Payment<'_, Self, Financiers>,
+        loot_factors: &LootFactors,
+        placement: Arc<Placement>,
+    ) -> Self {
         let id = BASE_INSTANCE_COUNT.fetch_add(1, SeqCst);
         assert_ne!(id, u64::MAX, "ID counter has overflowed and is no longer unique");
-        let loot = payment.loot().clone();
+        let loot = Loot::from_cost(payment.cost(), loot_factors);
 
         Self {
             id: BaseId(id),
-            financiers: payment.consume(),
+            financiers: payment.secondary_payers(),
             placement,
             enabled: true,
             prioritized: false,

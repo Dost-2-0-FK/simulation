@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
-    domain::{Loot, MilitaryBase, politics::DieRollOutcome},
+    domain::{Loot, LootFactors, MilitaryBase, politics::DieRollOutcome},
     geometry::{Distance, Point, Positioned},
     services::credit_exchange_service::{Payment, SinglePayer},
 };
@@ -66,8 +66,13 @@ pub(crate) enum AttackOutcome {
 crate::impl_positioned!(MilitaryUnit => position);
 
 impl MilitaryUnit {
-    pub(crate) fn new(payment: Payment<Self, SinglePayer>, base: Arc<RwLock<MilitaryBase>>, position: Point) -> Self {
-        let loot = payment.loot().clone();
+    pub(crate) fn new(
+        payment: Payment<Self, SinglePayer>,
+        loot_factors: &LootFactors,
+        base: Arc<RwLock<MilitaryBase>>,
+        position: Point,
+    ) -> Self {
+        let loot = Loot::from_cost(payment.cost(), loot_factors);
         Self {
             id: UnitId::new(),
             base,

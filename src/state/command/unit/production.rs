@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use anyhow::Result;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -8,13 +9,17 @@ use crate::{
     services::credit_exchange_service::CreditExchangeService,
 };
 
-fn create(
+async fn create(
     base: Arc<RwLock<MilitaryBase>>,
     position: Point,
     credit_exchange_service: &CreditExchangeService,
-) -> MilitaryUnit {
-    let payment = credit_exchange_service.pay_for_military_unit();
-    MilitaryUnit::new(payment, base, position)
+) -> Result<MilitaryUnit> {
+    let base_guard = base.read().await;
+    let bloc = base_guard.bloc_name();
+    let payment = credit_exchange_service.pay_for_military_unit(bloc).await?;
+    drop(base_guard);
+    let unit = MilitaryUnit::new(payment, credit_exchange_service.loot_factors(), base, position);
+    Ok(unit)
 }
 
 /// Runs one hourly production cycle: for each bloc, uses the configured military expense
@@ -28,7 +33,7 @@ pub(crate) async fn produce_units(
     bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     credit_exchange_service: &CreditExchangeService,
-) {
+) -> Result<()> {
     let unit_money_cost = credit_exchange_service.military_unit.money();
     let unit_resource_cost = credit_exchange_service.military_unit.resources_owned();
 
@@ -79,7 +84,7 @@ pub(crate) async fn produce_units(
                     let position = base.position();
                     let base_id = base.id();
                     drop(base);
-                    let unit = create(base_arc.clone(), position, credit_exchange_service);
+                    let unit = create(base_arc.clone(), position, credit_exchange_service).await?;
                     let unit_id = unit.id();
                     units.insert(unit_id, Arc::new(RwLock::new(unit)));
                     log::info!("added unit {unit_id:?} to base {base_id:?}");
@@ -89,12 +94,13 @@ pub(crate) async fn produce_units(
             }
         }
     }
+    Ok(())
 }
 
 async fn publish_base_production(
     bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     credit_exchange_service: &CreditExchangeService,
-) {
+) -> Result<()> {
     for base_arc in bases.values() {
         let (base_id, production_count) = {
             let base = base_arc.read().await;
@@ -111,4 +117,5 @@ async fn publish_base_production(
 
         base_arc.write().await.clear_production_count();
     }
+    Ok(())
 }

@@ -6,7 +6,7 @@ use std::sync::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    domain::{Loot, Placement, PlacementId},
+    domain::{Loot, LootFactors, Placement, PlacementId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
     services::credit_exchange_service::{Financiers, Payment},
@@ -35,14 +35,18 @@ crate::impl_positioned_as_ref!(Trust => placement);
 
 impl Trust {
     /// Create a new trust. Panics if the total count of trusts becomes > [u64::MAX].
-    pub(crate) fn new(payment: Payment<'_, Self, Financiers>, placement: Arc<Placement>) -> Self {
+    pub(crate) fn new(
+        payment: Payment<'_, Self, Financiers>,
+        loot_factors: &LootFactors,
+        placement: Arc<Placement>,
+    ) -> Self {
         let id = TRUST_INSTANCE_COUNT.fetch_add(1, SeqCst);
         assert_ne!(id, u64::MAX, "ID counter has overflowed and is no longer unique");
-        let loot = payment.loot().clone();
+        let loot = Loot::from_cost(payment.cost(), loot_factors);
 
         Self {
             id: TrustId(id),
-            financing: payment.consume(),
+            financing: payment.secondary_payers(),
             placement,
             loot,
         }

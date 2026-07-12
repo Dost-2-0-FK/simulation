@@ -5,66 +5,22 @@ mod money;
 mod resources;
 mod share;
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 pub(crate) use self::{
-    cost::Cost,
+    cost::{Cost, Financiers, Payment, SinglePayer},
     money::Money,
     resources::{ResourceName, ResourceValue, Resources, ResourcesFactors, VecResourceName},
     share::Share,
 };
 use crate::{
-    domain::{BaseId, BlocName, Loot, LootFactors, MilitaryBase, MilitaryUnit, Trust, TrustId},
+    domain::{BaseId, BlocName, Loot, LootFactors, MilitaryBase, MilitaryUnit, Trust, TrustId, ZoneName},
     handlers::bases::Financing,
+    services::credit_exchange_service::cost::{PayerShare, Payers},
 };
-
-pub(crate) struct SinglePayer;
-
-pub(crate) struct Financiers {
-    financiers: Vec<Financing>,
-}
-
-/// Produced by the credit exchange service when a cost was paid.
-#[derive(Debug)]
-pub(crate) struct Payment<'a, T, P> {
-    policy: P,
-    cost: &'a Cost<T>,
-    loot: Loot,
-}
-
-impl<'a, T, P> Payment<'a, T, P> {
-    #[expect(dead_code)]
-    pub(crate) fn cost(&self) -> &Cost<T> {
-        self.cost
-    }
-
-    pub(crate) fn loot(&self) -> &Loot {
-        &self.loot
-    }
-}
-
-impl<'a, T> Payment<'a, T, SinglePayer> {
-    pub(crate) fn new(cost: &'a Cost<T>, loot: Loot) -> Self {
-        Self {
-            cost,
-            loot,
-            policy: SinglePayer,
-        }
-    }
-}
-
-impl<'a, T> Payment<'a, T, Financiers> {
-    pub(crate) fn new(cost: &'a Cost<T>, loot: Loot, policy: Financiers) -> Self {
-        Self { cost, loot, policy }
-    }
-
-    pub(crate) fn consume(self) -> Vec<Financing> {
-        self.policy.financiers
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 enum UserType {
@@ -126,12 +82,6 @@ struct CreditBalanceResponse {
     hourly: f32,
 }
 
-#[derive(Debug, Clone)]
-struct PayerShare {
-    user_id: String,
-    share: Share,
-}
-
 /// Constructed when loading the config. It owns the local simulation costs and provides the
 /// small subset of credit-exchanger API calls used by this simulation.
 pub(crate) struct CreditExchangeService {
@@ -164,17 +114,13 @@ impl CreditExchangeService {
         }
     }
 
+    pub(crate) fn loot_factors(&self) -> &LootFactors {
+        &self.loot_factors
+    }
+
     #[inline]
     fn log_payment<T: std::fmt::Debug>(&self, cost: &Cost<T>) {
         log::debug!("issuing payment of {}", cost);
-    }
-
-    pub(crate) fn pay_for_military_unit(&self) -> Payment<'_, MilitaryUnit, SinglePayer> {
-        self.log_payment(&self.military_unit);
-        Payment::<_, SinglePayer>::new(
-            &self.military_unit,
-            Loot::from_cost(&self.military_unit, &self.loot_factors),
-        )
     }
 
     /// Returns the hourly income for the given bloc.
@@ -189,44 +135,39 @@ impl CreditExchangeService {
     }
 
     pub(crate) async fn pay_for_military_base(
-        &'_ self,
+        &self,
+        primary_payer_id: &BlocName,
         financiers: Vec<Financing>,
-    ) -> Payment<'_, MilitaryBase, Financiers> {
-        log::info!("booking military base payment with {:?}", financiers,);
+    ) -> Result<Payment<'_, MilitaryBase, Financiers>> {
         self.log_payment(&self.military_base);
-        Payment::<_, Financiers>::new(
-            &self.military_base,
-            Loot::from_cost(&self.military_base, &self.loot_factors),
-            Financiers { financiers },
-        )
+        let policy = Financiers::new(primary_payer_id.to_string(), financiers)?;
+        self.log_payment(&self.military_base);
+        self.book_cost(policy, &self.military_base).await
     }
 
-    pub(crate) async fn pay_for_trust(&'_ self, financiers: Vec<Financing>) -> Payment<'_, Trust, Financiers> {
-        log::info!("booking trust payment with {:?}", financiers,);
-        self.log_payment(&self.trust);
-        Payment::<_, Financiers>::new(
-            &self.trust,
-            Loot::from_cost(&self.trust, &self.loot_factors),
-            Financiers { financiers },
-        )
-    }
-
-    pub(crate) async fn register_military_base(&self, base: &MilitaryBase) -> Result<()> {
+    pub(crate) async fn register_military_base(&self, base: &MilitaryBase, policy: Financiers) -> Result<()> {
         let producer = Self::base_credit_user_id(base.id());
         self.ensure_unit_user(&producer).await?;
-        let payers = Self::payers(base.bloc_name().to_string(), base.financiers())?;
-        self.book_cost(&payers, &self.military_base).await?;
-        self.create_cost_subscriptions(&payers, &producer, &self.military_base)
+        self.create_cost_subscriptions(policy.payers(), &producer, &self.military_base)
             .await?;
         Ok(())
     }
 
-    pub(crate) async fn register_trust(&self, trust: &Trust) -> Result<()> {
+    pub(crate) async fn pay_for_trust(
+        &self,
+        primary_payer_id: &ZoneName,
+        financiers: Vec<Financing>,
+    ) -> Result<Payment<'_, Trust, Financiers>> {
+        self.log_payment(&self.trust);
+        let policy = Financiers::new(primary_payer_id.to_string(), financiers)?;
+        self.book_cost(policy, &self.trust).await
+    }
+
+    pub(crate) async fn register_trust(&self, trust: &Trust, policy: &Financiers) -> Result<()> {
         let producer = Self::trust_credit_user_id(trust.id());
         self.ensure_unit_user(&producer).await?;
-        let payers = Self::payers(trust.placement().zone().name().to_string(), trust.financing())?;
-        self.book_cost(&payers, &self.trust).await?;
-        self.create_cost_subscriptions(&payers, &producer, &self.trust).await?;
+        self.create_cost_subscriptions(policy.payers(), &producer, &self.trust)
+            .await?;
         Ok(())
     }
 
@@ -305,23 +246,6 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    async fn book_cost<T: std::fmt::Debug>(&self, payers: &[PayerShare], cost: &Cost<T>) -> Result<()> {
-        for payer in payers {
-            self.book_credit(
-                payer.user_id.as_str(),
-                &self.bank_user_id,
-                "money",
-                payer.share * cost.money(),
-            )
-            .await?;
-            for resource in cost.resources() {
-                self.book_resource(payer.user_id.as_str(), &self.bank_user_id, &resource, payer.share)
-                    .await?;
-            }
-        }
-        Ok(())
-    }
-
     async fn book_credit(&self, payer: &str, receiver: &str, credit_type: &str, value: Money) -> Result<()> {
         self.book_value(payer, receiver, credit_type, value.value()).await
     }
@@ -369,15 +293,15 @@ impl CreditExchangeService {
 
     async fn create_cost_subscriptions<T: std::fmt::Debug>(
         &self,
-        payers: &[PayerShare],
+        payers: impl IntoIterator<Item = PayerShare>,
         producer: &str,
         cost: &Cost<T>,
     ) -> Result<()> {
         for payer in payers {
-            self.create_subscription(producer, payer.user_id.as_str(), "money", payer.share)
+            self.create_subscription(producer, payer.payer_id.as_str(), "money", payer.share)
                 .await?;
             for resource in cost.resources() {
-                self.create_subscription(producer, payer.user_id.as_str(), resource.name().as_str(), payer.share)
+                self.create_subscription(producer, payer.payer_id.as_str(), resource.name().as_str(), payer.share)
                     .await?;
             }
         }
@@ -450,28 +374,6 @@ impl CreditExchangeService {
         let status = response.status();
         let body = response.text().await.unwrap_or_else(|err| err.to_string());
         Err(anyhow!("{action} failed with {status}: {body}"))
-    }
-
-    fn payers(primary_user_id: String, financiers: &[Financing]) -> Result<Vec<PayerShare>> {
-        let financier_share = financiers.iter().map(|financing| financing.share.value()).sum::<f32>();
-        if financier_share > 1.0 {
-            bail!("financier shares sum to {financier_share}, expected at most 1");
-        }
-
-        let mut payers = Vec::with_capacity(financiers.len() + 1);
-        let primary_share = 1.0 - financier_share;
-        if primary_share > f32::EPSILON {
-            payers.push(PayerShare {
-                user_id: primary_user_id,
-                share: Share::from(primary_share),
-            });
-        }
-        payers.extend(financiers.iter().map(|financing| PayerShare {
-            user_id: financing.financier.as_str().to_string(),
-            share: financing.share,
-        }));
-
-        Ok(payers)
     }
 
     fn base_credit_user_id(id: BaseId) -> String {
