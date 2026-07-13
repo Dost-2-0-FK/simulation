@@ -9,6 +9,7 @@ Economy and military simulation
     - [Download Prebuilt Artifact](#download-prebuilt-artifact)
     - [Install from source](#install-from-source)
   - [Run From Source Without Installing](#run-from-source-without-installing)
+  - [Run Terminal Viewer](#run-terminal-viewer)
   - [Run With Docker Compose](#run-with-docker-compose)
   - [Persistence](#persistence)
   - [Specification](#specification)
@@ -65,6 +66,20 @@ This uses the host-facing ports from `docker-compose.yml`: MongoDB on `localhost
 
 The seed file is mounted into the credit-exchanger container from `docker/credit-exchanger/db-seeding-example.json`.
 Use `--force-recreate` when changing seed data so the credit-exchanger entrypoint runs the seed script again.
+
+## Run Terminal Viewer<a name="run-terminal-viewer"></a>
+
+The workspace includes a `ratatui` terminal viewer that reads the simulation through the HTTP API.
+
+```sh
+cargo run -p simulation-viewer
+```
+
+By default it connects to `http://127.0.0.1:8080`. To use a different simulation server URL:
+
+```sh
+cargo run -p simulation-viewer -- http://127.0.0.1:8081
+```
 
 ## Run With Docker Compose<a name="run-with-docker-compose"></a>
 

@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 repository = "https://github.com/Dost-2-0-FK/simulation"
 
+[workspace]
+members = [".", "crates/simulation-viewer"]
+resolver = "3"
+
 [dependencies]
 actix-web = "4.11.0"
 derive_more = { version = "2.0.1", features = ["into"] }
