@@ -1,0 +1,7 @@
+base_url = "http://127.0.0.1:8080"
+
+[world]
+min_x = -10
+max_x = 40
+min_y = -10
+max_y = 40

@@ -69,7 +69,8 @@ Use `--force-recreate` when changing seed data so the credit-exchanger entrypoin
 
 ## Run Terminal Viewer<a name="run-terminal-viewer"></a>
 
-The workspace includes a `ratatui` terminal viewer that reads the simulation through the HTTP API.
+The workspace includes a `ratatui` terminal viewer that reads the simulation through the HTTP API. Its world bounds are
+configured in `simulation-viewer.toml`; keep them in sync with the server's `[world]` values in `simulation.toml`.
 
 ```sh
 cargo run -p simulation-viewer

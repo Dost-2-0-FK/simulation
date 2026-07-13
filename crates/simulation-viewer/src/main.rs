@@ -1,6 +1,7 @@
 use std::{
     cmp::min,
-    io,
+    fs, io,
+    path::Path,
     time::{Duration, Instant},
 };
 
@@ -24,6 +25,7 @@ use serde_json::Value;
 use tokio::time;
 
 const DEFAULT_BASE_URL: &str = "http://127.0.0.1:8080";
+const DEFAULT_CONFIG_PATH: &str = "simulation-viewer.toml";
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 const MAP_MARGIN_X: u16 = 3;
 const MAP_MARGIN_Y: u16 = 1;
@@ -67,6 +69,84 @@ struct Combat {
     position: Point,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize)]
+struct WorldBounds {
+    min_x: f64,
+    max_x: f64,
+    min_y: f64,
+    max_y: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ViewerConfig {
+    #[serde(default = "default_base_url")]
+    base_url: String,
+    world: WorldBounds,
+}
+
+impl ViewerConfig {
+    fn load(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
+        let config = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let config: Self = toml::from_str(&config).with_context(|| format!("parsing {}", path.display()))?;
+        config
+            .world
+            .validate()
+            .with_context(|| format!("validating {}", path.display()))?;
+        Ok(config)
+    }
+}
+
+fn default_base_url() -> String {
+    DEFAULT_BASE_URL.to_string()
+}
+
+impl WorldBounds {
+    fn validate(self) -> Result<()> {
+        if self.min_x >= self.max_x {
+            anyhow::bail!("world min_x must be less than max_x");
+        }
+        if self.min_y >= self.max_y {
+            anyhow::bail!("world min_y must be less than max_y");
+        }
+        Ok(())
+    }
+
+    fn width(self) -> f64 {
+        self.max_x - self.min_x
+    }
+
+    fn height(self) -> f64 {
+        self.max_y - self.min_y
+    }
+
+    fn wrap(self, point: Point) -> Point {
+        Point {
+            x: wrap_coordinate(point.x, self.min_x, self.max_x),
+            y: wrap_coordinate(point.y, self.min_y, self.max_y),
+        }
+    }
+
+    fn shortest_delta(self, from: Point, to: Point) -> Point {
+        let from = self.wrap(from);
+        let to = self.wrap(to);
+
+        Point {
+            x: shortest_axis_delta(from.x, to.x, self.width()),
+            y: shortest_axis_delta(from.y, to.y, self.height()),
+        }
+    }
+}
+
+fn wrap_coordinate(value: f64, min: f64, max: f64) -> f64 {
+    (value - min).rem_euclid(max - min) + min
+}
+
+fn shortest_axis_delta(from: f64, to: f64, span: f64) -> f64 {
+    let forward = (to - from).rem_euclid(span);
+    if forward > span / 2.0 { forward - span } else { forward }
+}
+
 #[derive(Debug, Default, Clone)]
 struct WorldState {
     placements: Vec<Placement>,
@@ -76,74 +156,24 @@ struct WorldState {
     combats: Vec<Combat>,
 }
 
-impl WorldState {
-    fn bounds(&self) -> Option<Bounds> {
-        if !self.placements.is_empty() {
-            return bounds_for(self.placements.iter().map(|placement| placement.position));
-        }
-
-        bounds_for(self.fallback_points())
-    }
-
-    fn fallback_points(&self) -> impl Iterator<Item = Point> + '_ {
-        self.trusts
-            .iter()
-            .map(|trust| trust.position)
-            .chain(self.bases.iter().map(|base| base.position))
-            .chain(self.units.iter().map(|unit| unit.position))
-            .chain(self.units.iter().filter_map(Unit::target_position))
-            .chain(self.combats.iter().map(|combat| combat.position))
-    }
-}
-
-fn bounds_for(mut points: impl Iterator<Item = Point>) -> Option<Bounds> {
-    let first = points.next()?;
-    let mut bounds = Bounds::from_point(first);
-    for point in points {
-        bounds.include(point);
-    }
-    Some(bounds)
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Bounds {
-    min_x: f64,
-    max_x: f64,
-    min_y: f64,
-    max_y: f64,
-}
-
-impl Bounds {
-    fn from_point(point: Point) -> Self {
-        Self {
-            min_x: point.x,
-            max_x: point.x,
-            min_y: point.y,
-            max_y: point.y,
-        }
-    }
-
-    fn include(&mut self, point: Point) {
-        self.min_x = self.min_x.min(point.x);
-        self.max_x = self.max_x.max(point.x);
-        self.min_y = self.min_y.min(point.y);
-        self.max_y = self.max_y.max(point.y);
-    }
-}
-
 struct App {
     client: reqwest::Client,
     base_url: String,
+    bounds: WorldBounds,
     world: WorldState,
     last_refresh: Option<Instant>,
     last_error: Option<String>,
 }
 
 impl App {
-    fn new(base_url: String) -> Self {
+    fn new(config: ViewerConfig, base_url_override: Option<String>) -> Self {
         Self {
             client: reqwest::Client::new(),
-            base_url: base_url.trim_end_matches('/').to_string(),
+            base_url: base_url_override
+                .unwrap_or(config.base_url)
+                .trim_end_matches('/')
+                .to_string(),
+            bounds: config.world,
             world: WorldState::default(),
             last_refresh: None,
             last_error: None,
@@ -199,8 +229,9 @@ impl App {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let base_url = std::env::args().nth(1).unwrap_or_else(|| DEFAULT_BASE_URL.to_string());
-    let mut app = App::new(base_url);
+    let config = ViewerConfig::load(DEFAULT_CONFIG_PATH)?;
+    let base_url_override = std::env::args().nth(1);
+    let mut app = App::new(config, base_url_override);
     app.refresh().await;
 
     enable_raw_mode()?;
@@ -258,7 +289,7 @@ fn draw(frame: &mut Frame<'_>, app: &App) {
         .constraints([Constraint::Min(40), Constraint::Length(32)])
         .areas(frame.area());
 
-    frame.render_widget(WorldMap { world: &app.world }, map_area);
+    frame.render_widget(WorldMap { app }, map_area);
     frame.render_widget(status_panel(app), side_area);
 }
 
@@ -286,13 +317,11 @@ fn status_panel(app: &App) -> Paragraph<'_> {
         Line::from("q / Esc quits"),
     ];
 
-    if let Some(bounds) = app.world.bounds() {
-        lines.extend([
-            Line::from(""),
-            Line::from(format!("Bounds x: {:.1}..{:.1}", bounds.min_x, bounds.max_x)),
-            Line::from(format!("Bounds y: {:.1}..{:.1}", bounds.min_y, bounds.max_y)),
-        ]);
-    }
+    lines.extend([
+        Line::from(""),
+        Line::from(format!("World x: {:.1}..{:.1}", app.bounds.min_x, app.bounds.max_x)),
+        Line::from(format!("World y: {:.1}..{:.1}", app.bounds.min_y, app.bounds.max_y)),
+    ]);
 
     if let Some(last_refresh) = app.last_refresh {
         lines.push(Line::from(format!(
@@ -313,7 +342,7 @@ fn status_panel(app: &App) -> Paragraph<'_> {
 }
 
 struct WorldMap<'a> {
-    world: &'a WorldState,
+    app: &'a App,
 }
 
 impl Widget for WorldMap<'_> {
@@ -326,38 +355,28 @@ impl Widget for WorldMap<'_> {
             return;
         }
 
-        let Some(bounds) = self.world.bounds() else {
-            buf.set_string(
-                inner.x,
-                inner.y,
-                "No simulation data yet",
-                Style::default().fg(Color::DarkGray),
-            );
-            return;
-        };
-
-        let viewport = Viewport::new(inner, bounds);
+        let viewport = Viewport::new(inner, self.app.bounds);
         viewport.draw_world_border(buf);
 
-        for unit in &self.world.units {
+        for unit in &self.app.world.units {
             if let Some(target) = unit.target_position() {
                 viewport.draw_path(buf, unit.position, target);
             }
         }
 
-        for placement in &self.world.placements {
+        for placement in &self.app.world.placements {
             viewport.draw_point(buf, placement.position, "📍", Color::Green);
         }
-        for trust in &self.world.trusts {
+        for trust in &self.app.world.trusts {
             viewport.draw_point(buf, trust.position, "⚙️", Color::Yellow);
         }
-        for base in &self.world.bases {
+        for base in &self.app.world.bases {
             viewport.draw_point(buf, base.position, "🎪", Color::Magenta);
         }
-        for unit in &self.world.units {
+        for unit in &self.app.world.units {
             viewport.draw_point(buf, unit.position, "🪖", Color::Blue);
         }
-        for combat in &self.world.combats {
+        for combat in &self.app.world.combats {
             viewport.draw_point(buf, combat.position, "⚔️", Color::Red);
         }
     }
@@ -366,11 +385,11 @@ impl Widget for WorldMap<'_> {
 #[derive(Debug, Clone, Copy)]
 struct Viewport {
     rect: Rect,
-    bounds: Bounds,
+    bounds: WorldBounds,
 }
 
 impl Viewport {
-    fn new(area: Rect, bounds: Bounds) -> Self {
+    fn new(area: Rect, bounds: WorldBounds) -> Self {
         let margin_x = min(MAP_MARGIN_X, area.width.saturating_sub(3) / 2);
         let margin_y = min(MAP_MARGIN_Y, area.height.saturating_sub(3) / 2);
         let rect = Rect {
@@ -416,7 +435,18 @@ impl Viewport {
             return;
         };
 
-        for (x, y) in line_cells(from_x, from_y, to_x, to_y) {
+        let delta = self.bounds.shortest_delta(from, to);
+        let steps = usize::from(self.rect.width.max(self.rect.height)).max(1) * 2;
+
+        for step in 1..steps {
+            let scale = step as f64 / steps as f64;
+            let point = Point {
+                x: from.x + delta.x * scale,
+                y: from.y + delta.y * scale,
+            };
+            let Some((x, y)) = self.to_cell(point) else {
+                continue;
+            };
             if (x, y) == (from_x, from_y) || (x, y) == (to_x, to_y) {
                 continue;
             }
@@ -439,20 +469,15 @@ impl Viewport {
     }
 
     fn to_cell(self, point: Point) -> Option<(u16, u16)> {
-        if point.x < self.bounds.min_x
-            || point.x > self.bounds.max_x
-            || point.y < self.bounds.min_y
-            || point.y > self.bounds.max_y
-        {
+        if self.bounds.width() <= 0.0 || self.bounds.height() <= 0.0 {
             return None;
         }
 
+        let point = self.bounds.wrap(point);
         let width = self.rect.width.saturating_sub(1);
         let height = self.rect.height.saturating_sub(1);
-        let x_span = (self.bounds.max_x - self.bounds.min_x).max(f64::EPSILON);
-        let y_span = (self.bounds.max_y - self.bounds.min_y).max(f64::EPSILON);
-        let x_ratio = (point.x - self.bounds.min_x) / x_span;
-        let y_ratio = (point.y - self.bounds.min_y) / y_span;
+        let x_ratio = (point.x - self.bounds.min_x) / self.bounds.width();
+        let y_ratio = (point.y - self.bounds.min_y) / self.bounds.height();
         let x = self.rect.x + (x_ratio * f64::from(width)).round() as u16;
         let y = self.rect.y + height - (y_ratio * f64::from(height)).round() as u16;
 
@@ -460,33 +485,38 @@ impl Viewport {
     }
 }
 
-fn line_cells(from_x: u16, from_y: u16, to_x: u16, to_y: u16) -> Vec<(u16, u16)> {
-    let mut cells = Vec::new();
-    let mut x = i32::from(from_x);
-    let mut y = i32::from(from_y);
-    let to_x = i32::from(to_x);
-    let to_y = i32::from(to_y);
-    let dx = (to_x - x).abs();
-    let dy = -(to_y - y).abs();
-    let sx = if x < to_x { 1 } else { -1 };
-    let sy = if y < to_y { 1 } else { -1 };
-    let mut error = dx + dy;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    loop {
-        cells.push((x as u16, y as u16));
-        if x == to_x && y == to_y {
-            break;
-        }
-        let doubled_error = 2 * error;
-        if doubled_error >= dy {
-            error += dy;
-            x += sx;
-        }
-        if doubled_error <= dx {
-            error += dx;
-            y += sy;
+    fn bounds() -> WorldBounds {
+        WorldBounds {
+            min_x: 0.0,
+            max_x: 30.0,
+            min_y: 0.0,
+            max_y: 30.0,
         }
     }
 
-    cells
+    #[test]
+    fn wraps_points_into_half_open_bounds() {
+        assert_eq!(bounds().wrap(Point { x: 30.0, y: -1.0 }).x, 0.0);
+        assert_eq!(bounds().wrap(Point { x: 30.0, y: -1.0 }).y, 29.0);
+    }
+
+    #[test]
+    fn shortest_delta_crosses_wrapped_edges() {
+        assert_eq!(
+            bounds()
+                .shortest_delta(Point { x: 29.0, y: 15.0 }, Point { x: 1.0, y: 15.0 })
+                .x,
+            2.0
+        );
+        assert_eq!(
+            bounds()
+                .shortest_delta(Point { x: 15.0, y: 1.0 }, Point { x: 15.0, y: 29.0 })
+                .y,
+            -2.0
+        );
+    }
 }
