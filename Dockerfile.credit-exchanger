@@ -2,7 +2,7 @@
 
 FROM mongo:7
 
-ARG CREDIT_EXCHANGER_INSTALLER_URL=https://github.com/Dost-2-0-FK/credit-exchanger/releases/latest/download/credit-exchanger-installer.sh
+ARG CREDIT_EXCHANGER_INSTALLER_URL=https://github.com/Dost-2-0-FK/credit-exchanger/releases/download/v0.2.0-pre.0/credit-exchanger-installer.sh
 
 WORKDIR /app/credit-exchanger
 COPY docker-credit-exchanger-entrypoint.sh /usr/local/bin/credit-exchanger-entrypoint
