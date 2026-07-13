@@ -9,11 +9,15 @@ use tokio::sync::{RwLock, oneshot::Sender};
 pub(crate) use crate::simulation::command::unit::{movement::*, production::*};
 use crate::{
     domain::{BlocName, MilitaryUnit, Target, UnitId},
-    geometry::{Point, Positioned},
+    geometry::{Point, Positioned, WorldBounds},
     handlers::units::{UnitResponse, UnitTargetResponse},
 };
 
-pub(crate) async fn get(resp: Sender<Vec<UnitResponse>>, units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>) {
+pub(crate) async fn get(
+    resp: Sender<Vec<UnitResponse>>,
+    units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
+    world_bounds: WorldBounds,
+) {
     let unit_responses = stream::iter(units.values())
         .then(async |unit| {
             let unit_guard = unit.read().await;
@@ -25,6 +29,7 @@ pub(crate) async fn get(resp: Sender<Vec<UnitResponse>>, units: &HashMap<UnitId,
                 &bloc_name,
                 base_guard.target(),
                 units,
+                world_bounds,
             )
             .await;
             let base_response = (&(*base_guard)).into();
@@ -43,6 +48,7 @@ async fn effective_target(
     unit_bloc: &BlocName,
     target: &Target,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
+    world_bounds: WorldBounds,
 ) -> UnitTargetResponse {
     let target_point = match target {
         Target::None => None,
@@ -50,7 +56,7 @@ async fn effective_target(
         Target::Trust { trust, .. } => Some(trust.read().await.position()),
     };
 
-    match select_move_target(from, unit_id, unit_bloc, target_point, units).await {
+    match select_move_target(from, unit_id, unit_bloc, target_point, units, world_bounds).await {
         MoveTo::None => UnitTargetResponse::None,
         MoveTo::EnemyUnit(id, position) => UnitTargetResponse::Unit { id, position },
         MoveTo::Designated(position) => match target {

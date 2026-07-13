@@ -103,7 +103,7 @@ pub(crate) async fn run(
     while let Some(cmd) = receiver.recv().await {
         match cmd {
             Command::GetUnits(resp) => {
-                unit::get(resp, &units).await;
+                unit::get(resp, &units, config.world_bounds()).await;
             }
             Command::GetCombats(resp) => {
                 combat::get_all(resp, &combats).await;
@@ -266,6 +266,7 @@ pub(crate) async fn run(
                     &mut units,
                     &mut combats,
                     config.movement_step(),
+                    config.world_bounds(),
                     config.base_destruction_threshold(),
                     config.trust_destruction_threshold(),
                 )

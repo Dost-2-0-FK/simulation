@@ -4,7 +4,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     domain::{BlocName, Combat, CombatParameters, CombatState, MilitaryUnit, Target, UnitId},
-    geometry::{Distance, Point, Positioned},
+    geometry::{Distance, Point, Positioned, WorldBounds},
 };
 
 /// The resolved destination a unit will move toward this tick.
@@ -25,6 +25,7 @@ async fn move_toward_target(
     target: &Target,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     step: Distance,
+    world_bounds: WorldBounds,
 ) -> bool {
     let target_position = match target {
         Target::None => None,
@@ -33,11 +34,12 @@ async fn move_toward_target(
     };
 
     let from = unit.position();
-    let to = match select_move_target(from, unit.id(), unit_bloc, target_position, units).await {
+    let to = match select_move_target(from, unit.id(), unit_bloc, target_position, units, world_bounds).await {
         MoveTo::None => return false,
         MoveTo::EnemyUnit(_, position) | MoveTo::Designated(position) => position,
     };
-    unit.move_toward(to, step);
+    let to = world_bounds.wrap(to);
+    unit.move_toward(to, step, world_bounds);
     if unit.position() != to {
         return false;
     }
@@ -52,6 +54,7 @@ pub(crate) async fn move_units(
     units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     combats: &mut HashMap<Point, Arc<RwLock<Combat>>>,
     step: Distance,
+    world_bounds: WorldBounds,
     base_destruction_threshold: u32,
     trust_destruction_threshold: u32,
 ) {
@@ -70,7 +73,8 @@ pub(crate) async fn move_units(
             (base.bloc_name().clone(), base.target().clone())
         };
 
-        let should_start_combat = move_toward_target(&mut unit_write_guard, &unit_bloc, &target, units, step).await;
+        let should_start_combat =
+            move_toward_target(&mut unit_write_guard, &unit_bloc, &target, units, step, world_bounds).await;
         let self_position = unit_write_guard.position();
         let unit_id = unit_write_guard.id();
         drop(unit_write_guard);
@@ -143,6 +147,7 @@ pub(super) async fn select_move_target(
     unit_bloc: &BlocName,
     target_point: Option<Point>,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
+    world_bounds: WorldBounds,
 ) -> MoveTo {
     let mut closest_enemy: Option<(UnitId, Point, Distance)> = None;
     for (other_id, other_unit) in units {
@@ -157,7 +162,7 @@ pub(super) async fn select_move_target(
         }
 
         let position = other_unit.position();
-        let distance = from.distance_to(&position);
+        let distance = world_bounds.distance_between(from, position);
         let is_closer = closest_enemy
             .as_ref()
             .map(|(_, _, closest_distance)| distance < *closest_distance)
@@ -172,7 +177,7 @@ pub(super) async fn select_move_target(
             .map(|(id, position, _)| MoveTo::EnemyUnit(id, position))
             .unwrap_or(MoveTo::None),
         Some(target) => {
-            let target_dist = from.distance_to(&target);
+            let target_dist = world_bounds.distance_between(from, target);
             match closest_enemy {
                 Some((id, position, distance)) if distance < target_dist => MoveTo::EnemyUnit(id, position),
                 _ => MoveTo::Designated(target),

@@ -11,15 +11,13 @@ use crate::{
     domain::{
         Bloc, BlocName, Chance, LootFactors, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone, ZoneName,
     },
-    geometry::{Distance, Point},
+    geometry::{Distance, Point, WorldBounds},
     services::credit_exchange_service::{Cost, CreditExchangeService, Share, VecResourceName},
 };
 
 const CONFIG_FILE_NAME: &str = "simulation.toml";
 
 // TODO Placements must be part of config
-// TODO World bounds must be part of config
-
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TomlConfig {
@@ -30,6 +28,7 @@ struct TomlConfig {
     combat: CombatConfig,
     persistence: PersistenceConfig,
     costs: CostsConfig,
+    world: WorldBounds,
     #[serde(rename = "bloc")]
     blocs: Vec<BlocConfig>,
     #[serde(rename = "zone")]
@@ -49,6 +48,7 @@ pub(crate) struct Config {
     persistence: PersistenceConfig,
     movement_interval: Duration,
     movement_step: Distance,
+    world_bounds: WorldBounds,
     base_destruction_threshold: u32,
     trust_destruction_threshold: u32,
 }
@@ -178,6 +178,10 @@ impl Config {
         self.movement_step
     }
 
+    pub(crate) fn world_bounds(&self) -> WorldBounds {
+        self.world_bounds
+    }
+
     pub(crate) fn base_destruction_threshold(&self) -> u32 {
         self.base_destruction_threshold
     }
@@ -188,6 +192,10 @@ impl Config {
 
     async fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
+        config
+            .world
+            .validate()
+            .map_err(|error| Error::ConfigValidation(error.to_string()))?;
 
         let resources_in_costs = config
             .costs
@@ -269,7 +277,7 @@ impl Config {
                 let placement = Arc::new(Placement::new(
                     placement_config.id.clone(),
                     zone,
-                    placement_config.position,
+                    config.world.wrap(placement_config.position),
                 ));
 
                 Ok(placement)
@@ -292,6 +300,7 @@ impl Config {
             persistence: config.persistence,
             movement_interval: config.combat.movement_interval,
             movement_step: config.combat.movement_step,
+            world_bounds: config.world,
             trust_destruction_threshold: config.combat.trust_destruction_threshold,
             base_destruction_threshold: config.combat.base_destruction_threshold,
             credit_exchange_service: CreditExchangeService::new(
@@ -309,6 +318,8 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
+    use ordered_float::NotNan;
+
     use super::*;
 
     fn base_toml() -> &'static str {
@@ -324,6 +335,12 @@ mod tests {
 
         [env]
         credit_exchange_url = "http://0.0.0.0:4534"
+
+        [world]
+        min_x = 0
+        max_x = 30
+        min_y = 0
+        max_y = 30
 
         [combat]
         combat_tick_interval_seconds = 1.2
@@ -375,6 +392,34 @@ mod tests {
     #[tokio::test]
     async fn parse() {
         Config::parse_from_str(base_toml()).await.expect("config can be parsed");
+    }
+
+    #[tokio::test]
+    async fn parse_normalizes_placements_to_world_bounds() {
+        use crate::geometry::Positioned;
+
+        let toml_str = base_toml().replace("x = 23.2, y = 29.1", "x = 53, y = 59");
+
+        let config = Config::parse_from_str(&toml_str).await.expect("config can be parsed");
+        let position = config.placements().next().expect("placement exists").position();
+
+        assert_eq!(
+            position,
+            Point::new(NotNan::new(23.0).unwrap(), NotNan::new(29.0).unwrap())
+        );
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_invalid_world_bounds() {
+        let toml_str = base_toml().replace("min_x = 0", "min_x = 30");
+
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(error, "world min_x must be less than max_x");
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("config with invalid world bounds must fail"),
+        }
     }
 
     #[tokio::test]

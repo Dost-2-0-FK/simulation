@@ -2,13 +2,12 @@ use std::sync::Arc;
 
 use derive_more::Display;
 use mongodb::bson::Uuid;
-use ordered_float::NotNan;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
     domain::{Loot, LootFactors, MilitaryBase, politics::DieRollOutcome},
-    geometry::{Distance, Point, Positioned},
+    geometry::{Distance, Point, Positioned, WorldBounds},
     services::credit_exchange_service::{Payment, SinglePayer},
 };
 
@@ -125,18 +124,8 @@ impl MilitaryUnit {
     }
 
     /// Moves the unit `step` distance toward `target`, snapping to it if closer.
-    pub(crate) fn move_toward(&mut self, target: Point, step: Distance) {
-        let from = self.position;
-        let diff = target - from;
-        let dist = from.distance_to(&target);
-        if dist <= step {
-            self.position = target;
-            // Returning here guarantees that dist is non-zero.
-            return;
-        }
-
-        let scale = NotNan::new(step / dist).expect("We return early above in the case `dist` is 0");
-        self.position = from + diff * scale;
+    pub(crate) fn move_toward(&mut self, target: Point, step: Distance, world_bounds: WorldBounds) {
+        self.position = world_bounds.step_toward(self.position, target, step);
     }
 
     /// Roll the [Chance][crate::domain::politics::Chance]-sided die for this unit's attack.
