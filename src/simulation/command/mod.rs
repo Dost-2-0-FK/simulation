@@ -120,6 +120,10 @@ pub(crate) async fn run(
                 response,
             } => {
                 let result = async {
+                    if placement_is_occupied(&placement_id, &bases, &trusts).await {
+                        return Err(UserError::Conflict("Placement"));
+                    }
+
                     let base = base::create(
                         placement_id,
                         financing,
@@ -187,6 +191,10 @@ pub(crate) async fn run(
                 response,
             } => {
                 let result = async {
+                    if placement_is_occupied(&placement_id, &bases, &trusts).await {
+                        return Err(UserError::Conflict("Placement"));
+                    }
+
                     let trust = trust::create(
                         placement_id,
                         financing,
@@ -302,4 +310,24 @@ pub(crate) async fn run(
             }
         }
     }
+}
+
+async fn placement_is_occupied(
+    placement_id: &PlacementId,
+    bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
+    trusts: &HashMap<TrustId, Arc<RwLock<Trust>>>,
+) -> bool {
+    for base in bases.values() {
+        if base.read().await.placement_id() == placement_id {
+            return true;
+        }
+    }
+
+    for trust in trusts.values() {
+        if trust.read().await.placement_id() == placement_id {
+            return true;
+        }
+    }
+
+    false
 }

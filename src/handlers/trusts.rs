@@ -53,7 +53,8 @@ impl From<&Trust> for TrustResponse {
     operation_id = "createTrust",
     tag = TRUSTS,
     responses(
-        (status = 200, description = "Trust created successfully")
+        (status = 200, description = "Trust created successfully"),
+        (status = 409, description = "Placement is already occupied")
     ),
 )]
 #[post("/trusts")]

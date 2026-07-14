@@ -111,7 +111,8 @@ struct PatchBaseBody {
     operation_id = "createBase",
     tag = BASES,
     responses(
-        (status = 200, description = "Base created successfully")
+        (status = 200, description = "Base created successfully"),
+        (status = 409, description = "Placement is already occupied")
     ),
 )]
 #[post("/bases")]
@@ -143,6 +144,7 @@ pub(crate) async fn post(
         match err {
             UserError::InternalError => log::error!("internal error while creating base"),
             UserError::NotFound(err) => log::info!("not found: {err}"),
+            UserError::Conflict(err) => log::info!("conflict: {err}"),
             UserError::Unauthorized => log::info!("unauthorized while creating base"),
         }
     }

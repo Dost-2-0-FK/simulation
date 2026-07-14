@@ -12,6 +12,8 @@ pub enum UserError {
     InternalError,
     #[display("Not found: {_0}")]
     NotFound(#[error(not(source))] &'static str),
+    #[display("Conflict: {_0}")]
+    Conflict(#[error(not(source))] &'static str),
     #[display("Unauthorized.")]
     Unauthorized,
 }
@@ -27,6 +29,7 @@ impl error::ResponseError for UserError {
         match *self {
             UserError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             UserError::NotFound(_) => StatusCode::NOT_FOUND,
+            UserError::Conflict(_) => StatusCode::CONFLICT,
             UserError::Unauthorized => StatusCode::UNAUTHORIZED,
         }
     }
