@@ -7,6 +7,7 @@ use crate::{
     error::{Result, UserError},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
+    services::credit_exchange_service::{Money, ResourceName, Resources},
     simulation::Command,
 };
 
@@ -16,6 +17,7 @@ const TRUSTS: &str = "trusts";
 #[serde(rename_all = "camelCase")]
 struct PostTrustBody {
     placement_id: PlacementId,
+    resource: ResourceName,
     payment: Vec<Financing>,
 }
 
@@ -27,6 +29,8 @@ pub(crate) struct TrustResponse {
     zone: ZoneName,
     payment: Vec<Financing>,
     position: Point,
+    income: Money,
+    producing: Resources,
 }
 
 impl From<&Trust> for TrustResponse {
@@ -38,6 +42,8 @@ impl From<&Trust> for TrustResponse {
             zone: placement.zone().name().clone(),
             payment: trust.financing().to_vec(),
             position: trust.position(),
+            income: trust.income(),
+            producing: trust.producing().clone(),
         }
     }
 }
@@ -61,6 +67,7 @@ pub(crate) async fn post(
     tx.send(Command::CreateTrust {
         placement_id: body.placement_id,
         financing: body.payment,
+        resource: body.resource,
         response: sender,
     })
     .await
@@ -71,6 +78,34 @@ pub(crate) async fn post(
 
     let result = receiver.await.map_err(|e| {
         log::error!("Error receiving trust creation result: {e}");
+        UserError::InternalError
+    })?;
+
+    result?;
+    Ok(HttpResponse::Ok().finish())
+}
+
+/// Publish trust production to the credit service.
+#[utoipa::path(
+    operation_id = "publishTrustProduction",
+    tag = TRUSTS,
+    responses(
+        (status = 200, description = "Trust production published successfully")
+    )
+)]
+#[post("/trusts/publish-production")]
+pub(crate) async fn publish_production(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+
+    tx.send(Command::PublishTrustProduction { response: sender })
+        .await
+        .map_err(|e| {
+            log::error!("Error sending trust production publish command: {e}");
+            UserError::InternalError
+        })?;
+
+    let result = receiver.await.map_err(|e| {
+        log::error!("Error receiving trust production publish result: {e}");
         UserError::InternalError
     })?;
 

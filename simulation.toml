@@ -1,5 +1,5 @@
 bank_user_id = "bank"
-resources = [""]
+resources = ["iron"]
 [costs.trust]
 money = 2
 resources = {}
@@ -11,6 +11,10 @@ resources = {}
 [costs.unit]
 money = 2
 resources = {}
+
+[trust_production]
+money = 1
+resources = { iron = 1 }
 
 [server]
 auth_cookie_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"

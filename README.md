@@ -179,6 +179,7 @@ There are four fundamental types:
   - If all requests succeed: `/api/units/add?id=<trust_id>`
 - Generate "money" and *one* "resource"
 - The amount of both is based on a fixed value, negatively influenced by close enemy military units and updated hourly
+  - The fixed values are configured via `[trust_production] money = <value>, resources = { <resource> = <value> }`
   - `CREDIT-EXCHANGER-SERVICE/api/units/set_credit_production?id<trust_id>&value=<value>`
   - `CREDIT-EXCHANGER-SERVICE/api/units/set_resource_production?id<trust_id>&resource=<resource>&value=<value>`
   - The resources generated are additionally influenced by the spent resources of that unit and the current production
@@ -221,6 +222,8 @@ There are four fundamental types:
 ### Logic<a name="logic"></a>
 
 - When `POST /api/bases/publish-production` is called, accumulated base loot is published to the credit service.
+- When `POST /api/trusts/publish-production` is called, each trust's configured income is published to the credit
+  service.
 - When `POST /api/units/produce` is called, military units are produced in bases:
   - Get the blocs' hourly income: `CREDIT-EXCHANGE-SERVICE/api/credits/hourly?id=<bloc_id>`
   - Each bloc can define what percentage of the hourly income shall be used for creating military units (can be set by
@@ -263,8 +266,9 @@ trusts are returned or only a subset (only associated by block/zone financed by 
 - `GET /api/trusts` (returns trusts and associated zone and financier and the percentage the trust was financed by the
   financier)
 - `GET /api/trusts/{id}`
+- `POST /api/trusts/publish-production` (publishes configured trust production)
 - `POST /api/trusts` (payload:
-  `{placementId: <placement id>, payment: [{financierId: <financier_id (str)>, share: <value (float, 0-1)>}]}`)
+  `{placementId: <placement id>, resource: <resource name>, payment: [{financierId: <financier_id (str)>, share: <value (float, 0-1)>}]}`)
 - `GET /api/units` (returns units and associated Bloc and Base)
 - `POST /api/units/produce` (produces military units)
 - `GET /api/zones`

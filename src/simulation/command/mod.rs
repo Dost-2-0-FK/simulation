@@ -31,6 +31,7 @@ use crate::{
         units::UnitResponse,
     },
     persistence::MongoPersistence,
+    services::credit_exchange_service::ResourceName,
     services::credit_exchange_service::Share,
 };
 
@@ -56,6 +57,7 @@ pub(crate) enum Command {
     CreateTrust {
         placement_id: PlacementId,
         financing: Vec<Financing>,
+        resource: ResourceName,
         response: Sender<core::result::Result<(), UserError>>,
     },
     GetTrusts(Sender<Vec<Trust>>),
@@ -73,6 +75,10 @@ pub(crate) enum Command {
     Persist,
     /// Publish accumulated base loot to the credit service.
     PublishBaseProduction {
+        response: Sender<core::result::Result<(), UserError>>,
+    },
+    /// Publish trust production to the credit service.
+    PublishTrustProduction {
         response: Sender<core::result::Result<(), UserError>>,
     },
     /// Run a military unit production cycle for all blocs.
@@ -177,12 +183,15 @@ pub(crate) async fn run(
             Command::CreateTrust {
                 placement_id,
                 financing,
+                resource,
                 response,
             } => {
                 let result = async {
                     let trust = trust::create(
                         placement_id,
                         financing,
+                        resource,
+                        config.trust_production_income(),
                         config.credit_exchange_service(),
                         config.placements(),
                     )
@@ -239,6 +248,19 @@ pub(crate) async fn run(
                         .await
                         .map_err(|err| {
                             log::error!("failed to publish base production: {err:#}");
+                            UserError::InternalError
+                        })?;
+                    Ok(())
+                }
+                .await;
+                let _ = response.send(result);
+            }
+            Command::PublishTrustProduction { response } => {
+                let result = async {
+                    trust::publish_production(&trusts, config.credit_exchange_service())
+                        .await
+                        .map_err(|err| {
+                            log::error!("failed to publish trust production: {err:#}");
                             UserError::InternalError
                         })?;
                     Ok(())

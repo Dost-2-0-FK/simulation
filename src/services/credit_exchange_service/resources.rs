@@ -4,7 +4,7 @@ use derive_more::Display;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Deserializer, Serialize};
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, derive_more::Display)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, derive_more::Display, utoipa::ToSchema)]
 pub(crate) struct ResourceName(String);
 
 impl ResourceName {
@@ -58,18 +58,27 @@ impl ResourceValue<'_> {
 }
 
 /// A set of resources with corresponding amounts
-#[derive(Debug, Clone, Default, Deserialize, Serialize, Display)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Display, utoipa::ToSchema)]
 #[display("{}", 
     _0.iter()
         .map(|(k, v)| format!("{k}: {}", v.0))
         .collect::<Vec<_>>()
         .join(", ")
 )]
+#[schema(value_type = HashMap<ResourceName, f32>)]
 pub(crate) struct Resources(HashMap<ResourceName, OrderedFloat<f32>>);
 
 impl Resources {
+    pub(crate) fn new_single(resource: ResourceName, amount: f32) -> Self {
+        Self(HashMap::from([(resource, amount.into())]))
+    }
+
     pub(crate) fn insert(&mut self, name: ResourceName, amount: f32) {
         self.0.insert(name, OrderedFloat(amount));
+    }
+
+    pub(crate) fn get(&self, name: &ResourceName) -> Option<f32> {
+        self.0.get(name).map(|value| value.0)
     }
 
     /// Returns true if `self` has enough of every resource required by `cost`.

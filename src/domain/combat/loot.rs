@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::services::credit_exchange_service::{Cost, Money, ResourceValue, Resources, ResourcesFactors};
+use crate::services::credit_exchange_service::{Cost, Money, ResourceName, ResourceValue, Resources, ResourcesFactors};
 
 #[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -15,7 +15,8 @@ impl LootFactors {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct Loot {
     money: Money,
     resources: Resources,
@@ -31,6 +32,10 @@ impl Loot {
 
     pub(crate) fn money(&self) -> Money {
         self.money
+    }
+
+    pub(crate) fn resource_amount(&self, resource: &ResourceName) -> Option<f32> {
+        self.resources.get(resource)
     }
 
     pub(crate) fn resources(&self) -> impl Iterator<Item = ResourceValue<'_>> {

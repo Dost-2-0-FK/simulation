@@ -182,21 +182,14 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    #[expect(dead_code)]
-    pub(crate) async fn set_trust_credit_production(&self, trust_id: TrustId, value: Money) -> Result<()> {
-        self.set_credit_production(&Self::trust_credit_user_id(trust_id), value)
-            .await
-    }
-
-    #[expect(dead_code)]
-    pub(crate) async fn set_trust_resource_production(
-        &self,
-        trust_id: TrustId,
-        resource: &ResourceName,
-        value: f32,
-    ) -> Result<()> {
-        self.set_resource_production(&Self::trust_credit_user_id(trust_id), resource, value)
-            .await
+    pub(crate) async fn set_trust_production(&self, trust: &Trust) -> Result<()> {
+        let producer = Self::trust_credit_user_id(trust.id());
+        self.set_credit_production(&producer, trust.income()).await?;
+        for resource in trust.producing() {
+            self.set_resource_production(&producer, resource.name(), resource.value())
+                .await?;
+        }
+        Ok(())
     }
 
     pub(crate) async fn credit_hourly_income(&self, user_id: &str) -> Result<(Money, Resources)> {

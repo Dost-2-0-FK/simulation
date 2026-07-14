@@ -10,7 +10,8 @@ use tokio::{fs, net::TcpListener, sync::RwLock};
 use self::error::{Error, Result};
 use crate::{
     domain::{
-        Bloc, BlocName, Chance, LootFactors, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone, ZoneName,
+        Bloc, BlocName, Chance, Loot, LootFactors, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone,
+        ZoneName,
     },
     geometry::{Distance, Point, WorldBounds},
     services::credit_exchange_service::{Cost, CreditExchangeService, Share, VecResourceName},
@@ -29,6 +30,7 @@ struct TomlConfig {
     combat: CombatConfig,
     persistence: PersistenceConfig,
     costs: CostsConfig,
+    trust_production: Loot,
     world: WorldBounds,
     #[serde(rename = "bloc")]
     blocs: Vec<BlocConfig>,
@@ -50,6 +52,7 @@ pub(crate) struct Config {
     movement_interval: Duration,
     movement_step: Distance,
     world_bounds: WorldBounds,
+    trust_production_income: Loot,
     base_destruction_threshold: u32,
     trust_destruction_threshold: u32,
     auth_cookie_key: Key,
@@ -217,6 +220,10 @@ impl Config {
         self.trust_destruction_threshold
     }
 
+    pub(crate) fn trust_production_income(&self) -> &Loot {
+        &self.trust_production_income
+    }
+
     pub(crate) fn auth_cookie_key(&self) -> Key {
         self.auth_cookie_key.clone()
     }
@@ -248,6 +255,15 @@ impl Config {
             if !config.resources.contains(resource_value.name()) {
                 return Err(Error::ConfigValidation(format!(
                     "resource value {resource_value} is used in loot factors but is not listed in resources {resources}",
+                    resources = &config.resources,
+                )));
+            }
+        }
+
+        for resource_value in config.trust_production.resources() {
+            if !config.resources.contains(resource_value.name()) {
+                return Err(Error::ConfigValidation(format!(
+                    "resource value {resource_value} is used in trust production but is not listed in resources {resources}",
                     resources = &config.resources,
                 )));
             }
@@ -332,6 +348,7 @@ impl Config {
             movement_interval: config.combat.movement_interval,
             movement_step: config.combat.movement_step,
             world_bounds: config.world,
+            trust_production_income: config.trust_production,
             trust_destruction_threshold: config.combat.trust_destruction_threshold,
             base_destruction_threshold: config.combat.base_destruction_threshold,
             auth_cookie_key: config.server.auth_cookie_key.0,
@@ -396,6 +413,10 @@ mod tests {
 
         [costs.trust]
         money = 1.2
+
+        [trust_production]
+        money = 2.0
+        resources = { lithium = 3.5, iron = 4.5 }
 
         [persistence]
         uri = "mongodb://localhost:27017"
@@ -529,6 +550,33 @@ mod tests {
             }
             Err(error) => panic!("unexpected error: {error}"),
             Ok(_) => panic!("config with unknown loot factor resource must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_unknown_trust_production_resource() {
+        let toml_str = base_toml().replace(
+            r#"
+        [trust_production]
+        money = 2.0
+        resources = { lithium = 3.5, iron = 4.5 }
+"#,
+            r#"
+        [trust_production]
+        money = 2.0
+        resources = { lithium = 3.5, iron = 4.5, copper = 4.5 }
+"#,
+        );
+
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(
+                    error,
+                    "resource value ResourceValue(copper, 4.5) is used in trust production but is not listed in resources [\"lithium\", \"iron\"]"
+                );
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("config with unknown trust production resource must fail"),
         }
     }
 }
