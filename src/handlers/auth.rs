@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::{Result, UserError},
+    handlers::bases::UserId,
     services::auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthService, LoginCredentials},
 };
 
@@ -13,14 +14,14 @@ const AUTH: &str = "auth";
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct LoginRequest {
-    user_id: String,
+    user_id: UserId,
     password: String,
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct LoginResponse {
-    user_id: String,
+    user_id: UserId,
 }
 
 /// Log in and persist the authenticated user in the identity session.
@@ -54,13 +55,13 @@ pub(crate) async fn login(
             UserError::InternalError
         })?;
 
-    Identity::login(&request.extensions(), authenticated_user.user_id().to_string()).map_err(|error| {
+    Identity::login(&request.extensions(), authenticated_user.user_id().clone().into()).map_err(|error| {
         log::error!("Error storing identity: {error}");
         UserError::InternalError
     })?;
 
     Ok(HttpResponse::Ok().json(LoginResponse {
-        user_id: authenticated_user.user_id().to_string(),
+        user_id: authenticated_user.user_id().clone(),
     }))
 }
 

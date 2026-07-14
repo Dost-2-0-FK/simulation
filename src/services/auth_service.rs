@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{BlocName, ZoneName};
+use crate::{
+    domain::{BlocName, ZoneName},
+    handlers::bases::UserId,
+};
 
 pub(crate) const AUTHENTICATED_USER_SESSION_KEY: &str = "authenticatedUser";
 
@@ -18,25 +21,25 @@ pub(crate) enum AccessLevel {
 
 #[derive(Clone)]
 pub(crate) struct LoginCredentials {
-    user_id: String,
+    user_id: UserId,
     password: String,
 }
 
 impl LoginCredentials {
-    pub(crate) fn new(user_id: String, password: String) -> Self {
+    pub(crate) fn new(user_id: UserId, password: String) -> Self {
         Self { user_id, password }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct AuthenticatedUser {
-    user_id: String,
+    user_id: UserId,
     bloc_permissions: HashMap<BlocName, AccessLevel>,
     zone_permissions: HashMap<ZoneName, AccessLevel>,
 }
 
 impl AuthenticatedUser {
-    pub(crate) fn user_id(&self) -> &str {
+    pub(crate) fn user_id(&self) -> &UserId {
         &self.user_id
     }
 

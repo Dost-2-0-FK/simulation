@@ -14,7 +14,7 @@ use crate::{
 
 const BASES: &str = "bases";
 
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, derive_more::From)]
+#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, derive_more::From, derive_more::Into)]
 pub(crate) struct UserId(String);
 
 impl UserId {
