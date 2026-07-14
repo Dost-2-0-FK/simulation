@@ -9,6 +9,8 @@ members = [".", "crates/simulation-viewer"]
 resolver = "3"
 
 [dependencies]
+actix-identity = "0.9.0"
+actix-session = { version = "0.11.0", features = ["cookie-session"] }
 actix-web = "4.11.0"
 derive_more = { version = "2.0.1", features = ["into"] }
 env_logger = "0.11.8"
