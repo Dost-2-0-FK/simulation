@@ -164,6 +164,7 @@ pub(crate) async fn post(
         match err {
             UserError::InternalError => log::error!("internal error while creating base"),
             UserError::NotFound(err) => log::info!("not found: {err}"),
+            UserError::Unauthorized => log::info!("unauthorized while creating base"),
         }
     }
 

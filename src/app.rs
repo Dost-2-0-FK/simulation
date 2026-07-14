@@ -9,9 +9,7 @@ use crate::{
     tasks::{periodic_combat_tick, periodic_move, periodic_persist},
 };
 
-pub(crate) async fn start_simulation() -> Result<mpsc::Sender<Command>> {
-    env_logger::init();
-    let config = Config::parse().await.context("parsing config file".to_string())?;
+pub(crate) async fn start_simulation(config: Config) -> Result<mpsc::Sender<Command>> {
     const MAX_MESSAGE_COUNT: usize = 100;
     let (tx, rx) = mpsc::channel(MAX_MESSAGE_COUNT);
     let persistence = MongoPersistence::connect(config.persistence())
@@ -54,7 +52,8 @@ pub(crate) fn openapi() -> utoipa::openapi::OpenApi {
             (name = "trusts", description = "Endpoints related to trusts."),
             (name = "blocs", description = "Endpoints related to blocs."),
             (name = "combats", description = "Endpoints related to combats."),
-            (name = "zones", description = "Endpoints related to zones.")
+            (name = "zones", description = "Endpoints related to zones."),
+            (name = "auth", description = "Endpoints related to user authentication.")
         ),
     )]
 struct ApiDoc;

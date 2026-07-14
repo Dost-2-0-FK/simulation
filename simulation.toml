@@ -13,6 +13,7 @@ money = 2
 resources = {}
 
 [server]
+auth_cookie_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [persistence]
 uri = "mongodb://localhost:27017"

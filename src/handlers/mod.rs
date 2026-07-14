@@ -1,3 +1,4 @@
+pub(crate) mod auth;
 pub(crate) mod bases;
 pub(crate) mod blocs;
 pub(crate) mod combats;

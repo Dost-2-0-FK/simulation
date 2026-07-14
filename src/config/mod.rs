@@ -1,7 +1,8 @@
 mod error;
 
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, fmt, sync::Arc, time::Duration};
 
+use actix_web::cookie::Key;
 use serde::Deserialize;
 use serde_with::{DurationSecondsWithFrac, serde_as};
 use tokio::{fs, net::TcpListener, sync::RwLock};
@@ -21,7 +22,7 @@ const CONFIG_FILE_NAME: &str = "simulation.toml";
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TomlConfig {
-    server: Option<ServerConfig>,
+    server: ServerConfig,
     env: EnvConfig,
     bank_user_id: String,
     resources: VecResourceName,
@@ -51,6 +52,7 @@ pub(crate) struct Config {
     world_bounds: WorldBounds,
     base_destruction_threshold: u32,
     trust_destruction_threshold: u32,
+    auth_cookie_key: Key,
 }
 
 #[derive(Debug, Deserialize)]
@@ -59,11 +61,36 @@ struct EnvConfig {
     credit_exchange_url: url::Url,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ServerConfig {
     #[serde(default)]
     port: u16,
+    auth_cookie_key: AuthCookieKey,
+}
+
+struct AuthCookieKey(Key);
+
+impl fmt::Debug for AuthCookieKey {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("AuthCookieKey(<redacted>)")
+    }
+}
+
+impl<'de> Deserialize<'de> for AuthCookieKey {
+    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let key = String::deserialize(deserializer)?;
+        if key.len() != 64 {
+            return Err(serde::de::Error::custom(
+                "server.auth_cookie_key must contain exactly 64 bytes",
+            ));
+        }
+
+        Ok(Self(Key::from(key.as_bytes())))
+    }
 }
 
 #[serde_as]
@@ -190,6 +217,10 @@ impl Config {
         self.trust_destruction_threshold
     }
 
+    pub(crate) fn auth_cookie_key(&self) -> Key {
+        self.auth_cookie_key.clone()
+    }
+
     async fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
         config
@@ -294,7 +325,7 @@ impl Config {
             zones,
             combat_tick_interval: config.combat.combat_tick_interval,
             blocs,
-            port: TcpListener::bind(format!("127.0.0.1:{}", config.server.unwrap_or_default().port))
+            port: TcpListener::bind(format!("127.0.0.1:{}", config.server.port))
                 .await
                 .map_err(Error::Io)?,
             persistence: config.persistence,
@@ -303,6 +334,7 @@ impl Config {
             world_bounds: config.world,
             trust_destruction_threshold: config.combat.trust_destruction_threshold,
             base_destruction_threshold: config.combat.base_destruction_threshold,
+            auth_cookie_key: config.server.auth_cookie_key.0,
             credit_exchange_service: CreditExchangeService::new(
                 config.env.credit_exchange_url,
                 config.bank_user_id,
@@ -332,6 +364,7 @@ mod tests {
 
         [server]
         # No port: defaults to 0.
+        auth_cookie_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
         [env]
         credit_exchange_url = "http://0.0.0.0:4534"

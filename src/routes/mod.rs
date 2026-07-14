@@ -1,5 +1,6 @@
 use utoipa_actix_web::service_config::ServiceConfig;
 
+pub(crate) mod auth;
 pub(crate) mod bases;
 pub(crate) mod blocs;
 pub(crate) mod combats;
@@ -10,6 +11,7 @@ pub(crate) mod zones;
 
 pub(crate) fn configure(config: &mut ServiceConfig<'_>) {
     config
+        .configure(auth::configure)
         .configure(units::configure)
         .configure(bases::configure)
         .configure(placements::configure)
