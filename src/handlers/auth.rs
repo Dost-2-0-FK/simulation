@@ -1,10 +1,11 @@
 use actix_identity::Identity;
+use actix_session::Session;
 use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, post, web};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     error::{Result, UserError},
-    services::auth_service::{AuthService, LoginCredentials},
+    services::auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthService, LoginCredentials},
 };
 
 const AUTH: &str = "auth";
@@ -35,6 +36,7 @@ pub(crate) struct LoginResponse {
 #[post("/login")]
 pub(crate) async fn login(
     request: HttpRequest,
+    session: Session,
     auth_service: web::Data<AuthService>,
     login_request: web::Json<LoginRequest>,
 ) -> Result<impl Responder> {
@@ -44,6 +46,13 @@ pub(crate) async fn login(
             login_request.password.clone(),
         ))
         .ok_or(UserError::Unauthorized)?;
+
+    session
+        .insert(AUTHENTICATED_USER_SESSION_KEY, &authenticated_user)
+        .map_err(|error| {
+            log::error!("Error storing authenticated user permissions in session: {error}");
+            UserError::InternalError
+        })?;
 
     Identity::login(&request.extensions(), authenticated_user.user_id().to_string()).map_err(|error| {
         log::error!("Error storing identity: {error}");
@@ -64,7 +73,9 @@ pub(crate) async fn login(
     )
 )]
 #[post("/logout")]
-pub(crate) async fn logout(identity: Option<Identity>) -> Result<impl Responder> {
+pub(crate) async fn logout(identity: Option<Identity>, session: Session) -> Result<impl Responder> {
+    session.remove(AUTHENTICATED_USER_SESSION_KEY);
+
     if let Some(identity) = identity {
         identity.logout();
     }

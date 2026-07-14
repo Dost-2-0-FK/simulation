@@ -7,8 +7,14 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::services::credit_exchange_service::Share;
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, derive_more::Display, utoipa::ToSchema)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
 pub(crate) struct ZoneName(String);
+
+impl From<String> for ZoneName {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct Zone {
