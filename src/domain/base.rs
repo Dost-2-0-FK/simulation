@@ -87,6 +87,7 @@ impl MilitaryBase {
         enabled: bool,
         prioritized: bool,
         loot: Loot,
+        production_count: Loot,
     ) -> Self {
         assert_ne!(id.0, u64::MAX, "ID counter has overflowed and is no longer unique");
         BASE_INSTANCE_COUNT.fetch_max(id.0 + 1, SeqCst);
@@ -99,7 +100,7 @@ impl MilitaryBase {
             prioritized,
             target: Target::None,
             loot,
-            production_count: Default::default(),
+            production_count,
         }
     }
 
