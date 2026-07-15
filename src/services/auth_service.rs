@@ -13,7 +13,8 @@ pub(crate) const AUTHENTICATED_USER_SESSION_KEY: &str = "authenticatedUser";
 #[derive(Debug, Clone, Default)]
 pub(crate) struct AuthService;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub(crate) enum AccessLevel {
     Read,
     Write,
@@ -31,7 +32,8 @@ impl LoginCredentials {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct AuthenticatedUser {
     user_id: UserId,
     bloc_permissions: HashMap<BlocName, AccessLevel>,

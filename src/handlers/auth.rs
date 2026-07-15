@@ -1,12 +1,12 @@
 use actix_identity::Identity;
 use actix_session::Session;
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, post, web};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, get, post, web};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     error::{Result, UserError},
     handlers::bases::UserId,
-    services::auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthService, LoginCredentials},
+    services::auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthService, AuthenticatedUser, LoginCredentials},
 };
 
 const AUTH: &str = "auth";
@@ -65,6 +65,29 @@ pub(crate) async fn login(
     }))
 }
 
+/// Return the currently authenticated user including permissions.
+#[utoipa::path(
+    operation_id = "getCurrentUser",
+    tag = AUTH,
+    responses(
+        (status = 200, description = "Current authenticated user", body = AuthenticatedUser),
+        (status = 401, description = "Not authenticated"),
+        (status = 500, description = "Failed to read the authenticated user from the session")
+    )
+)]
+#[get("/me")]
+pub(crate) async fn get_current_user(session: Session) -> Result<impl Responder> {
+    let authenticated_user = session
+        .get::<AuthenticatedUser>(AUTHENTICATED_USER_SESSION_KEY)
+        .map_err(|error| {
+            log::error!("Error reading authenticated user from session: {error}");
+            UserError::InternalError
+        })?
+        .ok_or(UserError::Unauthorized)?;
+
+    Ok(HttpResponse::Ok().json(authenticated_user))
+}
+
 /// Log out by clearing the identity session.
 #[utoipa::path(
     operation_id = "logout",
@@ -82,4 +105,72 @@ pub(crate) async fn logout(identity: Option<Identity>, session: Session) -> Resu
     }
 
     Ok(HttpResponse::Ok().finish())
+}
+
+#[cfg(test)]
+mod tests {
+    use actix_identity::IdentityMiddleware;
+    use actix_session::{SessionMiddleware, storage::CookieSessionStore};
+    use actix_web::{
+        App,
+        cookie::Key,
+        http::{StatusCode, header},
+        test, web,
+    };
+
+    use super::{get_current_user, login};
+    use crate::services::auth_service::{AuthService, AuthenticatedUser};
+
+    #[actix_web::test]
+    async fn current_user_returns_unauthorized_without_a_session() {
+        let app = test::init_service(
+            App::new()
+                .wrap(IdentityMiddleware::default())
+                .wrap(SessionMiddleware::new(CookieSessionStore::default(), Key::generate()))
+                .service(get_current_user),
+        )
+        .await;
+
+        let request = test::TestRequest::get().uri("/me").to_request();
+        let response = test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[actix_web::test]
+    async fn current_user_returns_the_authenticated_user() {
+        let app = test::init_service(
+            App::new()
+                .wrap(IdentityMiddleware::default())
+                .wrap(SessionMiddleware::new(CookieSessionStore::default(), Key::generate()))
+                .app_data(web::Data::new(AuthService))
+                .service(login)
+                .service(get_current_user),
+        )
+        .await;
+
+        let login_request = test::TestRequest::post()
+            .uri("/login")
+            .insert_header((header::CONTENT_TYPE, "application/json"))
+            .set_payload(r#"{"userId":"alice","password":"secret"}"#)
+            .to_request();
+        let login_response = test::call_service(&app, login_request).await;
+        assert_eq!(login_response.status(), StatusCode::OK);
+
+        let session_cookie = login_response
+            .response()
+            .cookies()
+            .next()
+            .expect("login should set a session cookie");
+        let session_cookie = format!("{}={}", session_cookie.name(), session_cookie.value());
+        let request = test::TestRequest::get()
+            .uri("/me")
+            .insert_header((header::COOKIE, session_cookie))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let authenticated_user: AuthenticatedUser = test::read_body_json(response).await;
+        assert_eq!(authenticated_user.user_id().as_str(), "alice");
+    }
 }
