@@ -1,7 +1,8 @@
 base_url = "http://127.0.0.1:8080"
 
+# Match the simulation's half-open wrapping map bounds.
 [world]
-min_x = -10
-max_x = 40
-min_y = -10
-max_y = 40
+min_x = 0
+max_x = 360
+min_y = 0
+max_y = 180

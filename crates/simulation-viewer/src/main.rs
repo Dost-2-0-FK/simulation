@@ -519,4 +519,14 @@ mod tests {
             -2.0
         );
     }
+
+    #[test]
+    fn checked_in_bounds_match_simulation_config() {
+        let viewer = toml::from_str::<toml::Value>(include_str!("../../../simulation-viewer.toml"))
+            .expect("viewer config can be parsed");
+        let simulation = toml::from_str::<toml::Value>(include_str!("../../../simulation.toml"))
+            .expect("simulation config can be parsed");
+
+        assert_eq!(viewer["world"], simulation["world"]);
+    }
 }
