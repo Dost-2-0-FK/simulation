@@ -25,6 +25,7 @@ services:
       BLACKOUT_CONTROLLER_URL: http://BLACKOUT-SERVICE
       AI_WO_A_CONTROLLER_URL: http://AI-WO-A-SERVICE
       RUN_CREDIT_EXCHANGER_SEED: ${RUN_CREDIT_EXCHANGER_SEED:-false}
+      SEED_DROP_DATABASE: ${SEED_DROP_DATABASE:-false}
       RUST_LOG: ${RUST_LOG:-info}
     depends_on:
       mongodb:

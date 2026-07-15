@@ -52,7 +52,7 @@ To see all available endpoints, navigate to http://127.0.0.1:8080/swagger-ui/.
 To run only the dependencies in Docker while iterating on the simulation server from the host:
 
 ```sh
-RUN_CREDIT_EXCHANGER_SEED=true docker compose up --force-recreate credit-exchanger mongodb
+RUN_CREDIT_EXCHANGER_SEED=true SEED_DROP_DATABASE=true docker compose up --force-recreate credit-exchanger mongodb
 ```
 
 In another terminal:
@@ -66,6 +66,7 @@ This uses the host-facing ports from `docker-compose.yml`: MongoDB on `localhost
 
 The seed file is mounted into the credit-exchanger container from `docker/credit-exchanger/db-seeding-example.json`.
 Use `--force-recreate` when changing seed data so the credit-exchanger entrypoint runs the seed script again.
+`SEED_DROP_DATABASE=true` clears only the credit-exchanger database first, avoiding state left by a partial seed.
 
 ## Run Terminal Viewer<a name="run-terminal-viewer"></a>
 

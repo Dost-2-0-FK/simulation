@@ -513,6 +513,8 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
 
     fn base_toml() -> &'static str {
@@ -786,6 +788,50 @@ mod tests {
 
         assert_eq!(seeded.bases.len(), 11);
         assert_eq!(seeded.trusts.len(), 40);
+    }
+
+    #[test]
+    fn credit_exchange_seed_matches_configured_receivers() {
+        let config = toml::from_str::<TomlConfig>(include_str!("../../simulation.toml"))
+            .expect("checked-in config TOML can be deserialized");
+        let seed = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../docker/credit-exchanger/db-seeding-example.json"
+        ))
+        .expect("credit-exchange seed JSON can be deserialized");
+
+        let seed_ids = |key| {
+            seed[key]
+                .as_array()
+                .expect("seed collection is an array")
+                .iter()
+                .map(|entry| entry["id"].as_str().expect("seed user has a string ID"))
+                .collect::<HashSet<_>>()
+        };
+
+        let expected_blocs = config
+            .blocs
+            .iter()
+            .map(|bloc| bloc.name.to_string())
+            .collect::<HashSet<_>>();
+        let expected_zones = config
+            .zones
+            .iter()
+            .map(|zone| zone.name.to_string())
+            .collect::<HashSet<_>>();
+        let expected_individuals = std::iter::once(config.bank_user_id.as_str())
+            .chain(
+                config
+                    .bases
+                    .iter()
+                    .flat_map(|base| &base.payment)
+                    .chain(config.trusts.iter().flat_map(|trust| &trust.payment))
+                    .map(|financing| financing.financier.as_str()),
+            )
+            .collect::<HashSet<_>>();
+
+        assert_eq!(seed_ids("blocs"), expected_blocs.iter().map(String::as_str).collect());
+        assert_eq!(seed_ids("zones"), expected_zones.iter().map(String::as_str).collect());
+        assert_eq!(seed_ids("individuals"), expected_individuals);
     }
 
     #[tokio::test]
