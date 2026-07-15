@@ -155,6 +155,12 @@ impl CreditExchangeService {
         Ok(())
     }
 
+    /// Register a configured base whose financing was completed before simulation startup.
+    pub(crate) async fn register_prepaid_military_base(&self, base: &MilitaryBase) -> Result<()> {
+        let policy = Financiers::new(base.bloc_name().to_string(), base.financiers().to_vec())?;
+        self.register_military_base(base, policy).await
+    }
+
     pub(crate) async fn pay_for_trust(
         &self,
         primary_payer_id: &ZoneName,
@@ -170,6 +176,12 @@ impl CreditExchangeService {
         self.ensure_unit_user(&producer).await?;
         self.create_subscriptions(policy.payers(), &producer).await?;
         Ok(())
+    }
+
+    /// Register a configured trust whose financing was completed before simulation startup.
+    pub(crate) async fn register_prepaid_trust(&self, trust: &Trust) -> Result<()> {
+        let policy = Financiers::new(trust.placement().zone().name().to_string(), trust.financing().to_vec())?;
+        self.register_trust(trust, &policy).await
     }
 
     pub(crate) async fn set_base_production(&self, base_id: BaseId, value: &Loot) -> Result<()> {

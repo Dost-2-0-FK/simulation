@@ -9,7 +9,7 @@ use crate::{
     domain::{Loot, LootFactors, Placement, PlacementId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
-    services::credit_exchange_service::{Financiers, Money, Payment, ResourceName, Resources},
+    services::credit_exchange_service::{Cost, Financiers, Money, Payment, ResourceName, Resources},
 };
 
 static TRUST_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -44,13 +44,45 @@ impl Trust {
         resource_amount: f32,
         income: Money,
     ) -> Self {
+        let loot = Loot::from_cost(payment.cost(), loot_factors);
+        Self::new_prepaid_with_loot(
+            payment.secondary_payers(),
+            placement,
+            resource,
+            resource_amount,
+            income,
+            loot,
+        )
+    }
+
+    /// Create a trust whose configured financing has already been paid.
+    pub(crate) fn new_prepaid(
+        financing: Vec<Financing>,
+        cost: &Cost<Self>,
+        loot_factors: &LootFactors,
+        placement: Arc<Placement>,
+        resource: ResourceName,
+        resource_amount: f32,
+        income: Money,
+    ) -> Self {
+        let loot = Loot::from_cost(cost, loot_factors);
+        Self::new_prepaid_with_loot(financing, placement, resource, resource_amount, income, loot)
+    }
+
+    fn new_prepaid_with_loot(
+        financing: Vec<Financing>,
+        placement: Arc<Placement>,
+        resource: ResourceName,
+        resource_amount: f32,
+        income: Money,
+        loot: Loot,
+    ) -> Self {
         let id = TRUST_INSTANCE_COUNT.fetch_add(1, SeqCst);
         assert_ne!(id, u64::MAX, "ID counter has overflowed and is no longer unique");
-        let loot = Loot::from_cost(payment.cost(), loot_factors);
 
         Self {
             id: TrustId(id),
-            financing: payment.secondary_payers(),
+            financing,
             placement,
             loot,
             income,

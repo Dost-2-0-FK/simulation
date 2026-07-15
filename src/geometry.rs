@@ -98,6 +98,11 @@ impl WorldBounds {
         Ok(())
     }
 
+    /// Returns whether a point is already canonical for these half-open bounds.
+    pub(crate) fn contains(&self, point: Point) -> bool {
+        point.x >= self.min_x && point.x < self.max_x && point.y >= self.min_y && point.y < self.max_y
+    }
+
     /// Returns the shortest wraparound distance between two positioned values.
     ///
     /// The result uses the shorter delta on each axis, so points near opposite horizontal or vertical edges can be
@@ -219,6 +224,14 @@ mod tests {
     #[test]
     fn wraps_points_into_half_open_bounds() {
         assert_eq!(bounds().wrap(point(30.0, -1.0)), point(0.0, 29.0));
+    }
+
+    #[test]
+    fn contains_only_points_inside_half_open_bounds() {
+        assert!(bounds().contains(point(0.0, 0.0)));
+        assert!(bounds().contains(point(29.9, 29.9)));
+        assert!(!bounds().contains(point(30.0, 0.0)));
+        assert!(!bounds().contains(point(0.0, -0.1)));
     }
 
     #[test]

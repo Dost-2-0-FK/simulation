@@ -40,6 +40,16 @@ pub(crate) struct LoadedState {
     pub(crate) combats: HashMap<Point, Arc<RwLock<Combat>>>,
 }
 
+impl LoadedState {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.bases.is_empty()
+            && self.trusts.is_empty()
+            && self.units.is_empty()
+            && self.blocs.is_empty()
+            && self.combats.is_empty()
+    }
+}
+
 impl MongoPersistence {
     pub(crate) async fn connect(config: &PersistenceConfig) -> Result<Self> {
         let mut options = ClientOptions::parse(config.uri())

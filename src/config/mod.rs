@@ -16,12 +16,13 @@ use tokio::{fs, sync::RwLock};
 use self::error::{Error, Result};
 use crate::{
     domain::{
-        Bloc, BlocName, Chance, Loot, LootFactors, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, Zone,
-        ZoneName,
+        BaseId, Bloc, BlocName, Chance, Loot, LootFactors, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust,
+        TrustId, Zone, ZoneName,
     },
     geometry::{Distance, Point, WorldBounds},
+    handlers::bases::Financing,
     services::auth_service::AuthService,
-    services::credit_exchange_service::{Cost, CreditExchangeService, Share, VecResourceName},
+    services::credit_exchange_service::{Cost, CreditExchangeService, ResourceName, Share, VecResourceName},
 };
 
 const CONFIG_FILE_NAME: &str = "simulation.toml";
@@ -45,6 +46,10 @@ struct TomlConfig {
     zones: Vec<ZoneConfig>,
     #[serde(rename = "placement")]
     placements: Vec<PlacementConfig>,
+    #[serde(default, rename = "base")]
+    bases: Vec<BaseConfig>,
+    #[serde(default, rename = "trust")]
+    trusts: Vec<TrustConfig>,
 }
 
 pub(crate) struct Config {
@@ -63,6 +68,13 @@ pub(crate) struct Config {
     trust_destruction_threshold: u32,
     auth_cookie_key: Key,
     auth_service: AuthService,
+    base_seeds: Vec<BaseConfig>,
+    trust_seeds: Vec<TrustConfig>,
+}
+
+pub(crate) struct SeededStructures {
+    pub(crate) bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
+    pub(crate) trusts: HashMap<TrustId, Arc<RwLock<Trust>>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -162,6 +174,21 @@ pub(crate) struct PlacementConfig {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct BaseConfig {
+    placement_id: PlacementId,
+    payment: Vec<Financing>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TrustConfig {
+    placement_id: PlacementId,
+    resource: ResourceName,
+    payment: Vec<Financing>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct BlocConfig {
     name: BlocName,
     chance: Chance,
@@ -250,6 +277,53 @@ impl Config {
         self.server_address
     }
 
+    pub(crate) fn seeded_structures(&self) -> SeededStructures {
+        let bases = self
+            .base_seeds
+            .iter()
+            .map(|seed| {
+                let placement = self
+                    .placements()
+                    .find(|placement| placement.id() == &seed.placement_id)
+                    .expect("seed placement references were validated while parsing config");
+                let base = MilitaryBase::new_prepaid(
+                    seed.payment.clone(),
+                    &self.credit_exchange_service.military_base,
+                    self.credit_exchange_service.loot_factors(),
+                    placement,
+                );
+                (base.id(), Arc::new(RwLock::new(base)))
+            })
+            .collect();
+
+        let trusts = self
+            .trust_seeds
+            .iter()
+            .map(|seed| {
+                let placement = self
+                    .placements()
+                    .find(|placement| placement.id() == &seed.placement_id)
+                    .expect("seed placement references were validated while parsing config");
+                let resource_amount = self
+                    .trust_production_income
+                    .resource_amount(&seed.resource)
+                    .expect("seed trust resources were validated while parsing config");
+                let trust = Trust::new_prepaid(
+                    seed.payment.clone(),
+                    &self.credit_exchange_service.trust,
+                    self.credit_exchange_service.loot_factors(),
+                    placement,
+                    seed.resource.clone(),
+                    resource_amount,
+                    self.trust_production_income.money(),
+                );
+                (trust.id(), Arc::new(RwLock::new(trust)))
+            })
+            .collect();
+
+        SeededStructures { bases, trusts }
+    }
+
     async fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
         config
@@ -332,6 +406,14 @@ impl Config {
             .placements
             .iter()
             .map(|placement_config| {
+                if !config.world.contains(placement_config.position) {
+                    return Err(Error::ConfigValidation(format!(
+                        "placement {id} at {position:?} is outside world bounds",
+                        id = &placement_config.id,
+                        position = placement_config.position,
+                    )));
+                }
+
                 let zone = zones
                     .iter()
                     .find(|zone| zone.name() == &placement_config.zone)
@@ -346,12 +428,53 @@ impl Config {
                 let placement = Arc::new(Placement::new(
                     placement_config.id.clone(),
                     zone,
-                    config.world.wrap(placement_config.position),
+                    placement_config.position,
                 ));
 
                 Ok(placement)
             })
             .collect::<Result<Vec<_>>>()?;
+
+        let mut occupied_seed_placements = HashMap::new();
+        for (kind, placement_id, payment) in config
+            .bases
+            .iter()
+            .map(|seed| ("base", &seed.placement_id, &seed.payment))
+            .chain(
+                config
+                    .trusts
+                    .iter()
+                    .map(|seed| ("trust", &seed.placement_id, &seed.payment)),
+            )
+        {
+            if !placements.iter().any(|placement| placement.id() == placement_id) {
+                return Err(Error::ConfigValidation(format!(
+                    "seeded {kind} references unknown placement {placement_id}"
+                )));
+            }
+            if let Some(previous_kind) = occupied_seed_placements.insert(placement_id.clone(), kind) {
+                return Err(Error::ConfigValidation(format!(
+                    "seeded {kind} and {previous_kind} both use placement {placement_id}"
+                )));
+            }
+
+            let financier_share = payment.iter().map(|financing| financing.share.value()).sum::<f32>();
+            if financier_share > 1.0 {
+                return Err(Error::ConfigValidation(format!(
+                    "seeded {kind} on placement {placement_id} has financier shares summing to {financier_share}, expected at most 1"
+                )));
+            }
+        }
+
+        for trust in &config.trusts {
+            if config.trust_production.resource_amount(&trust.resource).is_none() {
+                return Err(Error::ConfigValidation(format!(
+                    "seeded trust on placement {placement_id} uses resource {resource} without configured trust production",
+                    placement_id = &trust.placement_id,
+                    resource = &trust.resource,
+                )));
+            }
+        }
 
         assert!(
             config.combat.movement_step > 0.0,
@@ -373,6 +496,8 @@ impl Config {
             base_destruction_threshold: config.combat.base_destruction_threshold,
             auth_cookie_key: config.server.auth_cookie_key.0,
             auth_service: AuthService::new(config.env.auth_service_url),
+            base_seeds: config.bases,
+            trust_seeds: config.trusts,
             credit_exchange_service: CreditExchangeService::new(
                 config.env.credit_exchange_url,
                 config.bank_user_id,
@@ -388,8 +513,6 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    use ordered_float::NotNan;
-
     use super::*;
 
     fn base_toml() -> &'static str {
@@ -485,18 +608,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn parse_normalizes_placements_to_world_bounds() {
-        use crate::geometry::Positioned;
-
+    async fn parse_rejects_placement_outside_world_bounds() {
         let toml_str = base_toml().replace("x = 23.2, y = 29.1", "x = 53, y = 59");
 
-        let config = Config::parse_from_str(&toml_str).await.expect("config can be parsed");
-        let position = config.placements().next().expect("placement exists").position();
-
-        assert_eq!(
-            position,
-            Point::new(NotNan::new(23.0).unwrap(), NotNan::new(29.0).unwrap())
-        );
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(
+                    error,
+                    "placement placement_1 at Point { x: 53.0, y: 59.0 } is outside world bounds"
+                );
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("config with an out-of-bounds placement must fail"),
+        }
     }
 
     #[tokio::test]
@@ -613,6 +737,115 @@ mod tests {
             }
             Err(error) => panic!("unexpected error: {error}"),
             Ok(_) => panic!("config with unknown trust production resource must fail"),
+        }
+    }
+
+    fn with_structure_seeds() -> String {
+        format!(
+            r#"{}
+
+        [[base]]
+        placement_id = "placement_1"
+        payment = [{{ financierId = "base-financier", share = 0.25 }}]
+
+        [[trust]]
+        placement_id = "placement_2"
+        resource = "Lithium"
+        payment = [{{ financierId = "trust-financier", share = 0.4 }}]
+        "#,
+            base_toml()
+        )
+    }
+
+    #[tokio::test]
+    async fn parse_builds_prepaid_structure_seeds() {
+        let config = Config::parse_from_str(&with_structure_seeds())
+            .await
+            .expect("config with structure seeds can be parsed");
+        let seeded = config.seeded_structures();
+
+        assert_eq!(seeded.bases.len(), 1);
+        assert_eq!(seeded.trusts.len(), 1);
+
+        let base = seeded.bases.values().next().unwrap().read().await;
+        assert_eq!(base.placement_id().to_string(), "placement_1");
+        assert_eq!(base.financiers().len(), 1);
+
+        let trust = seeded.trusts.values().next().unwrap().read().await;
+        assert_eq!(trust.placement_id().to_string(), "placement_2");
+        assert_eq!(trust.income().value(), 2.0);
+        assert_eq!(trust.producing().get(&ResourceName::new("lithium".into())), Some(3.5));
+    }
+
+    #[tokio::test]
+    async fn parse_checked_in_config() {
+        let config = Config::parse_from_str(include_str!("../../simulation.toml"))
+            .await
+            .expect("checked-in config can be parsed");
+        let seeded = config.seeded_structures();
+
+        assert_eq!(seeded.bases.len(), 11);
+        assert_eq!(seeded.trusts.len(), 40);
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_seed_with_unknown_placement() {
+        let toml = with_structure_seeds().replace("placement_id = \"placement_1\"", "placement_id = \"missing\"");
+
+        match Config::parse_from_str(&toml).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(error, "seeded base references unknown placement missing");
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("seed with unknown placement must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_seeds_on_same_placement() {
+        let toml = with_structure_seeds().replace("placement_id = \"placement_2\"", "placement_id = \"placement_1\"");
+
+        match Config::parse_from_str(&toml).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(error, "seeded trust and base both use placement placement_1");
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("two seeds on the same placement must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_seed_with_excessive_financier_shares() {
+        let toml = with_structure_seeds().replace(
+            "payment = [{ financierId = \"base-financier\", share = 0.25 }]",
+            "payment = [{ financierId = \"one\", share = 0.6 }, { financierId = \"two\", share = 0.6 }]",
+        );
+
+        match Config::parse_from_str(&toml).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(
+                    error,
+                    "seeded base on placement placement_1 has financier shares summing to 1.2, expected at most 1"
+                );
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("seed with excessive financier shares must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_seeded_trust_without_production_for_resource() {
+        let toml = with_structure_seeds().replace("resource = \"Lithium\"", "resource = \"copper\"");
+
+        match Config::parse_from_str(&toml).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(
+                    error,
+                    "seeded trust on placement placement_2 uses resource copper without configured trust production"
+                );
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("trust seed without configured production must fail"),
         }
     }
 }

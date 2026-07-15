@@ -15,10 +15,41 @@ pub(crate) async fn start_simulation(config: Config) -> Result<mpsc::Sender<Comm
     let persistence = MongoPersistence::connect(config.persistence())
         .await
         .context("connecting persistence layer".to_string())?;
-    let loaded_state = persistence
+    let mut loaded_state = persistence
         .load(config.placements())
         .await
         .context("loading simulation state from persistence".to_string())?;
+
+    if loaded_state.is_empty() {
+        let seeded = config.seeded_structures();
+        log::info!(
+            "No simulation state persisted, instantiating {} bases and {} trusts from config.",
+            seeded.bases.len(),
+            seeded.trusts.len(),
+        );
+
+        for base in seeded.bases.values() {
+            let base = base.read().await;
+            config
+                .credit_exchange_service()
+                .register_prepaid_military_base(&base)
+                .await
+                .context("registering configured base with credit-exchange service")?;
+        }
+        for trust in seeded.trusts.values() {
+            let trust = trust.read().await;
+            config
+                .credit_exchange_service()
+                .register_prepaid_trust(&trust)
+                .await
+                .context("registering configured trust with credit-exchange service")?;
+        }
+
+        loaded_state.bases = seeded.bases;
+        loaded_state.trusts = seeded.trusts;
+    } else {
+        log::info!("Loaded simulation state from database, ignoring configured base and trust seeds.");
+    }
 
     let persist_interval = config.persistence().interval();
     let movement_interval = config.movement_interval();

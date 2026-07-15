@@ -10,7 +10,7 @@ use crate::{
     domain::{Bloc, BlocName, Loot, LootFactors, Placement, PlacementId, Trust, TrustId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
-    services::credit_exchange_service::{Financiers, Payment},
+    services::credit_exchange_service::{Cost, Financiers, Payment},
 };
 
 static BASE_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -64,13 +64,28 @@ impl MilitaryBase {
         loot_factors: &LootFactors,
         placement: Arc<Placement>,
     ) -> Self {
+        let loot = Loot::from_cost(payment.cost(), loot_factors);
+        Self::new_prepaid_with_loot(payment.secondary_payers(), placement, loot)
+    }
+
+    /// Create a base whose configured financing has already been paid.
+    pub(crate) fn new_prepaid(
+        financiers: Vec<Financing>,
+        cost: &Cost<Self>,
+        loot_factors: &LootFactors,
+        placement: Arc<Placement>,
+    ) -> Self {
+        let loot = Loot::from_cost(cost, loot_factors);
+        Self::new_prepaid_with_loot(financiers, placement, loot)
+    }
+
+    fn new_prepaid_with_loot(financiers: Vec<Financing>, placement: Arc<Placement>, loot: Loot) -> Self {
         let id = BASE_INSTANCE_COUNT.fetch_add(1, SeqCst);
         assert_ne!(id, u64::MAX, "ID counter has overflowed and is no longer unique");
-        let loot = Loot::from_cost(payment.cost(), loot_factors);
 
         Self {
             id: BaseId(id),
-            financiers: payment.secondary_payers(),
+            financiers,
             placement,
             enabled: true,
             prioritized: false,
