@@ -1,3 +1,4 @@
+use actix_session::Session;
 use actix_web::{HttpResponse, Responder, get, patch, web};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -5,6 +6,7 @@ use tokio::sync::mpsc;
 use crate::{
     domain::{Bloc, BlocName, Chance},
     error::{Result, UserError},
+    handlers::require_bloc_write,
     services::credit_exchange_service::Share,
     simulation::Command,
 };
@@ -98,18 +100,24 @@ pub(crate) async fn get(path: web::Path<String>, tx: web::Data<mpsc::Sender<Comm
     operation_id = "patchBloc",
     tag = BLOCS,
     responses(
-        (status = 200, description = "Bloc updated successfully")
+        (status = 200, description = "Bloc updated successfully"),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "No write permission for the bloc")
     )
 )]
 #[patch("/blocs/{id}")]
 pub(crate) async fn patch(
+    session: Session,
     path: web::Path<String>,
     body: web::Json<PatchBlocBody>,
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
+    let id = BlocName::from(path.into_inner());
+    require_bloc_write(&session, &id)?;
+
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::PatchBloc {
-        id: BlocName::from(path.into_inner()),
+        id,
         chance: body.chance.map(Chance::new),
         military_expense: body.military_expense,
         response: sender,

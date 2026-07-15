@@ -16,6 +16,8 @@ pub enum UserError {
     Conflict(#[error(not(source))] &'static str),
     #[display("Unauthorized.")]
     Unauthorized,
+    #[display("Forbidden.")]
+    Forbidden,
 }
 
 impl error::ResponseError for UserError {
@@ -31,6 +33,7 @@ impl error::ResponseError for UserError {
             UserError::NotFound(_) => StatusCode::NOT_FOUND,
             UserError::Conflict(_) => StatusCode::CONFLICT,
             UserError::Unauthorized => StatusCode::UNAUTHORIZED,
+            UserError::Forbidden => StatusCode::FORBIDDEN,
         }
     }
 }

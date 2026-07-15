@@ -1,3 +1,4 @@
+use actix_session::Session;
 use actix_web::{HttpResponse, Responder, get, patch, post, web};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -6,6 +7,7 @@ use crate::{
     domain::{BaseId, BlocName, Loot, MilitaryBase, PlacementId, Target, TrustId, ZoneName},
     error::{Result, UserError},
     geometry::{Point, Positioned},
+    handlers::{authenticated_user, can_read_bloc, require_bloc_write},
     services::credit_exchange_service::Share,
     simulation::Command,
 };
@@ -74,9 +76,12 @@ pub(crate) struct BaseResponse {
     pub(crate) enabled: bool,
     pub(crate) prioritized: bool,
     pub(crate) payment: Vec<Financing>,
-    /// How much loot has accumulated since the last transfer?
-    pub(crate) production_count: Loot,
-    pub(crate) target: BaseTargetResponse,
+    /// How much loot has accumulated since the last transfer. Omitted without read access to the bloc.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) production_count: Option<Loot>,
+    /// The base's configured target. Omitted without read access to the bloc.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) target: Option<BaseTargetResponse>,
 }
 
 impl From<&MilitaryBase> for BaseResponse {
@@ -91,10 +96,17 @@ impl From<&MilitaryBase> for BaseResponse {
             payment: base.financiers().to_vec(),
             enabled: base.enabled(),
             prioritized: base.prioritized(),
-            target: base.target().into(),
+            target: Some(base.target().into()),
             position: base.position(),
-            production_count: base.production_count().clone(),
+            production_count: Some(base.production_count().clone()),
         }
+    }
+}
+
+impl BaseResponse {
+    pub(crate) fn redact_protected_fields(&mut self) {
+        self.production_count = None;
+        self.target = None;
     }
 }
 
@@ -112,16 +124,37 @@ struct PatchBaseBody {
     tag = BASES,
     responses(
         (status = 200, description = "Base created successfully"),
-        (status = 409, description = "Placement is already occupied")
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "No write permission for the bloc"),
+        (status = 409, description = "Placement is already occupied"),
     ),
 )]
 #[post("/bases")]
 pub(crate) async fn post(
+    session: Session,
     body: web::Json<PostBaseBody>,
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
-    let (create_base_tx, result_rx) = tokio::sync::oneshot::channel();
     let body = body.into_inner();
+    authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
+
+    let (placements_tx, placements_rx) = tokio::sync::oneshot::channel();
+    tx.send(Command::GetPlacements(placements_tx)).await.map_err(|e| {
+        log::error!("Error sending placements command: {e}");
+        UserError::InternalError
+    })?;
+    let placements = placements_rx.await.map_err(|e| {
+        log::error!("Error receiving placements: {e}");
+        UserError::InternalError
+    })?;
+    let bloc = placements
+        .iter()
+        .find(|placement| placement.id() == &body.placement_id)
+        .map(|placement| placement.zone().bloc_name())
+        .ok_or(UserError::NotFound("Placement"))?;
+    require_bloc_write(&session, bloc)?;
+
+    let (create_base_tx, result_rx) = tokio::sync::oneshot::channel();
 
     tx.send(Command::CreateBase {
         placement_id: body.placement_id,
@@ -146,6 +179,7 @@ pub(crate) async fn post(
             UserError::NotFound(err) => log::info!("not found: {err}"),
             UserError::Conflict(err) => log::info!("conflict: {err}"),
             UserError::Unauthorized => log::info!("unauthorized while creating base"),
+            UserError::Forbidden => log::info!("forbidden while creating base"),
         }
     }
 
@@ -162,7 +196,7 @@ pub(crate) async fn post(
     )
 )]
 #[get("/bases")]
-pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetBases(sender)).await.map_err(|e| {
         log::error!("Error sending command: {e}");
@@ -174,7 +208,16 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
         UserError::InternalError
     })?;
 
-    let bases = bases.iter().map(BaseResponse::from).collect::<Vec<_>>();
+    let bases = bases
+        .iter()
+        .map(|base| {
+            let mut response = BaseResponse::from(base);
+            if !can_read_bloc(&session, &response.bloc)? {
+                response.redact_protected_fields();
+            }
+            Ok(response)
+        })
+        .collect::<Result<Vec<_>>>()?;
     let response = HttpResponse::Ok().json(bases);
     Ok(response)
 }
@@ -216,7 +259,11 @@ pub(crate) async fn publish_production(tx: web::Data<mpsc::Sender<Command>>) -> 
     )
 )]
 #[get("/bases/{id}")]
-pub(crate) async fn get(path: web::Path<u64>, tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn get(
+    session: Session,
+    path: web::Path<u64>,
+    tx: web::Data<mpsc::Sender<Command>>,
+) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetBase(BaseId(path.into_inner()), sender))
         .await
@@ -230,10 +277,13 @@ pub(crate) async fn get(path: web::Path<u64>, tx: web::Data<mpsc::Sender<Command
         UserError::InternalError
     })?;
 
-    let base = base
+    let mut base = base
         .as_ref()
         .map(BaseResponse::from)
         .ok_or(UserError::NotFound("Base"))?;
+    if !can_read_bloc(&session, &base.bloc)? {
+        base.redact_protected_fields();
+    }
     Ok(HttpResponse::Ok().json(base))
 }
 
@@ -242,19 +292,40 @@ pub(crate) async fn get(path: web::Path<u64>, tx: web::Data<mpsc::Sender<Command
     operation_id = "patchBase",
     tag = BASES,
     responses(
-        (status = 200, description = "Base updated successfully")
+        (status = 200, description = "Base updated successfully"),
+        (status = 401, description = "Not authenticated"),
+        (status = 403, description = "No write permission for the bloc")
     )
 )]
 #[patch("/bases/{id}")]
 pub(crate) async fn patch(
+    session: Session,
     path: web::Path<u64>,
     body: web::Json<PatchBaseBody>,
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
+    authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
+    let id = BaseId(path.into_inner());
+
+    let (base_tx, base_rx) = tokio::sync::oneshot::channel();
+    tx.send(Command::GetBase(id, base_tx)).await.map_err(|e| {
+        log::error!("Error sending base lookup command: {e}");
+        UserError::InternalError
+    })?;
+    let base = base_rx.await.map_err(|e| {
+        log::error!("Error receiving base: {e}");
+        UserError::InternalError
+    })?;
+    let bloc = base
+        .as_ref()
+        .map(MilitaryBase::bloc_name)
+        .ok_or(UserError::NotFound("Base"))?;
+    require_bloc_write(&session, bloc)?;
+
     let (sender, receiver) = tokio::sync::oneshot::channel();
     let body = body.into_inner();
     tx.send(Command::PatchBase {
-        id: BaseId(path.into_inner()),
+        id,
         enabled: body.enabled,
         prioritized: body.prioritized,
         target: body.target,
@@ -272,4 +343,41 @@ pub(crate) async fn patch(
     })?;
 
     result.map(|()| HttpResponse::Ok())
+}
+
+#[cfg(test)]
+mod tests {
+    use ordered_float::NotNan;
+
+    use super::{BaseResponse, BaseTargetResponse};
+    use crate::{
+        domain::{BaseId, BlocName, Loot, PlacementId, ZoneName},
+        geometry::Point,
+    };
+
+    #[test]
+    fn redacted_base_omits_target_and_production_count() {
+        let mut response = BaseResponse {
+            id: BaseId(1),
+            position: Point::new(NotNan::new(1.0).unwrap(), NotNan::new(2.0).unwrap()),
+            placement_id: serde_json::from_str::<PlacementId>(r#""placement""#).unwrap(),
+            bloc: BlocName::from("west".to_string()),
+            zone: ZoneName::from("zone-w".to_string()),
+            enabled: true,
+            prioritized: false,
+            payment: vec![],
+            production_count: Some(Loot::default()),
+            target: Some(BaseTargetResponse::None),
+        };
+
+        let visible_response = serde_json::to_value(&response).unwrap();
+        assert!(visible_response.get("target").is_some());
+        assert!(visible_response.get("productionCount").is_some());
+
+        response.redact_protected_fields();
+        let response = serde_json::to_value(response).unwrap();
+
+        assert!(response.get("target").is_none());
+        assert!(response.get("productionCount").is_none());
+    }
 }
