@@ -70,10 +70,13 @@ pub(crate) async fn produce_units(
             continue;
         }
 
-        log::info!("Bloc {bloc_name}: hourly income {hourly_money}, production budget {budget_money}");
+        log::info!(
+            "Bloc {bloc_name}: hourly income {hourly_money}, production budget {budget_money} {budget_resources}"
+        );
 
         // Round Robin spending of the budget, prioritized bases first, ascending ids.
         enabled_bases_with_quota.sort_by_key(|(id, ..)| *id);
+        let mut produced_units = 0;
         'outer: loop {
             for (_, base_arc, quota) in &enabled_bases_with_quota {
                 for _ in 0..*quota {
@@ -87,12 +90,14 @@ pub(crate) async fn produce_units(
                     let unit = create(base_arc.clone(), position, credit_exchange_service).await?;
                     let unit_id = unit.id();
                     units.insert(unit_id, Arc::new(RwLock::new(unit)));
+                    produced_units += 1;
                     log::info!("added unit {unit_id:?} to base {base_id:?}");
                     budget_money -= unit_money_cost;
                     budget_resources -= &unit_resource_cost;
                 }
             }
         }
+        log::info!("Bloc {bloc_name}: produced {produced_units} units");
     }
     Ok(())
 }
