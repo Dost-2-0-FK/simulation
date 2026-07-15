@@ -19,7 +19,7 @@ pub(crate) use self::{
 use crate::{
     domain::{BaseId, BlocName, Loot, LootFactors, MilitaryBase, MilitaryUnit, Trust, TrustId, ZoneName},
     handlers::bases::Financing,
-    services::credit_exchange_service::cost::{PayerShare, Payers},
+    services::credit_exchange_service::cost::Payers,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -61,6 +61,13 @@ struct CreateSubscriptionRequest {
     subscription_type: &'static str,
     priority: u32,
     credit_type: String,
+}
+
+#[derive(Debug, PartialEq)]
+struct SubscriptionSpec {
+    receiver: String,
+    credit_type: String,
+    share: Share,
 }
 
 #[derive(Debug, Serialize)]
@@ -151,7 +158,7 @@ impl CreditExchangeService {
     pub(crate) async fn register_military_base(&self, base: &MilitaryBase, policy: Financiers) -> Result<()> {
         let producer = Self::base_credit_user_id(base.id());
         self.ensure_unit_user(&producer).await?;
-        self.create_subscriptions(policy.payers(), &producer).await?;
+        self.create_financed_subscriptions(&policy, &producer).await?;
         Ok(())
     }
 
@@ -174,7 +181,7 @@ impl CreditExchangeService {
     pub(crate) async fn register_trust(&self, trust: &Trust, policy: &Financiers) -> Result<()> {
         let producer = Self::trust_credit_user_id(trust.id());
         self.ensure_unit_user(&producer).await?;
-        self.create_subscriptions(policy.payers(), &producer).await?;
+        self.create_financed_subscriptions(policy, &producer).await?;
         Ok(())
     }
 
@@ -297,14 +304,15 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    async fn create_subscriptions(&self, payers: impl IntoIterator<Item = PayerShare>, producer: &str) -> Result<()> {
-        for payer in payers {
-            self.create_subscription(producer, payer.payer_id.as_str(), "money", payer.share)
-                .await?;
-            for resource in self.resources.iter() {
-                self.create_subscription(producer, payer.payer_id.as_str(), resource.as_str(), payer.share)
-                    .await?;
-            }
+    async fn create_financed_subscriptions(&self, policy: &Financiers, producer: &str) -> Result<()> {
+        for subscription in financed_subscription_specs(policy, &self.resources) {
+            self.create_subscription(
+                producer,
+                &subscription.receiver,
+                &subscription.credit_type,
+                subscription.share,
+            )
+            .await?;
         }
         Ok(())
     }
@@ -383,5 +391,67 @@ impl CreditExchangeService {
 
     fn trust_credit_user_id(id: TrustId) -> String {
         format!("trust-{}", id.0)
+    }
+}
+
+fn financed_subscription_specs(policy: &Financiers, resources: &VecResourceName) -> Vec<SubscriptionSpec> {
+    let mut subscriptions = policy
+        .payers()
+        .map(|payer| SubscriptionSpec {
+            receiver: payer.payer_id,
+            credit_type: "money".to_string(),
+            share: payer.share,
+        })
+        .collect::<Vec<_>>();
+    subscriptions.extend(resources.iter().map(|resource| SubscriptionSpec {
+        receiver: policy.primary_payer_id().to_string(),
+        credit_type: resource.as_str().to_string(),
+        share: Share::from(1.0),
+    }));
+    subscriptions
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{handlers::bases::Financing, services::credit_exchange_service::Share};
+
+    #[test]
+    fn financed_subscriptions_split_only_money() {
+        let policy = Financiers::new(
+            "primary".to_string(),
+            vec![Financing {
+                financier: "financier".to_string().into(),
+                share: Share::from(0.4),
+            }],
+        )
+        .unwrap();
+        let resources = serde_json::from_str::<VecResourceName>(r#"["iron", "copper"]"#).unwrap();
+
+        assert_eq!(
+            financed_subscription_specs(&policy, &resources),
+            vec![
+                SubscriptionSpec {
+                    receiver: "primary".to_string(),
+                    credit_type: "money".to_string(),
+                    share: Share::from(0.6),
+                },
+                SubscriptionSpec {
+                    receiver: "financier".to_string(),
+                    credit_type: "money".to_string(),
+                    share: Share::from(0.4),
+                },
+                SubscriptionSpec {
+                    receiver: "primary".to_string(),
+                    credit_type: "iron".to_string(),
+                    share: Share::from(1.0),
+                },
+                SubscriptionSpec {
+                    receiver: "primary".to_string(),
+                    credit_type: "copper".to_string(),
+                    share: Share::from(1.0),
+                },
+            ]
+        );
     }
 }

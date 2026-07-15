@@ -167,4 +167,8 @@ impl Financiers {
                 .collect(),
         })
     }
+
+    pub(super) fn primary_payer_id(&self) -> &str {
+        &self.primary_payer_id
+    }
 }
