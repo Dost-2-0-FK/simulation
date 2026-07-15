@@ -17,6 +17,8 @@ money = 1
 resources = { iron = 1 }
 
 [server]
+bind_address = "127.0.0.1"
+port = 8080
 auth_cookie_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [persistence]

@@ -29,6 +29,7 @@ async fn main() -> std::io::Result<()> {
             std::io::Error::other(e)
         })?;
     let auth_cookie_key = config.auth_cookie_key();
+    let server_address = config.server_address();
 
     let tx = app::start_simulation(config).await.map_err(|e| {
         log::error!("{:#}", e);
@@ -49,7 +50,7 @@ async fn main() -> std::io::Result<()> {
             .openapi_service(|api| SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", api))
             .into_app()
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(server_address)?
     .run()
     .await
 }

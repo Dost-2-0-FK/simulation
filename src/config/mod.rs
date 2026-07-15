@@ -1,11 +1,17 @@
 mod error;
 
-use std::{collections::HashMap, fmt, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    fmt,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
+    time::Duration,
+};
 
 use actix_web::cookie::Key;
 use serde::Deserialize;
 use serde_with::{DurationSecondsWithFrac, serde_as};
-use tokio::{fs, net::TcpListener, sync::RwLock};
+use tokio::{fs, sync::RwLock};
 
 use self::error::{Error, Result};
 use crate::{
@@ -40,13 +46,12 @@ struct TomlConfig {
     placements: Vec<PlacementConfig>,
 }
 
-#[expect(unused)]
 pub(crate) struct Config {
     placements: Vec<Arc<Placement>>,
     zones: Vec<Arc<Zone>>,
     combat_tick_interval: Duration,
     blocs: Vec<Arc<RwLock<Bloc>>>,
-    port: TcpListener,
+    server_address: SocketAddr,
     credit_exchange_service: CreditExchangeService,
     persistence: PersistenceConfig,
     movement_interval: Duration,
@@ -67,9 +72,15 @@ struct EnvConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ServerConfig {
+    #[serde(default = "localhost")]
+    bind_address: IpAddr,
     #[serde(default)]
     port: u16,
     auth_cookie_key: AuthCookieKey,
+}
+
+fn localhost() -> IpAddr {
+    IpAddr::V4(Ipv4Addr::LOCALHOST)
 }
 
 struct AuthCookieKey(Key);
@@ -228,6 +239,10 @@ impl Config {
         self.auth_cookie_key.clone()
     }
 
+    pub(crate) fn server_address(&self) -> SocketAddr {
+        self.server_address
+    }
+
     async fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
         config
@@ -341,9 +356,7 @@ impl Config {
             zones,
             combat_tick_interval: config.combat.combat_tick_interval,
             blocs,
-            port: TcpListener::bind(format!("127.0.0.1:{}", config.server.port))
-                .await
-                .map_err(Error::Io)?,
+            server_address: SocketAddr::new(config.server.bind_address, config.server.port),
             persistence: config.persistence,
             movement_interval: config.combat.movement_interval,
             movement_step: config.combat.movement_step,
@@ -445,7 +458,21 @@ mod tests {
 
     #[tokio::test]
     async fn parse() {
-        Config::parse_from_str(base_toml()).await.expect("config can be parsed");
+        let config = Config::parse_from_str(base_toml()).await.expect("config can be parsed");
+
+        assert_eq!(config.server_address(), "127.0.0.1:0".parse().unwrap());
+    }
+
+    #[tokio::test]
+    async fn parse_server_address() {
+        let toml_str = base_toml().replace(
+            "        # No port: defaults to 0.",
+            "        bind_address = \"0.0.0.0\"\n        port = 8080",
+        );
+
+        let config = Config::parse_from_str(&toml_str).await.expect("config can be parsed");
+
+        assert_eq!(config.server_address(), "0.0.0.0:8080".parse().unwrap());
     }
 
     #[tokio::test]
