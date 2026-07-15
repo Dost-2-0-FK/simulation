@@ -45,7 +45,8 @@ pub(crate) enum AccessLevel {
     Write,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct LoginCredentials {
     user_id: UserId,
     password: String,
