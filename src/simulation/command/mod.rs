@@ -26,7 +26,7 @@ use crate::{
     error::UserError,
     geometry::Point,
     handlers::{
-        bases::{Financing, TargetBody},
+        bases::{Financing, TargetBody, UserId},
         combats::CombatResponse,
         units::UnitResponse,
     },
@@ -41,6 +41,7 @@ pub(crate) enum Command {
     GetUnits(Sender<Vec<UnitResponse>>),
     GetCombats(Sender<Vec<CombatResponse>>),
     CreateBase {
+        user_id: UserId,
         placement_id: PlacementId,
         financing: Vec<Financing>,
         response: Sender<core::result::Result<(), UserError>>,
@@ -55,6 +56,7 @@ pub(crate) enum Command {
         response: Sender<core::result::Result<(), UserError>>,
     },
     CreateTrust {
+        user_id: UserId,
         placement_id: PlacementId,
         financing: Vec<Financing>,
         resource: ResourceName,
@@ -115,6 +117,7 @@ pub(crate) async fn run(
                 combat::get_all(resp, &combats).await;
             }
             Command::CreateBase {
+                user_id,
                 placement_id,
                 financing,
                 response,
@@ -122,6 +125,24 @@ pub(crate) async fn run(
                 let result = async {
                     if placement_is_occupied(&placement_id, &bases, &trusts).await {
                         return Err(UserError::Conflict("Placement"));
+                    }
+
+                    let approved = config
+                        .auth_service()
+                        .verify_financing(
+                            &user_id,
+                            &placement_id,
+                            crate::services::auth_service::FinancedObject::Base,
+                            &financing,
+                            &config.credit_exchange_service().military_base,
+                        )
+                        .await
+                        .map_err(|err| {
+                            log::error!("auth-service error while verifying base financing: {err:#}");
+                            UserError::InternalError
+                        })?;
+                    if !approved {
+                        return Err(UserError::Forbidden);
                     }
 
                     let base = base::create(
@@ -185,6 +206,7 @@ pub(crate) async fn run(
                 let _ = response.send(result);
             }
             Command::CreateTrust {
+                user_id,
                 placement_id,
                 financing,
                 resource,
@@ -193,6 +215,24 @@ pub(crate) async fn run(
                 let result = async {
                     if placement_is_occupied(&placement_id, &bases, &trusts).await {
                         return Err(UserError::Conflict("Placement"));
+                    }
+
+                    let approved = config
+                        .auth_service()
+                        .verify_financing(
+                            &user_id,
+                            &placement_id,
+                            crate::services::auth_service::FinancedObject::Trust,
+                            &financing,
+                            &config.credit_exchange_service().trust,
+                        )
+                        .await
+                        .map_err(|err| {
+                            log::error!("auth-service error while verifying trust financing: {err:#}");
+                            UserError::InternalError
+                        })?;
+                    if !approved {
+                        return Err(UserError::Forbidden);
                     }
 
                     let trust = trust::create(

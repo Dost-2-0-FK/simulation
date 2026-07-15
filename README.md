@@ -149,6 +149,17 @@ Configure `bank_user_id` to the credit-exchanger user that receives structure bu
 bank_user_id = "bank"
 ```
 
+Configure the service URLs used for authorization and credit exchange:
+
+```toml
+[env]
+auth_service_url = "http://127.0.0.1:18081"
+credit_exchange_url = "http://127.0.0.1:18080"
+```
+
+Financed trust and base creation is checked once per financier at
+`POST /api/users/{financierId}/financing/verify` before payment is booked. Every financier must approve the request.
+
 Configure combat loot factors for destroyed structures and killed units in `simulation.toml`. Omitted factors default to
 `0`.
 

@@ -20,6 +20,7 @@ use crate::{
         ZoneName,
     },
     geometry::{Distance, Point, WorldBounds},
+    services::auth_service::AuthService,
     services::credit_exchange_service::{Cost, CreditExchangeService, Share, VecResourceName},
 };
 
@@ -61,11 +62,13 @@ pub(crate) struct Config {
     base_destruction_threshold: u32,
     trust_destruction_threshold: u32,
     auth_cookie_key: Key,
+    auth_service: AuthService,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct EnvConfig {
+    auth_service_url: url::Url,
     credit_exchange_url: url::Url,
 }
 
@@ -239,6 +242,10 @@ impl Config {
         self.auth_cookie_key.clone()
     }
 
+    pub(crate) fn auth_service(&self) -> &AuthService {
+        &self.auth_service
+    }
+
     pub(crate) fn server_address(&self) -> SocketAddr {
         self.server_address
     }
@@ -365,6 +372,7 @@ impl Config {
             trust_destruction_threshold: config.combat.trust_destruction_threshold,
             base_destruction_threshold: config.combat.base_destruction_threshold,
             auth_cookie_key: config.server.auth_cookie_key.0,
+            auth_service: AuthService::new(config.env.auth_service_url),
             credit_exchange_service: CreditExchangeService::new(
                 config.env.credit_exchange_url,
                 config.bank_user_id,
@@ -397,6 +405,7 @@ mod tests {
         auth_cookie_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
         [env]
+        auth_service_url = "http://0.0.0.0:4535"
         credit_exchange_url = "http://0.0.0.0:4534"
 
         [world]

@@ -27,6 +27,7 @@ database = "simulation"
 interval_seconds = 30
 
 [env]
+auth_service_url = "http://127.0.0.1:18081"
 credit_exchange_url = "http://127.0.0.1:18080"
 
 [world]

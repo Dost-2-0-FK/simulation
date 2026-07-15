@@ -78,7 +78,7 @@ pub(crate) async fn post(
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
     let body = body.into_inner();
-    authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
+    let user = authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
 
     let (placements_tx, placements_rx) = tokio::sync::oneshot::channel();
     tx.send(Command::GetPlacements(placements_tx)).await.map_err(|e| {
@@ -99,6 +99,7 @@ pub(crate) async fn post(
     let (sender, receiver) = tokio::sync::oneshot::channel();
 
     tx.send(Command::CreateTrust {
+        user_id: user.user_id().clone(),
         placement_id: body.placement_id,
         financing: body.payment,
         resource: body.resource,

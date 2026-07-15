@@ -121,6 +121,10 @@ mod tests {
     use super::{get_current_user, login};
     use crate::services::auth_service::{AuthService, AuthenticatedUser};
 
+    fn auth_service() -> AuthService {
+        AuthService::new("http://127.0.0.1:18081".parse().unwrap())
+    }
+
     #[actix_web::test]
     async fn current_user_returns_unauthorized_without_a_session() {
         let app = test::init_service(
@@ -143,7 +147,7 @@ mod tests {
             App::new()
                 .wrap(IdentityMiddleware::default())
                 .wrap(SessionMiddleware::new(CookieSessionStore::default(), Key::generate()))
-                .app_data(web::Data::new(AuthService))
+                .app_data(web::Data::new(auth_service()))
                 .service(login)
                 .service(get_current_user),
         )
