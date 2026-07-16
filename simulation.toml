@@ -1,51 +1,42 @@
 bank_user_id = "bank"
 resources = ["water", "thermal_oil", "silicon", "uxmal_gas", "uxmal_crystals", "lsc", "solar_energy", "oxygen", "iron", "steel", "genetic_material", "entropy"]
 
-# Price of creating a trust; also determines its destruction loot.
 [costs.trust]
 money = 600
 resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
 
-# Price of creating a military base; also determines its destruction loot.
 [costs.base]
 money = 1800
 resources = { water = 40, solar_energy = 30, steel = 25 }
 
-# Price of producing a military unit; also determines its destruction loot.
 [costs.unit]
 money = 120
 resources = { lsc = 1, oxygen = 3, solar_energy = 2, water = 4 }
 
-# Money and resource output assigned to newly created trusts.
 [trust_production]
 money = 1
 resources = { iron = 1, solar_energy = 1 }
 
-# HTTP bind address and cookie-session signing key.
 [server]
 bind_address = "127.0.0.1"
 port = 8080
 auth_cookie_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-# MongoDB connection and periodic persistence interval.
 [persistence]
 uri = "mongodb://localhost:27017"
 database = "simulation"
 interval_seconds = 30
 
-# URLs of services called by the simulation.
 [env]
 auth_service_url = "http://127.0.0.1:18081"
 credit_exchange_url = "http://127.0.0.1:18080"
 
-# Half-open wrapping map bounds; every placement must start inside them.
 [world]
 min_x = 0
 max_x = 360
 min_y = 0
 max_y = 180
 
-# Combat, movement, and structure-destruction timing and thresholds.
 [combat]
 combat_tick_interval_seconds = 1.5
 movement_interval_seconds = 60
@@ -53,12 +44,10 @@ movement_step = 2.0
 base_destruction_threshold = 5
 trust_destruction_threshold = 4
 
-# Fraction of each destroyed entity's cost awarded as loot.
 [combat.loot_factors]
 money = 0.5
 resources = { lsc = 0.5, oxygen = 0.5, solar_energy = 0.5, water = 0.5, steel = 0.5 }
 
-# A political bloc's initial chance and military spending share.
 [[bloc]]
 name = "h3Eg-kdoZ-G1bx-rK5W"
 chance = 100
@@ -74,7 +63,6 @@ name = "neutral"
 chance = 100
 military_expense = 0.1
 
-# A zone and the bloc that controls it.
 [[zone]]
 name = "WSLS-Vg5s-J4nF-uL9D"
 bloc = "r6B8-XeFz-cg6C-xMIq"
@@ -243,838 +231,836 @@ bloc = "r6B8-XeFz-cg6C-xMIq"
 name = "qnec-OGRY-Q91L-2L3N"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
-# A buildable map location, associated zone, and starting position.
 [[placement]]
 id = "placement-0-0-e-1"
 zone = "WSLS-Vg5s-J4nF-uL9D"
-position = { x = 285.00, y = 125.00 }
+position = { x = 105.00, y = 35.00 }
 
 [[placement]]
 id = "placement-0-0-e-2"
 zone = "WSLS-Vg5s-J4nF-uL9D"
-position = { x = 285.12, y = 125.08 }
+position = { x = 105.12, y = 35.08 }
 
 [[placement]]
 id = "placement-0-0-e-3"
 zone = "WSLS-Vg5s-J4nF-uL9D"
-position = { x = 285.24, y = 125.16 }
+position = { x = 105.24, y = 35.16 }
 
 [[placement]]
 id = "placement-0-0-e-4"
 zone = "WSLS-Vg5s-J4nF-uL9D"
-position = { x = 285.36, y = 125.24 }
+position = { x = 105.36, y = 35.24 }
 
 [[placement]]
 id = "placement-0-0-e-5"
 zone = "WSLS-Vg5s-J4nF-uL9D"
-position = { x = 285.48, y = 125.32 }
+position = { x = 105.48, y = 35.32 }
 
 [[placement]]
 id = "placement-0-0-e-6"
 zone = "WSLS-Vg5s-J4nF-uL9D"
-position = { x = 285.60, y = 125.40 }
+position = { x = 105.60, y = 35.40 }
 
 [[placement]]
 id = "placement-0-0-e-7"
 zone = "WSLS-Vg5s-J4nF-uL9D"
-position = { x = 285.72, y = 125.48 }
+position = { x = 105.72, y = 35.48 }
 
 [[placement]]
 id = "placement-0-0-w-1"
 zone = "eTjs-NCE0-jpCH-cAXS"
-position = { x = 225.00, y = 148.00 }
+position = { x = -100.00, y = 50.00 }
 
 [[placement]]
 id = "placement-0-0-w-2"
 zone = "eTjs-NCE0-jpCH-cAXS"
-position = { x = 225.12, y = 148.08 }
+position = { x = -99.88, y = 50.08 }
 
 [[placement]]
 id = "placement-0-0-w-3"
 zone = "eTjs-NCE0-jpCH-cAXS"
-position = { x = 225.24, y = 148.16 }
+position = { x = -99.76, y = 50.16 }
 
 [[placement]]
 id = "placement-0-0-w-4"
 zone = "eTjs-NCE0-jpCH-cAXS"
-position = { x = 225.36, y = 148.24 }
+position = { x = -99.64, y = 50.24 }
 
 [[placement]]
 id = "placement-0-0-w-5"
 zone = "eTjs-NCE0-jpCH-cAXS"
-position = { x = 225.48, y = 148.32 }
+position = { x = -99.52, y = 50.32 }
 
 [[placement]]
 id = "placement-0-0-w-6"
 zone = "eTjs-NCE0-jpCH-cAXS"
-position = { x = 225.60, y = 148.40 }
+position = { x = -99.40, y = 50.40 }
 
 [[placement]]
 id = "placement-0-0-w-7"
 zone = "eTjs-NCE0-jpCH-cAXS"
-position = { x = 225.72, y = 148.48 }
+position = { x = -99.28, y = 50.48 }
 
 [[placement]]
 id = "placement-0-1-e-1"
 zone = "pis3-MGbn-Vl78-2ZB8"
-position = { x = 250.00, y = 150.00 }
+position = { x = 90.00, y = 60.00 }
 
 [[placement]]
 id = "placement-0-1-e-2"
 zone = "pis3-MGbn-Vl78-2ZB8"
-position = { x = 250.12, y = 150.08 }
+position = { x = 90.12, y = 60.08 }
 
 [[placement]]
 id = "placement-0-1-e-3"
 zone = "pis3-MGbn-Vl78-2ZB8"
-position = { x = 250.24, y = 150.16 }
+position = { x = 90.24, y = 60.16 }
 
 [[placement]]
 id = "placement-0-1-e-4"
 zone = "pis3-MGbn-Vl78-2ZB8"
-position = { x = 250.36, y = 150.24 }
+position = { x = 90.36, y = 60.24 }
 
 [[placement]]
 id = "placement-0-1-e-5"
 zone = "pis3-MGbn-Vl78-2ZB8"
-position = { x = 250.48, y = 150.32 }
+position = { x = 90.48, y = 60.32 }
 
 [[placement]]
 id = "placement-0-1-w-1"
 zone = "qcrC-wqWy-IFcG-CCo8"
-position = { x = 176.00, y = 145.00 }
+position = { x = -4.00, y = 55.00 }
 
 [[placement]]
 id = "placement-0-1-w-2"
 zone = "qcrC-wqWy-IFcG-CCo8"
-position = { x = 176.12, y = 145.08 }
+position = { x = -3.88, y = 55.08 }
 
 [[placement]]
 id = "placement-0-1-w-3"
 zone = "qcrC-wqWy-IFcG-CCo8"
-position = { x = 176.24, y = 145.16 }
+position = { x = -3.76, y = 55.16 }
 
 [[placement]]
 id = "placement-0-1-w-4"
 zone = "qcrC-wqWy-IFcG-CCo8"
-position = { x = 176.36, y = 145.24 }
+position = { x = -3.64, y = 55.24 }
 
 [[placement]]
 id = "placement-0-1-w-5"
 zone = "qcrC-wqWy-IFcG-CCo8"
-position = { x = 176.48, y = 145.32 }
+position = { x = -3.52, y = 55.32 }
 
 [[placement]]
 id = "placement-0-2-w-1"
 zone = "i8es-hJW9-hpIB-N7jF"
-position = { x = 192.00, y = 140.00 }
+position = { x = 12.00, y = 50.00 }
 
 [[placement]]
 id = "placement-0-2-w-2"
 zone = "i8es-hJW9-hpIB-N7jF"
-position = { x = 192.12, y = 140.08 }
+position = { x = 12.12, y = 50.08 }
 
 [[placement]]
 id = "placement-0-2-w-3"
 zone = "i8es-hJW9-hpIB-N7jF"
-position = { x = 192.24, y = 140.16 }
+position = { x = 12.24, y = 50.16 }
 
 [[placement]]
 id = "placement-0-2-w-4"
 zone = "i8es-hJW9-hpIB-N7jF"
-position = { x = 192.36, y = 140.24 }
+position = { x = 12.36, y = 50.24 }
 
 [[placement]]
 id = "placement-0-2-w-5"
 zone = "i8es-hJW9-hpIB-N7jF"
-position = { x = 192.48, y = 140.32 }
+position = { x = 12.48, y = 50.32 }
 
 [[placement]]
 id = "placement-1-a-1-e-1"
 zone = "strategic-1-a-1-e"
-position = { x = 288.00, y = 106.00 }
+position = { x = 108.00, y = 16.00 }
 
 [[placement]]
 id = "placement-1-a-1-e-2"
 zone = "strategic-1-a-1-e"
-position = { x = 288.12, y = 106.08 }
+position = { x = 108.12, y = 16.08 }
 
 [[placement]]
 id = "placement-1-a-1-e-3"
 zone = "strategic-1-a-1-e"
-position = { x = 288.24, y = 106.16 }
+position = { x = 108.24, y = 16.16 }
 
 [[placement]]
 id = "placement-1-a-1-e-4"
 zone = "strategic-1-a-1-e"
-position = { x = 288.36, y = 106.24 }
+position = { x = 108.36, y = 16.24 }
 
 [[placement]]
 id = "placement-1-a-1-w-1"
 zone = "ESdg-8X29-43KN-aFQT"
-position = { x = 318.00, y = 126.00 }
+position = { x = 138.00, y = 36.00 }
 
 [[placement]]
 id = "placement-1-a-1-w-2"
 zone = "ESdg-8X29-43KN-aFQT"
-position = { x = 318.12, y = 126.08 }
+position = { x = 138.12, y = 36.08 }
 
 [[placement]]
 id = "placement-1-a-1-w-3"
 zone = "ESdg-8X29-43KN-aFQT"
-position = { x = 318.24, y = 126.16 }
+position = { x = 138.24, y = 36.16 }
 
 [[placement]]
 id = "placement-1-a-1-w-4"
 zone = "ESdg-8X29-43KN-aFQT"
-position = { x = 318.36, y = 126.24 }
+position = { x = 138.36, y = 36.24 }
 
 [[placement]]
 id = "placement-1-a-2-e-1"
 zone = "XeBt-YLoS-qDnh-VUtF"
-position = { x = 307.00, y = 127.00 }
+position = { x = 127.00, y = 37.00 }
 
 [[placement]]
 id = "placement-1-a-2-e-2"
 zone = "XeBt-YLoS-qDnh-VUtF"
-position = { x = 307.12, y = 127.08 }
+position = { x = 127.12, y = 37.08 }
 
 [[placement]]
 id = "placement-1-a-2-e-3"
 zone = "XeBt-YLoS-qDnh-VUtF"
-position = { x = 307.24, y = 127.16 }
+position = { x = 127.24, y = 37.16 }
 
 [[placement]]
 id = "placement-1-a-2-e-4"
 zone = "XeBt-YLoS-qDnh-VUtF"
-position = { x = 307.36, y = 127.24 }
+position = { x = 127.36, y = 37.24 }
 
 [[placement]]
 id = "placement-1-a-2-w-1"
 zone = "qfko-nYmv-9piG-BBxk"
-position = { x = 182.00, y = 137.00 }
+position = { x = 2.00, y = 47.00 }
 
 [[placement]]
 id = "placement-1-a-2-w-2"
 zone = "qfko-nYmv-9piG-BBxk"
-position = { x = 182.12, y = 137.08 }
+position = { x = 2.12, y = 47.08 }
 
 [[placement]]
 id = "placement-1-a-2-w-3"
 zone = "qfko-nYmv-9piG-BBxk"
-position = { x = 182.24, y = 137.16 }
+position = { x = 2.24, y = 47.16 }
 
 [[placement]]
 id = "placement-1-a-2-w-4"
 zone = "qfko-nYmv-9piG-BBxk"
-position = { x = 182.36, y = 137.24 }
+position = { x = 2.36, y = 47.24 }
 
 [[placement]]
 id = "placement-1-a-3-w-1"
 zone = "hGkk-9TSW-2xTV-tHG3"
-position = { x = 198.00, y = 152.00 }
+position = { x = 18.00, y = 62.00 }
 
 [[placement]]
 id = "placement-1-a-3-w-2"
 zone = "hGkk-9TSW-2xTV-tHG3"
-position = { x = 198.12, y = 152.08 }
+position = { x = 18.12, y = 62.08 }
 
 [[placement]]
 id = "placement-1-a-3-w-3"
 zone = "hGkk-9TSW-2xTV-tHG3"
-position = { x = 198.24, y = 152.16 }
+position = { x = 18.24, y = 62.16 }
 
 [[placement]]
 id = "placement-1-a-3-w-4"
 zone = "hGkk-9TSW-2xTV-tHG3"
-position = { x = 198.36, y = 152.24 }
+position = { x = 18.36, y = 62.24 }
 
 [[placement]]
 id = "placement-1-a-4-e-1"
 zone = "ZHO6-hNpX-9Wyv-yJwM"
-position = { x = 270.00, y = 114.00 }
+position = { x = 90.00, y = 24.00 }
 
 [[placement]]
 id = "placement-1-a-4-e-2"
 zone = "ZHO6-hNpX-9Wyv-yJwM"
-position = { x = 270.12, y = 114.08 }
+position = { x = 90.12, y = 24.08 }
 
 [[placement]]
 id = "placement-1-a-4-e-3"
 zone = "ZHO6-hNpX-9Wyv-yJwM"
-position = { x = 270.24, y = 114.16 }
+position = { x = 90.24, y = 24.16 }
 
 [[placement]]
 id = "placement-1-a-4-e-4"
 zone = "ZHO6-hNpX-9Wyv-yJwM"
-position = { x = 270.36, y = 114.24 }
+position = { x = 90.36, y = 24.24 }
 
 [[placement]]
 id = "placement-1-a-4-w-1"
 zone = "WaZS-LKed-Gofz-Ye9O"
-position = { x = 305.00, y = 75.00 }
+position = { x = 125.00, y = -15.00 }
 
 [[placement]]
 id = "placement-1-a-4-w-2"
 zone = "WaZS-LKed-Gofz-Ye9O"
-position = { x = 305.12, y = 75.08 }
+position = { x = 125.12, y = -14.92 }
 
 [[placement]]
 id = "placement-1-a-4-w-3"
 zone = "WaZS-LKed-Gofz-Ye9O"
-position = { x = 305.24, y = 75.16 }
+position = { x = 125.24, y = -14.84 }
 
 [[placement]]
 id = "placement-1-a-4-w-4"
 zone = "WaZS-LKed-Gofz-Ye9O"
-position = { x = 305.36, y = 75.24 }
+position = { x = 125.36, y = -14.76 }
 
 [[placement]]
 id = "placement-1-a-5-e-1"
 zone = "eQ9R-xrSk-Filk-YKyP"
-position = { x = 301.00, y = 114.00 }
+position = { x = 121.00, y = 24.00 }
 
 [[placement]]
 id = "placement-1-a-5-e-2"
 zone = "eQ9R-xrSk-Filk-YKyP"
-position = { x = 301.12, y = 114.08 }
+position = { x = 121.12, y = 24.08 }
 
 [[placement]]
 id = "placement-1-a-5-e-3"
 zone = "eQ9R-xrSk-Filk-YKyP"
-position = { x = 301.24, y = 114.16 }
+position = { x = 121.24, y = 24.16 }
 
 [[placement]]
 id = "placement-1-a-5-e-4"
 zone = "eQ9R-xrSk-Filk-YKyP"
-position = { x = 301.36, y = 114.24 }
+position = { x = 121.36, y = 24.24 }
 
 [[placement]]
 id = "placement-1-a-5-w-1"
 zone = "rPcg-Lg2s-eKRI-3UdN"
-position = { x = 185.00, y = 142.00 }
+position = { x = 5.00, y = 52.00 }
 
 [[placement]]
 id = "placement-1-a-5-w-2"
 zone = "rPcg-Lg2s-eKRI-3UdN"
-position = { x = 185.12, y = 142.08 }
+position = { x = 5.12, y = 52.08 }
 
 [[placement]]
 id = "placement-1-a-5-w-3"
 zone = "rPcg-Lg2s-eKRI-3UdN"
-position = { x = 185.24, y = 142.16 }
+position = { x = 5.24, y = 52.16 }
 
 [[placement]]
 id = "placement-1-a-5-w-4"
 zone = "rPcg-Lg2s-eKRI-3UdN"
-position = { x = 185.36, y = 142.24 }
+position = { x = 5.36, y = 52.24 }
 
 [[placement]]
 id = "placement-1-a-6-w-1"
 zone = "Bggh-bybz-X9HR-sVRf"
-position = { x = 225.00, y = 114.00 }
+position = { x = 45.00, y = 24.00 }
 
 [[placement]]
 id = "placement-1-a-6-w-2"
 zone = "Bggh-bybz-X9HR-sVRf"
-position = { x = 225.12, y = 114.08 }
+position = { x = 45.12, y = 24.08 }
 
 [[placement]]
 id = "placement-1-a-6-w-3"
 zone = "Bggh-bybz-X9HR-sVRf"
-position = { x = 225.24, y = 114.16 }
+position = { x = 45.24, y = 24.16 }
 
 [[placement]]
 id = "placement-1-a-6-w-4"
 zone = "Bggh-bybz-X9HR-sVRf"
-position = { x = 225.36, y = 114.24 }
+position = { x = 45.36, y = 24.24 }
 
 [[placement]]
 id = "placement-1-a-7-w-1"
 zone = "YVsc-U036-R35W-9yLN"
-position = { x = 215.00, y = 129.00 }
+position = { x = 35.00, y = 39.00 }
 
 [[placement]]
 id = "placement-1-a-7-w-2"
 zone = "YVsc-U036-R35W-9yLN"
-position = { x = 215.12, y = 129.08 }
+position = { x = 35.12, y = 39.08 }
 
 [[placement]]
 id = "placement-1-a-7-w-3"
 zone = "YVsc-U036-R35W-9yLN"
-position = { x = 215.24, y = 129.16 }
+position = { x = 35.24, y = 39.16 }
 
 [[placement]]
 id = "placement-1-a-7-w-4"
 zone = "YVsc-U036-R35W-9yLN"
-position = { x = 215.36, y = 129.24 }
+position = { x = 35.36, y = 39.24 }
 
 [[placement]]
 id = "placement-1-a-x-1"
 zone = "SDxI-sQby-lEJz-flPC"
-position = { x = 188.00, y = 137.00 }
+position = { x = 8.00, y = 47.00 }
 
 [[placement]]
 id = "placement-1-a-x-2"
 zone = "SDxI-sQby-lEJz-flPC"
-position = { x = 188.12, y = 137.08 }
+position = { x = 8.12, y = 47.08 }
 
 [[placement]]
 id = "placement-1-a-x-3"
 zone = "SDxI-sQby-lEJz-flPC"
-position = { x = 188.24, y = 137.16 }
+position = { x = 8.24, y = 47.16 }
 
 [[placement]]
 id = "placement-1-a-x-4"
 zone = "SDxI-sQby-lEJz-flPC"
-position = { x = 188.36, y = 137.24 }
+position = { x = 8.36, y = 47.24 }
 
 [[placement]]
 id = "placement-1-b-1-w-1"
 zone = "TfCE-X2Wf-MT7R-LO4i"
-position = { x = 190.00, y = 130.00 }
+position = { x = 10.00, y = 40.00 }
 
 [[placement]]
 id = "placement-1-b-1-w-2"
 zone = "TfCE-X2Wf-MT7R-LO4i"
-position = { x = 190.12, y = 130.08 }
+position = { x = 10.12, y = 40.08 }
 
 [[placement]]
 id = "placement-1-b-1-w-3"
 zone = "TfCE-X2Wf-MT7R-LO4i"
-position = { x = 190.24, y = 130.16 }
+position = { x = 10.24, y = 40.16 }
 
 [[placement]]
 id = "placement-1-b-2-w-1"
 zone = "strategic-1-b-2-w"
-position = { x = 200.00, y = 142.00 }
+position = { x = 20.00, y = 52.00 }
 
 [[placement]]
 id = "placement-1-b-2-w-2"
 zone = "strategic-1-b-2-w"
-position = { x = 200.12, y = 142.08 }
+position = { x = 20.12, y = 52.08 }
 
 [[placement]]
 id = "placement-1-b-2-w-3"
 zone = "strategic-1-b-2-w"
-position = { x = 200.24, y = 142.16 }
+position = { x = 20.24, y = 52.16 }
 
 [[placement]]
 id = "placement-1-b-3-e-1"
 zone = "Xjn0-IQ1z-43qn-lNgr"
-position = { x = 285.00, y = 103.00 }
+position = { x = 105.00, y = 13.00 }
 
 [[placement]]
 id = "placement-1-b-3-e-2"
 zone = "Xjn0-IQ1z-43qn-lNgr"
-position = { x = 285.12, y = 103.08 }
+position = { x = 105.12, y = 13.08 }
 
 [[placement]]
 id = "placement-1-b-3-e-3"
 zone = "Xjn0-IQ1z-43qn-lNgr"
-position = { x = 285.24, y = 103.16 }
+position = { x = 105.24, y = 13.16 }
 
 [[placement]]
 id = "placement-1-b-4-w-1"
 zone = "strategic-1-b-4-w"
-position = { x = 204.00, y = 147.00 }
+position = { x = 24.00, y = 57.00 }
 
 [[placement]]
 id = "placement-1-b-4-w-2"
 zone = "strategic-1-b-4-w"
-position = { x = 204.12, y = 147.08 }
+position = { x = 24.12, y = 57.08 }
 
 [[placement]]
 id = "placement-1-b-4-w-3"
 zone = "strategic-1-b-4-w"
-position = { x = 204.24, y = 147.16 }
+position = { x = 24.24, y = 57.16 }
 
 [[placement]]
 id = "placement-1-b-6-e-1"
 zone = "JF8T-Wzj3-g987-nO4p"
-position = { x = 244.00, y = 131.00 }
+position = { x = 64.00, y = 41.00 }
 
 [[placement]]
 id = "placement-1-b-6-e-2"
 zone = "JF8T-Wzj3-g987-nO4p"
-position = { x = 244.12, y = 131.08 }
+position = { x = 64.12, y = 41.08 }
 
 [[placement]]
 id = "placement-1-b-6-e-3"
 zone = "JF8T-Wzj3-g987-nO4p"
-position = { x = 244.24, y = 131.16 }
+position = { x = 64.24, y = 41.16 }
 
 [[placement]]
 id = "placement-1-b-8-e-1"
 zone = "zXW3-8ERm-ewqW-HqiM"
-position = { x = 251.00, y = 129.00 }
+position = { x = 71.00, y = 39.00 }
 
 [[placement]]
 id = "placement-1-b-8-e-2"
 zone = "zXW3-8ERm-ewqW-HqiM"
-position = { x = 251.12, y = 129.08 }
+position = { x = 71.12, y = 39.08 }
 
 [[placement]]
 id = "placement-1-b-8-e-3"
 zone = "zXW3-8ERm-ewqW-HqiM"
-position = { x = 251.24, y = 129.16 }
+position = { x = 71.24, y = 39.16 }
 
 [[placement]]
 id = "placement-1-b-9-e-1"
 zone = "CGjL-cDe5-eE4S-rHR1"
-position = { x = 248.00, y = 138.00 }
+position = { x = 68.00, y = 48.00 }
 
 [[placement]]
 id = "placement-1-b-9-e-2"
 zone = "CGjL-cDe5-eE4S-rHR1"
-position = { x = 248.12, y = 138.08 }
+position = { x = 68.12, y = 48.08 }
 
 [[placement]]
 id = "placement-1-b-9-e-3"
 zone = "CGjL-cDe5-eE4S-rHR1"
-position = { x = 248.24, y = 138.16 }
+position = { x = 68.24, y = 48.16 }
 
 [[placement]]
 id = "placement-1-b-10-e-1"
 zone = "XfFR-CV3g-FJMH-pUGZ"
-position = { x = 254.00, y = 131.00 }
+position = { x = 74.00, y = 41.00 }
 
 [[placement]]
 id = "placement-1-b-10-e-2"
 zone = "XfFR-CV3g-FJMH-pUGZ"
-position = { x = 254.12, y = 131.08 }
+position = { x = 74.12, y = 41.08 }
 
 [[placement]]
 id = "placement-1-b-10-e-3"
 zone = "XfFR-CV3g-FJMH-pUGZ"
-position = { x = 254.24, y = 131.16 }
+position = { x = 74.24, y = 41.16 }
 
 [[placement]]
 id = "placement-1-b-16-w-1"
 zone = "Iq0i-dnAB-lAsF-5c2y"
-position = { x = 211.00, y = 139.00 }
+position = { x = 31.00, y = 49.00 }
 
 [[placement]]
 id = "placement-1-b-16-w-2"
 zone = "Iq0i-dnAB-lAsF-5c2y"
-position = { x = 211.12, y = 139.08 }
+position = { x = 31.12, y = 49.08 }
 
 [[placement]]
 id = "placement-1-b-16-w-3"
 zone = "Iq0i-dnAB-lAsF-5c2y"
-position = { x = 211.24, y = 139.16 }
+position = { x = 31.24, y = 49.16 }
 
 [[placement]]
 id = "placement-1-b-17-w-1"
 zone = "3B5i-ir71-3DXq-Vh9q"
-position = { x = 201.00, y = 133.00 }
+position = { x = 21.00, y = 43.00 }
 
 [[placement]]
 id = "placement-1-b-17-w-2"
 zone = "3B5i-ir71-3DXq-Vh9q"
-position = { x = 201.12, y = 133.08 }
+position = { x = 21.12, y = 43.08 }
 
 [[placement]]
 id = "placement-1-b-17-w-3"
 zone = "3B5i-ir71-3DXq-Vh9q"
-position = { x = 201.24, y = 133.16 }
+position = { x = 21.24, y = 43.16 }
 
 [[placement]]
 id = "placement-5-0-e-1"
 zone = "iEme-cEH1-tq5d-s9AQ"
-position = { x = 258.00, y = 112.00 }
+position = { x = 78.00, y = 22.00 }
 
 [[placement]]
 id = "placement-5-0-e-2"
 zone = "iEme-cEH1-tq5d-s9AQ"
-position = { x = 258.12, y = 112.08 }
+position = { x = 78.12, y = 22.08 }
 
 [[placement]]
 id = "placement-5-0-e-3"
 zone = "iEme-cEH1-tq5d-s9AQ"
-position = { x = 258.24, y = 112.16 }
+position = { x = 78.24, y = 22.16 }
 
 [[placement]]
 id = "placement-5-0-e-4"
 zone = "iEme-cEH1-tq5d-s9AQ"
-position = { x = 258.36, y = 112.24 }
+position = { x = 78.36, y = 22.24 }
 
 [[placement]]
 id = "placement-5-0-6-e-1"
 zone = "6tvh-zaIp-ih0s-QDTa"
-position = { x = 196.00, y = 168.00 }
+position = { x = 20.00, y = 78.00 }
 
 [[placement]]
 id = "placement-5-0-6-e-2"
 zone = "6tvh-zaIp-ih0s-QDTa"
-position = { x = 196.12, y = 168.08 }
+position = { x = 20.12, y = 78.08 }
 
 [[placement]]
 id = "placement-5-0-6-e-3"
 zone = "6tvh-zaIp-ih0s-QDTa"
-position = { x = 196.24, y = 168.16 }
+position = { x = 20.24, y = 78.16 }
 
 [[placement]]
 id = "placement-5-0-6-e-4"
 zone = "6tvh-zaIp-ih0s-QDTa"
-position = { x = 196.36, y = 168.24 }
+position = { x = 20.36, y = 78.24 }
 
 [[placement]]
 id = "placement-5-1-e-1"
 zone = "ITdf-vWBv-5OsB-P6DN"
-position = { x = 259.00, y = 119.00 }
+position = { x = 79.00, y = 29.00 }
 
 [[placement]]
 id = "placement-5-1-e-2"
 zone = "ITdf-vWBv-5OsB-P6DN"
-position = { x = 259.12, y = 119.08 }
+position = { x = 79.12, y = 29.08 }
 
 [[placement]]
 id = "placement-5-1-e-3"
 zone = "ITdf-vWBv-5OsB-P6DN"
-position = { x = 259.24, y = 119.16 }
+position = { x = 79.24, y = 29.16 }
 
 [[placement]]
 id = "placement-5-1-e-4"
 zone = "ITdf-vWBv-5OsB-P6DN"
-position = { x = 259.36, y = 119.24 }
+position = { x = 79.36, y = 29.24 }
 
 [[placement]]
 id = "placement-5-1-w-1"
 zone = "strategic-5-1-w"
-position = { x = 258.00, y = 100.00 }
+position = { x = 78.00, y = 10.00 }
 
 [[placement]]
 id = "placement-5-1-w-2"
 zone = "strategic-5-1-w"
-position = { x = 258.12, y = 100.08 }
+position = { x = 78.12, y = 10.08 }
 
 [[placement]]
 id = "placement-5-1-w-3"
 zone = "strategic-5-1-w"
-position = { x = 258.24, y = 100.16 }
+position = { x = 78.24, y = 10.16 }
 
 [[placement]]
 id = "placement-5-1-w-4"
 zone = "strategic-5-1-w"
-position = { x = 258.36, y = 100.24 }
+position = { x = 78.36, y = 10.24 }
 
 [[placement]]
 id = "placement-5-2-e-1"
 zone = "strategic-5-2-e"
-position = { x = 280.00, y = 158.00 }
+position = { x = 100.00, y = 68.00 }
 
 [[placement]]
 id = "placement-5-2-e-2"
 zone = "strategic-5-2-e"
-position = { x = 280.12, y = 158.08 }
+position = { x = 100.12, y = 68.08 }
 
 [[placement]]
 id = "placement-5-2-e-3"
 zone = "strategic-5-2-e"
-position = { x = 280.24, y = 158.16 }
+position = { x = 100.24, y = 68.16 }
 
 [[placement]]
 id = "placement-5-2-e-4"
 zone = "strategic-5-2-e"
-position = { x = 280.36, y = 158.24 }
+position = { x = 100.36, y = 68.24 }
 
 [[placement]]
 id = "placement-5-2-w-1"
 zone = "strategic-5-2-w"
-position = { x = 120.00, y = 75.00 }
+position = { x = -60.00, y = -15.00 }
 
 [[placement]]
 id = "placement-5-2-w-2"
 zone = "strategic-5-2-w"
-position = { x = 120.12, y = 75.08 }
+position = { x = -59.88, y = -14.92 }
 
 [[placement]]
 id = "placement-5-2-w-3"
 zone = "strategic-5-2-w"
-position = { x = 120.24, y = 75.16 }
+position = { x = -59.76, y = -14.84 }
 
 [[placement]]
 id = "placement-5-2-w-4"
 zone = "strategic-5-2-w"
-position = { x = 120.36, y = 75.24 }
+position = { x = -59.64, y = -14.76 }
 
 [[placement]]
 id = "placement-5-3-e-1"
 zone = "strategic-5-3-e"
-position = { x = 235.00, y = 164.00 }
+position = { x = 55.00, y = 74.00 }
 
 [[placement]]
 id = "placement-5-3-e-2"
 zone = "strategic-5-3-e"
-position = { x = 235.12, y = 164.08 }
+position = { x = 55.12, y = 74.08 }
 
 [[placement]]
 id = "placement-5-3-e-3"
 zone = "strategic-5-3-e"
-position = { x = 235.24, y = 164.16 }
+position = { x = 55.24, y = 74.16 }
 
 [[placement]]
 id = "placement-5-3-e-4"
 zone = "strategic-5-3-e"
-position = { x = 235.36, y = 164.24 }
+position = { x = 55.36, y = 74.24 }
 
 [[placement]]
 id = "placement-5-3-w-1"
 zone = "strategic-5-3-w"
-position = { x = 85.00, y = 165.00 }
+position = { x = -95.00, y = 75.00 }
 
 [[placement]]
 id = "placement-5-3-w-2"
 zone = "strategic-5-3-w"
-position = { x = 85.12, y = 165.08 }
+position = { x = -94.88, y = 75.08 }
 
 [[placement]]
 id = "placement-5-3-w-3"
 zone = "strategic-5-3-w"
-position = { x = 85.24, y = 165.16 }
+position = { x = -94.76, y = 75.16 }
 
 [[placement]]
 id = "placement-5-3-w-4"
 zone = "strategic-5-3-w"
-position = { x = 85.36, y = 165.24 }
+position = { x = -94.64, y = 75.24 }
 
 [[placement]]
 id = "placement-5-4-e-1"
 zone = "strategic-5-4-e"
-position = { x = 200.00, y = 92.00 }
+position = { x = 20.00, y = 2.00 }
 
 [[placement]]
 id = "placement-5-4-e-2"
 zone = "strategic-5-4-e"
-position = { x = 200.12, y = 92.08 }
+position = { x = 20.12, y = 2.08 }
 
 [[placement]]
 id = "placement-5-4-e-3"
 zone = "strategic-5-4-e"
-position = { x = 200.24, y = 92.16 }
+position = { x = 20.24, y = 2.16 }
 
 [[placement]]
 id = "placement-5-4-e-4"
 zone = "strategic-5-4-e"
-position = { x = 200.36, y = 92.24 }
+position = { x = 20.36, y = 2.24 }
 
 [[placement]]
 id = "placement-5-4-w-1"
 zone = "strategic-5-4-w"
-position = { x = 94.00, y = 170.00 }
+position = { x = -86.00, y = 80.00 }
 
 [[placement]]
 id = "placement-5-4-w-2"
 zone = "strategic-5-4-w"
-position = { x = 94.12, y = 170.08 }
+position = { x = -85.88, y = 80.08 }
 
 [[placement]]
 id = "placement-5-4-w-3"
 zone = "strategic-5-4-w"
-position = { x = 94.24, y = 170.16 }
+position = { x = -85.76, y = 80.16 }
 
 [[placement]]
 id = "placement-5-4-w-4"
 zone = "strategic-5-4-w"
-position = { x = 94.36, y = 170.24 }
+position = { x = -85.64, y = 80.24 }
 
 [[placement]]
 id = "placement-5-5-e-1"
 zone = "strategic-5-5-e"
-position = { x = 260.00, y = 12.00 }
+position = { x = 80.00, y = -78.00 }
 
 [[placement]]
 id = "placement-5-5-e-2"
 zone = "strategic-5-5-e"
-position = { x = 260.12, y = 12.08 }
+position = { x = 80.12, y = -77.92 }
 
 [[placement]]
 id = "placement-5-5-e-3"
 zone = "strategic-5-5-e"
-position = { x = 260.24, y = 12.16 }
+position = { x = 80.24, y = -77.84 }
 
 [[placement]]
 id = "placement-5-5-e-4"
 zone = "strategic-5-5-e"
-position = { x = 260.36, y = 12.24 }
+position = { x = 80.36, y = -77.76 }
 
 [[placement]]
 id = "placement-5-5-w-1"
 zone = "strategic-5-5-w"
-position = { x = 70.00, y = 12.00 }
+position = { x = -110.00, y = -78.00 }
 
 [[placement]]
 id = "placement-5-5-w-2"
 zone = "strategic-5-5-w"
-position = { x = 70.12, y = 12.08 }
+position = { x = -109.88, y = -77.92 }
 
 [[placement]]
 id = "placement-5-5-w-3"
 zone = "strategic-5-5-w"
-position = { x = 70.24, y = 12.16 }
+position = { x = -109.76, y = -77.84 }
 
 [[placement]]
 id = "placement-5-5-w-4"
 zone = "strategic-5-5-w"
-position = { x = 70.36, y = 12.24 }
+position = { x = -109.64, y = -77.76 }
 
 [[placement]]
 id = "placement-5-6-e-1"
 zone = "XJU0-8Ucp-z35m-q6ii"
-position = { x = 196.00, y = 168.00 }
+position = { x = 16.00, y = 78.00 }
 
 [[placement]]
 id = "placement-5-6-e-2"
 zone = "XJU0-8Ucp-z35m-q6ii"
-position = { x = 196.12, y = 168.08 }
+position = { x = 16.12, y = 78.08 }
 
 [[placement]]
 id = "placement-5-6-e-3"
 zone = "XJU0-8Ucp-z35m-q6ii"
-position = { x = 196.24, y = 168.16 }
+position = { x = 16.24, y = 78.16 }
 
 [[placement]]
 id = "placement-5-6-e-4"
 zone = "XJU0-8Ucp-z35m-q6ii"
-position = { x = 196.36, y = 168.24 }
+position = { x = 16.36, y = 78.24 }
 
 [[placement]]
 id = "placement-5-7-e-1"
 zone = "strategic-5-7-e"
-position = { x = 138.00, y = 162.00 }
+position = { x = -42.00, y = 72.00 }
 
 [[placement]]
 id = "placement-5-7-e-2"
 zone = "strategic-5-7-e"
-position = { x = 138.12, y = 162.08 }
+position = { x = -41.88, y = 72.08 }
 
 [[placement]]
 id = "placement-5-7-e-3"
 zone = "strategic-5-7-e"
-position = { x = 138.24, y = 162.16 }
+position = { x = -41.76, y = 72.16 }
 
 [[placement]]
 id = "placement-5-7-e-4"
 zone = "strategic-5-7-e"
-position = { x = 138.36, y = 162.24 }
+position = { x = -41.64, y = 72.24 }
 
 [[placement]]
 id = "placement-1-b-11-e-1"
 zone = "qnec-OGRY-Q91L-2L3N"
-position = { x = 208.12, y = 144.08 }
+position = { x = 28.12, y = 54.08 }
 
 [[placement]]
 id = "placement-1-b-11-e-2"
 zone = "qnec-OGRY-Q91L-2L3N"
-position = { x = 208.24, y = 144.16 }
+position = { x = 28.24, y = 54.16 }
 
 [[placement]]
 id = "placement-1-b-11-e-3"
 zone = "qnec-OGRY-Q91L-2L3N"
-position = { x = 208.36, y = 144.24 }
+position = { x = 28.36, y = 54.24 }
 
-# A prepaid base creation request used only when persisted state is empty.
 [[base]]
 placement_id = "placement-1-a-1-w-2"
 payment = [{ financierId = "B9tC-3wFy-H6jM-q1Ze", share = 0.35 }]
@@ -1119,35 +1105,34 @@ payment = [{ financierId = "T6hW-n3Gb-Y9sA-7QeF", share = 0.35 }]
 placement_id = "placement-5-7-e-2"
 payment = [{ financierId = "U28f-pogA-HZSP-4v6u", share = 0.3 }]
 
-# A prepaid trust creation request used only when persisted state is empty.
 [[trust]]
 placement_id = "placement-5-3-w-1"
-resource = "solar_energy"
+resource = "water"
 payment = [{ financierId = "mL7Q-v2Ns-K8pR-4XaD", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-5-4-w-1"
-resource = "solar_energy"
+resource = "water"
 payment = [{ financierId = "5CFs-HWZD-jiBf-7D43", share = 0.2 }]
 
 [[trust]]
 placement_id = "placement-1-a-6-w-1"
-resource = "solar_energy"
+resource = "thermal_oil"
 payment = [{ financierId = "dRBH-9hys-VTbV-tyhj", share = 0.25 }]
 
 [[trust]]
 placement_id = "placement-5-2-w-1"
-resource = "solar_energy"
+resource = "thermal_oil"
 payment = [{ financierId = "DS5Q-jb9H-6ncE-WSHO", share = 0.3 }]
 
 [[trust]]
 placement_id = "placement-5-2-w-2"
-resource = "solar_energy"
+resource = "uxmal_gas"
 payment = [{ financierId = "fa9m-sLVA-hkBp-rI4x", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-5-5-w-1"
-resource = "solar_energy"
+resource = "uxmal_gas"
 payment = [{ financierId = "RvlM-C3zD-Rlmk-N76G", share = 0.4 }]
 
 [[trust]]
@@ -1162,52 +1147,52 @@ payment = [{ financierId = "mL7Q-v2Ns-K8pR-4XaD", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-5-3-w-2"
-resource = "solar_energy"
+resource = "oxygen"
 payment = [{ financierId = "AM2s-4ZxJ-I4vC-pZ24", share = 0.25 }]
 
 [[trust]]
 placement_id = "placement-5-5-w-3"
-resource = "solar_energy"
+resource = "oxygen"
 payment = [{ financierId = "eCb9-eWgi-GWMS-Pxg9", share = 0.3 }]
 
 [[trust]]
 placement_id = "placement-5-2-w-3"
-resource = "solar_energy"
+resource = "iron"
 payment = [{ financierId = "k36L-Tj3n-FUJU-aPw4", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-5-4-w-2"
-resource = "solar_energy"
+resource = "iron"
 payment = [{ financierId = "tWJE-k8y5-d4R0-IqUI", share = 0.4 }]
 
 [[trust]]
 placement_id = "placement-5-2-e-1"
-resource = "solar_energy"
+resource = "water"
 payment = [{ financierId = "4o6s-1RWb-Et4U-sKsV", share = 0.2 }]
 
 [[trust]]
 placement_id = "placement-5-7-e-1"
-resource = "solar_energy"
+resource = "water"
 payment = [{ financierId = "5XeZ-elqC-DYLA-AU17", share = 0.25 }]
 
 [[trust]]
 placement_id = "placement-5-2-e-2"
-resource = "solar_energy"
+resource = "thermal_oil"
 payment = [{ financierId = "CzCh-jnoo-sxew-K9qp", share = 0.3 }]
 
 [[trust]]
 placement_id = "placement-5-6-e-1"
-resource = "solar_energy"
+resource = "thermal_oil"
 payment = [{ financierId = "rP4K-x8Vu-2DnS-L5cJ", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-5-4-e-1"
-resource = "solar_energy"
+resource = "uxmal_gas"
 payment = [{ financierId = "N7E5-ac08-ekbx-9z4z", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-5-5-e-1"
-resource = "solar_energy"
+resource = "uxmal_gas"
 payment = [{ financierId = "U28f-pogA-HZSP-4v6u", share = 0.4 }]
 
 [[trust]]
@@ -1222,100 +1207,100 @@ payment = [{ financierId = "7kYc-WgGX-Iafe-TLju", share = 0.25 }]
 
 [[trust]]
 placement_id = "placement-5-3-e-1"
-resource = "solar_energy"
+resource = "oxygen"
 payment = [{ financierId = "RdgX-W4HP-o0FE-h8eV", share = 0.3 }]
 
 [[trust]]
 placement_id = "placement-5-5-e-2"
-resource = "solar_energy"
+resource = "oxygen"
 payment = [{ financierId = "I9MO-9QcS-o9NW-jNCf", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-5-2-e-3"
-resource = "solar_energy"
+resource = "iron"
 payment = [{ financierId = "rP4K-x8Vu-2DnS-L5cJ", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-5-3-e-2"
-resource = "solar_energy"
+resource = "iron"
 payment = [{ financierId = "jGCO-kAF0-KI0S-iuBC", share = 0.4 }]
 
 [[trust]]
 placement_id = "placement-1-a-1-w-1"
-resource = "solar_energy"
+resource = "silicon"
 payment = [{ financierId = "W5Jf-SSbX-GlLS-q0wz", share = 0.2 }]
 
 [[trust]]
 placement_id = "placement-0-2-w-1"
-resource = "solar_energy"
+resource = "uxmal_crystals"
 payment = [{ financierId = "XtEl-eZVv-SX64-wYIj", share = 0.25 }]
 
 [[trust]]
 placement_id = "placement-0-0-w-1"
-resource = "solar_energy"
+resource = "lsc"
 payment = [{ financierId = "6Yz2-TZ5f-p3Ri-cvlM", share = 0.3 }]
 
 [[trust]]
 placement_id = "placement-0-1-w-1"
-resource = "solar_energy"
+resource = "steel"
 payment = [{ financierId = "9ELs-y59z-7Uqf-ut1l", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-0-0-w-2"
-resource = "solar_energy"
+resource = "genetic_material"
 payment = [{ financierId = "mL7Q-v2Ns-K8pR-4XaD", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-0-1-w-2"
-resource = "solar_energy"
+resource = "entropy"
 payment = [{ financierId = "aTQh-8QG2-9uJr-qR2m", share = 0.4 }]
 
 [[trust]]
 placement_id = "placement-1-a-5-e-1"
-resource = "solar_energy"
+resource = "silicon"
 payment = [{ financierId = "KKS6-A62j-i0FH-g1Q4", share = 0.2 }]
 
 [[trust]]
 placement_id = "placement-0-1-e-1"
-resource = "solar_energy"
+resource = "uxmal_crystals"
 payment = [{ financierId = "UEKq-sdBK-ngHo-uws6", share = 0.25 }]
 
 [[trust]]
 placement_id = "placement-0-0-e-1"
-resource = "solar_energy"
+resource = "lsc"
 payment = [{ financierId = "YWjm-oxy0-BYi5-Ku1n", share = 0.3 }]
 
 [[trust]]
 placement_id = "placement-0-1-e-2"
-resource = "solar_energy"
+resource = "steel"
 payment = [{ financierId = "4o6s-1RWb-Et4U-sKsV", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-0-0-e-2"
-resource = "solar_energy"
+resource = "genetic_material"
 payment = [{ financierId = "5XeZ-elqC-DYLA-AU17", share = 0.4 }]
 
 [[trust]]
 placement_id = "placement-5-3-e-3"
-resource = "solar_energy"
+resource = "entropy"
 payment = [{ financierId = "CzCh-jnoo-sxew-K9qp", share = 0.2 }]
 
 [[trust]]
 placement_id = "placement-1-a-x-1"
-resource = "solar_energy"
+resource = "silicon"
 payment = [{ financierId = "1txX-Elq4-oUDm-a1oe", share = 0.4 }]
 
 [[trust]]
 placement_id = "placement-1-a-x-2"
-resource = "solar_energy"
+resource = "lsc"
 payment = [{ financierId = "WTLW-mfQg-QFqb-NpzX", share = 0.4 }]
 
 [[trust]]
 placement_id = "placement-1-a-x-3"
-resource = "solar_energy"
+resource = "entropy"
 payment = [{ financierId = "gEq5-mMWO-9RQ6-azS7", share = 0.4 }]
 
 [[trust]]
 placement_id = "placement-1-b-8-e-1"
-resource = "solar_energy"
+resource = "thermal_oil"
 payment = [{ financierId = "OhY0-4fxe-Nqp6-L8hf", share = 0.4 }]
