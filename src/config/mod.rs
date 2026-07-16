@@ -481,6 +481,12 @@ impl Config {
             "unit movement step must be greater than 0"
         );
 
+        let auth_service = AuthService::new(
+            config.env.auth_service_url.clone(),
+            config.blocs.iter().map(|bloc| bloc.name.clone()),
+            config.zones.iter().map(|zone| zone.name.clone()),
+        );
+
         Ok(Self {
             placements,
             zones,
@@ -495,7 +501,7 @@ impl Config {
             trust_destruction_threshold: config.combat.trust_destruction_threshold,
             base_destruction_threshold: config.combat.base_destruction_threshold,
             auth_cookie_key: config.server.auth_cookie_key.0,
-            auth_service: AuthService::new(config.env.auth_service_url),
+            auth_service,
             base_seeds: config.bases,
             trust_seeds: config.trusts,
             credit_exchange_service: CreditExchangeService::new(

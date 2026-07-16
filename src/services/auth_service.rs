@@ -18,6 +18,8 @@ pub(crate) const AUTHENTICATED_USER_SESSION_KEY: &str = "authenticatedUser";
 pub(crate) struct AuthService {
     client: reqwest::Client,
     url: Url,
+    bloc_permissions: HashMap<BlocName, AccessLevel>,
+    zone_permissions: HashMap<ZoneName, AccessLevel>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -71,12 +73,12 @@ impl AuthenticatedUser {
         &self.user_id
     }
 
-    #[expect(dead_code)]
+    #[cfg(test)]
     pub(crate) fn bloc_permissions(&self) -> &HashMap<BlocName, AccessLevel> {
         &self.bloc_permissions
     }
 
-    #[expect(dead_code)]
+    #[cfg(test)]
     pub(crate) fn zone_permissions(&self) -> &HashMap<ZoneName, AccessLevel> {
         &self.zone_permissions
     }
@@ -99,10 +101,17 @@ impl AuthenticatedUser {
 }
 
 impl AuthService {
-    pub(crate) fn new(url: Url) -> Self {
+    /// Temporarily pass in the configured blocs and zones to hand out write permissions for all of them.
+    pub(crate) fn new(
+        url: Url,
+        blocs: impl IntoIterator<Item = BlocName>,
+        zones: impl IntoIterator<Item = ZoneName>,
+    ) -> Self {
         Self {
             client: reqwest::Client::new(),
             url,
+            bloc_permissions: blocs.into_iter().map(|bloc| (bloc, AccessLevel::Write)).collect(),
+            zone_permissions: zones.into_iter().map(|zone| (zone, AccessLevel::Write)).collect(),
         }
     }
 
@@ -112,14 +121,8 @@ impl AuthService {
 
         Some(AuthenticatedUser {
             user_id,
-            bloc_permissions: HashMap::from([
-                (BlocName::from("west".to_string()), AccessLevel::Write),
-                (BlocName::from("east".to_string()), AccessLevel::Write),
-            ]),
-            zone_permissions: HashMap::from([
-                (ZoneName::from("zone_e".to_string()), AccessLevel::Write),
-                (ZoneName::from("zone_w".to_string()), AccessLevel::Write),
-            ]),
+            bloc_permissions: self.bloc_permissions.clone(),
+            zone_permissions: self.zone_permissions.clone(),
         })
     }
 
@@ -177,7 +180,9 @@ impl AuthService {
 mod tests {
     use std::collections::HashMap;
 
-    use super::{AccessLevel, AuthenticatedUser, FinancedObject, FinancingVerificationRequest};
+    use super::{
+        AccessLevel, AuthService, AuthenticatedUser, FinancedObject, FinancingVerificationRequest, LoginCredentials,
+    };
     use crate::{
         domain::{BlocName, Loot, PlacementId, ZoneName},
         handlers::bases::UserId,
@@ -206,10 +211,43 @@ mod tests {
         assert!(!user.can_write_bloc(&read_bloc));
         assert!(user.can_read_bloc(&write_bloc));
         assert!(user.can_write_bloc(&write_bloc));
+        assert!(!user.can_write_bloc(&BlocName::from("unlisted-bloc".to_string())));
         assert!(user.can_read_zone(&read_zone));
         assert!(!user.can_write_zone(&read_zone));
         assert!(user.can_read_zone(&write_zone));
         assert!(user.can_write_zone(&write_zone));
+        assert!(!user.can_write_zone(&ZoneName::from("unlisted-zone".to_string())));
+    }
+
+    #[test]
+    fn authentication_grants_write_access_to_every_configured_bloc_and_zone() {
+        let blocs = [BlocName::from("north".to_string()), BlocName::from("south".to_string())];
+        let zones = [ZoneName::from("alpha".to_string()), ZoneName::from("beta".to_string())];
+        let service = AuthService::new("http://127.0.0.1:18081".parse().unwrap(), blocs.clone(), zones.clone());
+
+        let user = service
+            .authenticate(LoginCredentials::new(
+                UserId::from("alice".to_string()),
+                "secret".to_string(),
+            ))
+            .unwrap();
+
+        assert_eq!(user.bloc_permissions().len(), blocs.len());
+        assert!(
+            user.bloc_permissions()
+                .values()
+                .all(|level| *level == AccessLevel::Write)
+        );
+        assert_eq!(user.zone_permissions().len(), zones.len());
+        assert!(
+            user.zone_permissions()
+                .values()
+                .all(|level| *level == AccessLevel::Write)
+        );
+        assert!(blocs.iter().all(|bloc| user.can_write_bloc(bloc)));
+        assert!(zones.iter().all(|zone| user.can_write_zone(zone)));
+        assert!(!user.can_write_bloc(&BlocName::from("unconfigured".to_string())));
+        assert!(!user.can_write_zone(&ZoneName::from("unconfigured".to_string())));
     }
 
     #[test]

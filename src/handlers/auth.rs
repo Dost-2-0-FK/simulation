@@ -123,7 +123,11 @@ mod tests {
     use crate::services::auth_service::{AuthService, AuthenticatedUser};
 
     fn auth_service() -> AuthService {
-        AuthService::new("http://127.0.0.1:18081".parse().unwrap())
+        AuthService::new(
+            "http://127.0.0.1:18081".parse().unwrap(),
+            [crate::domain::BlocName::from("west".to_string())],
+            [crate::domain::ZoneName::from("zone_w".to_string())],
+        )
     }
 
     #[actix_web::test]
