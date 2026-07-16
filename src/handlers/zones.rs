@@ -31,7 +31,8 @@ impl From<&Zone> for ZoneResponse {
     operation_id = "listZones",
     tag = ZONES,
     responses(
-        (status = 200, description = "All existing zones")
+        (status = 200, description = "All existing zones", body = [ZoneResponse]),
+        (status = 500, description = "Failed to retrieve zones", body = String, content_type = "text/html")
     )
 )]
 #[get("/zones")]

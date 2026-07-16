@@ -128,7 +128,8 @@ impl CombatResponse {
     operation_id = "listCombats",
     tag = COMBATS,
     responses(
-        (status = 200, description = "All existing combats")
+        (status = 200, description = "All existing combats", body = [CombatResponse]),
+        (status = 500, description = "Failed to retrieve combats", body = String, content_type = "text/html")
     )
 )]
 #[get("/combats")]

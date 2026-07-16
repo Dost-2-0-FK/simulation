@@ -43,7 +43,7 @@ pub(crate) async fn create(
     let payment = credit_exchange_service
         .pay_for_trust(placement.zone().name(), financing)
         .await
-        .map_err(|e| CommandError::CreditExchange(e.to_string()))?;
+        .map_err(CommandError::CreditExchange)?;
     let payment_policy = payment.policy().clone();
     let trust = Trust::new(
         payment,
@@ -56,7 +56,7 @@ pub(crate) async fn create(
     credit_exchange_service
         .register_trust(&trust, &payment_policy)
         .await
-        .map_err(|err| CommandError::CreditExchange(err.to_string()))?;
+        .map_err(CommandError::CreditExchange)?;
     Ok(trust)
 }
 

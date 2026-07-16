@@ -5,7 +5,8 @@ mod money;
 mod resources;
 mod share;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
+use derive_more::derive::{Display, Error};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -100,6 +101,35 @@ pub(crate) struct CreditExchangeService {
     pub(crate) trust: Cost<Trust>,
     pub(crate) military_base: Cost<MilitaryBase>,
     loot_factors: LootFactors,
+}
+
+/// A non-successful HTTP response returned by the credit-exchange service.
+///
+/// Keeping this error typed lets API handlers forward expected upstream failures (such as an
+/// insufficient-credit response) without treating transport and decoding failures as user errors.
+#[derive(Debug, Display, Error)]
+#[display("credit-exchange service returned {status}: {body}")]
+pub(crate) struct CreditExchangeResponseError {
+    status: StatusCode,
+    body: String,
+}
+
+impl CreditExchangeResponseError {
+    pub(crate) fn new(status: StatusCode, body: String) -> Self {
+        Self { status, body }
+    }
+
+    pub(crate) fn status(&self) -> StatusCode {
+        self.status
+    }
+
+    pub(crate) fn body(&self) -> &str {
+        &self.body
+    }
+
+    pub(crate) fn is_insufficient_credit(&self) -> bool {
+        self.status == StatusCode::BAD_REQUEST && self.body.trim() == "Insufficient credit for booking"
+    }
 }
 
 impl CreditExchangeService {
@@ -382,7 +412,8 @@ impl CreditExchangeService {
 
         let status = response.status();
         let body = response.text().await.unwrap_or_else(|err| err.to_string());
-        Err(anyhow!("{action} failed with {status}: {body}"))
+        log::warn!("{action} failed with {status}: {body}");
+        Err(CreditExchangeResponseError::new(status, body).into())
     }
 
     fn base_credit_user_id(id: BaseId) -> String {

@@ -10,7 +10,64 @@ pub(crate) mod zone;
 #[derive(Debug)]
 pub(crate) enum CommandError {
     NotFound(&'static str),
-    CreditExchange(String),
+    CreditExchange(anyhow::Error),
+}
+
+impl CommandError {
+    fn into_user_error(self, action: &str) -> UserError {
+        match self {
+            Self::NotFound(name) => UserError::NotFound(name),
+            Self::CreditExchange(error) => match error.downcast_ref::<CreditExchangeResponseError>() {
+                Some(response) if response.is_insufficient_credit() => {
+                    UserError::PaymentRequired(response.body().to_string())
+                }
+                Some(response) => UserError::CreditExchange {
+                    status: response.status().as_u16(),
+                    body: response.body().to_string(),
+                },
+                None => {
+                    log::error!("credit exchange error while {action}: {error:#}");
+                    UserError::InternalError
+                }
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CommandError;
+    use crate::{error::UserError, services::credit_exchange_service::CreditExchangeResponseError};
+
+    #[test]
+    fn credit_exchange_http_response_is_forwarded_as_user_error() {
+        let upstream = CreditExchangeResponseError::new(
+            reqwest::StatusCode::BAD_REQUEST,
+            "Insufficient credit for booking".to_string(),
+        );
+
+        let error = CommandError::CreditExchange(upstream.into()).into_user_error("creating base");
+
+        assert!(matches!(
+            error,
+            UserError::PaymentRequired(body)
+                if body == "Insufficient credit for booking"
+        ));
+    }
+
+    #[test]
+    fn other_credit_exchange_bad_requests_remain_bad_requests() {
+        let upstream =
+            CreditExchangeResponseError::new(reqwest::StatusCode::BAD_REQUEST, "Invalid credit type".to_string());
+
+        let error = CommandError::CreditExchange(upstream.into()).into_user_error("creating trust");
+
+        assert!(matches!(
+            error,
+            UserError::CreditExchange { status: 400, body }
+                if body == "Invalid credit type"
+        ));
+    }
 }
 
 use std::{collections::HashMap, sync::Arc};
@@ -31,8 +88,7 @@ use crate::{
         units::UnitResponse,
     },
     persistence::MongoPersistence,
-    services::credit_exchange_service::ResourceName,
-    services::credit_exchange_service::Share,
+    services::credit_exchange_service::{CreditExchangeResponseError, ResourceName, Share},
 };
 
 /// Used to query or mutate the state of the [state_loop].
@@ -152,13 +208,7 @@ pub(crate) async fn run(
                         config.placements(),
                     )
                     .await
-                    .map_err(|err| match err {
-                        CommandError::NotFound(n) => UserError::NotFound(n),
-                        CommandError::CreditExchange(err) => {
-                            log::error!("credit exchange error while creating base: {err}");
-                            UserError::InternalError
-                        }
-                    })?;
+                    .map_err(|err| err.into_user_error("creating base"))?;
                     bases.insert(base.id(), Arc::new(RwLock::new(base)));
                     Ok(())
                 }
@@ -244,13 +294,7 @@ pub(crate) async fn run(
                         config.placements(),
                     )
                     .await
-                    .map_err(|err| match err {
-                        CommandError::NotFound(n) => UserError::NotFound(n),
-                        CommandError::CreditExchange(err) => {
-                            log::error!("credit exchange error while creating trust: {err}");
-                            UserError::InternalError
-                        }
-                    })?;
+                    .map_err(|err| err.into_user_error("creating trust"))?;
                     trusts.insert(trust.id(), Arc::new(RwLock::new(trust)));
                     Ok(())
                 }

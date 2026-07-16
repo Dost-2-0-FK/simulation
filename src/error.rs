@@ -18,10 +18,20 @@ pub enum UserError {
     Unauthorized,
     #[display("Forbidden.")]
     Forbidden,
+    #[display("{_0}")]
+    PaymentRequired(#[error(not(source))] String),
+    #[display("{body}")]
+    CreditExchange { status: u16, body: String },
 }
 
 impl error::ResponseError for UserError {
     fn error_response(&self) -> HttpResponse {
+        if let Self::PaymentRequired(body) | Self::CreditExchange { body, .. } = self {
+            return HttpResponse::build(self.status_code())
+                .insert_header(ContentType::plaintext())
+                .body(body.clone());
+        }
+
         HttpResponse::build(self.status_code())
             .insert_header(ContentType::html())
             .body(self.to_string())
@@ -34,6 +44,30 @@ impl error::ResponseError for UserError {
             UserError::Conflict(_) => StatusCode::CONFLICT,
             UserError::Unauthorized => StatusCode::UNAUTHORIZED,
             UserError::Forbidden => StatusCode::FORBIDDEN,
+            UserError::PaymentRequired(_) => StatusCode::PAYMENT_REQUIRED,
+            UserError::CreditExchange { status, .. } => StatusCode::from_u16(status).unwrap_or(StatusCode::BAD_GATEWAY),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use actix_web::{ResponseError, body::to_bytes, http::StatusCode};
+
+    use super::UserError;
+
+    #[actix_web::test]
+    async fn payment_required_error_returns_402_and_preserves_body() {
+        let response = UserError::PaymentRequired("Insufficient credit for booking".to_string()).error_response();
+
+        assert_eq!(response.status(), StatusCode::PAYMENT_REQUIRED);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "text/plain; charset=utf-8"
+        );
+        assert_eq!(
+            to_bytes(response.into_body()).await.unwrap(),
+            "Insufficient credit for booking"
+        );
     }
 }

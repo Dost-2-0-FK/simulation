@@ -42,13 +42,13 @@ pub(crate) async fn create(
     let payment = credit_exchange_service
         .pay_for_military_base(placement.zone().bloc_name(), financing)
         .await
-        .map_err(|e| CommandError::CreditExchange(e.to_string()))?;
+        .map_err(CommandError::CreditExchange)?;
     let payment_policy = payment.policy().clone();
     let base = MilitaryBase::new(payment, credit_exchange_service.loot_factors(), placement);
     credit_exchange_service
         .register_military_base(&base, payment_policy)
         .await
-        .map_err(|err| CommandError::CreditExchange(err.to_string()))?;
+        .map_err(CommandError::CreditExchange)?;
     Ok(base)
 }
 

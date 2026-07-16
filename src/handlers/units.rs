@@ -59,7 +59,8 @@ impl UnitResponse {
     operation_id = "listUnits",
     tag = UNITS,
     responses(
-        (status = 200, description = "All existing units")
+        (status = 200, description = "All existing units", body = [UnitResponse]),
+        (status = 500, description = "Failed to retrieve units", body = String, content_type = "text/html")
     )
 )]
 #[get("/units")]
@@ -97,7 +98,8 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     operation_id = "produceMilitaryUnits",
     tag = UNITS,
     responses(
-        (status = 200, description = "Production task completed successfully")
+        (status = 200, description = "Production task completed successfully"),
+        (status = 500, description = "Failed to produce military units", body = String, content_type = "text/html")
     )
 )]
 #[post("/units/produce")]

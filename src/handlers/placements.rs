@@ -34,7 +34,8 @@ impl From<&Placement> for PlacementResponse {
     operation_id = "listPlacements",
     tag = PLACEMENTS,
     responses(
-        (status = 200, description = "All existing placements")
+        (status = 200, description = "All existing placements", body = [PlacementResponse]),
+        (status = 500, description = "Failed to retrieve placements", body = String, content_type = "text/html")
     )
 )]
 #[get("/placements")]
@@ -63,7 +64,9 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
     operation_id = "getPlacement",
     tag = PLACEMENTS,
     responses(
-        (status = 200, description = "Existing placement")
+        (status = 200, description = "Existing placement", body = PlacementResponse),
+        (status = 404, description = "Placement not found", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to retrieve the placement", body = String, content_type = "text/html")
     )
 )]
 #[get("/placements/{id}")]

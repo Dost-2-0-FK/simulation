@@ -66,9 +66,13 @@ impl TrustResponse {
     tag = TRUSTS,
     responses(
         (status = 200, description = "Trust created successfully"),
-        (status = 401, description = "Not authenticated"),
-        (status = 403, description = "No write permission for the zone"),
-        (status = 409, description = "Placement is already occupied"),
+        (status = 400, description = "Credit exchange rejected the request", body = String, content_type = "text/plain"),
+        (status = 401, description = "Not authenticated", body = String, content_type = "text/html"),
+        (status = 402, description = "Insufficient credit for booking", body = String, content_type = "text/plain"),
+        (status = 403, description = "No write permission for the zone", body = String, content_type = "text/html"),
+        (status = 404, description = "Placement or resource not found", body = String, content_type = "text/html"),
+        (status = 409, description = "Placement is already occupied", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to create the trust", body = String, content_type = "text/html"),
     ),
 )]
 #[post("/trusts")]
@@ -125,7 +129,8 @@ pub(crate) async fn post(
     operation_id = "publishTrustProduction",
     tag = TRUSTS,
     responses(
-        (status = 200, description = "Trust production published successfully")
+        (status = 200, description = "Trust production published successfully"),
+        (status = 500, description = "Failed to publish trust production", body = String, content_type = "text/html")
     )
 )]
 #[post("/trusts/publish-production")]
@@ -153,7 +158,8 @@ pub(crate) async fn publish_production(tx: web::Data<mpsc::Sender<Command>>) -> 
     operation_id = "listTrusts",
     tag = TRUSTS,
     responses(
-        (status = 200, description = "All existing trusts")
+        (status = 200, description = "All existing trusts", body = [TrustResponse]),
+        (status = 500, description = "Failed to retrieve trusts", body = String, content_type = "text/html")
     )
 )]
 #[get("/trusts")]
@@ -187,7 +193,9 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     operation_id = "getTrust",
     tag = TRUSTS,
     responses(
-        (status = 200, description = "Existing trust")
+        (status = 200, description = "Existing trust", body = TrustResponse),
+        (status = 404, description = "Trust not found", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to retrieve the trust", body = String, content_type = "text/html")
     )
 )]
 #[get("/trusts/{id}")]

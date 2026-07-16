@@ -124,9 +124,13 @@ struct PatchBaseBody {
     tag = BASES,
     responses(
         (status = 200, description = "Base created successfully"),
-        (status = 401, description = "Not authenticated"),
-        (status = 403, description = "No write permission for the bloc"),
-        (status = 409, description = "Placement is already occupied"),
+        (status = 400, description = "Credit exchange rejected the request", body = String, content_type = "text/plain"),
+        (status = 401, description = "Not authenticated", body = String, content_type = "text/html"),
+        (status = 402, description = "Insufficient credit for booking", body = String, content_type = "text/plain"),
+        (status = 403, description = "No write permission for the bloc", body = String, content_type = "text/html"),
+        (status = 404, description = "Placement not found", body = String, content_type = "text/html"),
+        (status = 409, description = "Placement is already occupied", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to create the base", body = String, content_type = "text/html"),
     ),
 )]
 #[post("/bases")]
@@ -181,6 +185,10 @@ pub(crate) async fn post(
             UserError::Conflict(err) => log::info!("conflict: {err}"),
             UserError::Unauthorized => log::info!("unauthorized while creating base"),
             UserError::Forbidden => log::info!("forbidden while creating base"),
+            UserError::PaymentRequired(body) => log::info!("base payment required: {body}"),
+            UserError::CreditExchange { status, body } => {
+                log::info!("credit exchange rejected base creation with {status}: {body}")
+            }
         }
     }
 
@@ -193,7 +201,8 @@ pub(crate) async fn post(
     operation_id = "listBases",
     tag = BASES,
     responses(
-        (status = 200, description = "All existing bases")
+        (status = 200, description = "All existing bases", body = [BaseResponse]),
+        (status = 500, description = "Failed to retrieve bases", body = String, content_type = "text/html")
     )
 )]
 #[get("/bases")]
@@ -228,7 +237,8 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     operation_id = "publishBaseProduction",
     tag = BASES,
     responses(
-        (status = 200, description = "Base production published successfully")
+        (status = 200, description = "Base production published successfully"),
+        (status = 500, description = "Failed to publish base production", body = String, content_type = "text/html")
     )
 )]
 #[post("/bases/publish-production")]
@@ -256,7 +266,9 @@ pub(crate) async fn publish_production(tx: web::Data<mpsc::Sender<Command>>) -> 
     operation_id = "getBase",
     tag = BASES,
     responses(
-        (status = 200, description = "Existing base")
+        (status = 200, description = "Existing base", body = BaseResponse),
+        (status = 404, description = "Base not found", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to retrieve the base", body = String, content_type = "text/html")
     )
 )]
 #[get("/bases/{id}")]
@@ -294,8 +306,10 @@ pub(crate) async fn get(
     tag = BASES,
     responses(
         (status = 200, description = "Base updated successfully"),
-        (status = 401, description = "Not authenticated"),
-        (status = 403, description = "No write permission for the bloc")
+        (status = 401, description = "Not authenticated", body = String, content_type = "text/html"),
+        (status = 403, description = "No write permission for the bloc", body = String, content_type = "text/html"),
+        (status = 404, description = "Base or target not found", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to update the base", body = String, content_type = "text/html")
     )
 )]
 #[patch("/bases/{id}")]

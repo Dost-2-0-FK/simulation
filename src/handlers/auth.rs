@@ -31,7 +31,8 @@ pub(crate) struct LoginResponse {
     request_body = LoginRequest,
     responses(
         (status = 200, description = "Login completed successfully", body = LoginResponse),
-        (status = 401, description = "Invalid credentials")
+        (status = 401, description = "Invalid credentials", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to persist the authenticated session", body = String, content_type = "text/html")
     )
 )]
 #[post("/login")]
@@ -71,8 +72,8 @@ pub(crate) async fn login(
     tag = AUTH,
     responses(
         (status = 200, description = "Current authenticated user", body = AuthenticatedUser),
-        (status = 401, description = "Not authenticated"),
-        (status = 500, description = "Failed to read the authenticated user from the session")
+        (status = 401, description = "Not authenticated", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to read the authenticated user from the session", body = String, content_type = "text/html")
     )
 )]
 #[get("/me")]

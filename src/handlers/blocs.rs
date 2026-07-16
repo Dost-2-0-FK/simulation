@@ -43,7 +43,8 @@ pub(crate) struct PatchBlocBody {
     operation_id = "listBlocs",
     tag = BLOCS,
     responses(
-        (status = 200, description = "All existing blocs")
+        (status = 200, description = "All existing blocs", body = [BlocResponse]),
+        (status = 500, description = "Failed to retrieve blocs", body = String, content_type = "text/html")
     )
 )]
 #[get("/blocs")]
@@ -69,7 +70,9 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
     operation_id = "getBloc",
     tag = BLOCS,
     responses(
-        (status = 200, description = "Existing bloc")
+        (status = 200, description = "Existing bloc", body = BlocResponse),
+        (status = 404, description = "Bloc not found", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to retrieve the bloc", body = String, content_type = "text/html")
     )
 )]
 #[get("/blocs/{id}")]
@@ -101,8 +104,10 @@ pub(crate) async fn get(path: web::Path<String>, tx: web::Data<mpsc::Sender<Comm
     tag = BLOCS,
     responses(
         (status = 200, description = "Bloc updated successfully"),
-        (status = 401, description = "Not authenticated"),
-        (status = 403, description = "No write permission for the bloc")
+        (status = 401, description = "Not authenticated", body = String, content_type = "text/html"),
+        (status = 403, description = "No write permission for the bloc", body = String, content_type = "text/html"),
+        (status = 404, description = "Bloc not found", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to update the bloc", body = String, content_type = "text/html")
     )
 )]
 #[patch("/blocs/{id}")]
