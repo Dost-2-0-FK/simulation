@@ -38,8 +38,8 @@ pub(crate) struct TrustResponse {
     producing: Option<Resources>,
 }
 
-impl From<&Trust> for TrustResponse {
-    fn from(trust: &Trust) -> Self {
+impl TrustResponse {
+    pub(crate) fn new(trust: &Trust, producing: Resources) -> Self {
         let placement = trust.placement();
         Self {
             id: trust.id(),
@@ -48,12 +48,10 @@ impl From<&Trust> for TrustResponse {
             payment: trust.financing().to_vec(),
             position: trust.position(),
             income: Some(trust.income()),
-            producing: Some(trust.producing().clone()),
+            producing: Some(producing),
         }
     }
-}
 
-impl TrustResponse {
     fn redact_protected_fields(&mut self) {
         self.income = None;
         self.producing = None;
@@ -176,9 +174,8 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     })?;
 
     let trusts = trusts
-        .iter()
-        .map(|trust| {
-            let mut response = TrustResponse::from(trust);
+        .into_iter()
+        .map(|mut response| {
             if !can_read_zone(&session, &response.zone)? {
                 response.redact_protected_fields();
             }
@@ -217,10 +214,7 @@ pub(crate) async fn get(
         UserError::InternalError
     })?;
 
-    let mut trust = trust
-        .as_ref()
-        .map(TrustResponse::from)
-        .ok_or(UserError::NotFound("Trust"))?;
+    let mut trust = trust.ok_or(UserError::NotFound("Trust"))?;
     if !can_read_zone(&session, &trust.zone)? {
         trust.redact_protected_fields();
     }

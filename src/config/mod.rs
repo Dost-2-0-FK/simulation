@@ -9,6 +9,7 @@ use std::{
 };
 
 use actix_web::cookie::Key;
+use ordered_float::NotNan;
 use serde::Deserialize;
 use serde_with::{DurationSecondsWithFrac, serde_as};
 use tokio::{fs, sync::RwLock};
@@ -21,8 +22,12 @@ use crate::{
     },
     geometry::{Distance, Point, WorldBounds},
     handlers::bases::Financing,
-    services::auth_service::AuthService,
-    services::credit_exchange_service::{Cost, CreditExchangeService, ResourceName, Share, VecResourceName},
+    services::{
+        auth_service::AuthService,
+        credit_exchange_service::{
+            Cost, CreditExchangeService, Money, ResourceName, Resources, Share, VecResourceName,
+        },
+    },
 };
 
 const CONFIG_FILE_NAME: &str = "simulation.toml";
@@ -38,7 +43,7 @@ struct TomlConfig {
     combat: CombatConfig,
     persistence: PersistenceConfig,
     costs: CostsConfig,
-    trust_production: Loot,
+    trust_production: TrustProductionConfig,
     world: WorldBounds,
     #[serde(rename = "bloc")]
     blocs: Vec<BlocConfig>,
@@ -64,6 +69,9 @@ pub(crate) struct Config {
     movement_step: Distance,
     world_bounds: WorldBounds,
     trust_production_income: Loot,
+    trust_inhibition_radius: NotNan<f64>,
+    trust_inhibition_factor_close_units: Share,
+    trust_inhibition_factor_combat: Share,
     base_destruction_threshold: u32,
     trust_destruction_threshold: u32,
     auth_cookie_key: Key,
@@ -189,6 +197,16 @@ struct TrustConfig {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct TrustProductionConfig {
+    money: Money,
+    resources: Resources,
+    inhibition_radius: NotNan<f64>,
+    inhibition_factor_close_units: Share,
+    inhibition_factor_combat: Share,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct BlocConfig {
     name: BlocName,
     chance: Chance,
@@ -263,6 +281,18 @@ impl Config {
 
     pub(crate) fn trust_production_income(&self) -> &Loot {
         &self.trust_production_income
+    }
+
+    pub(crate) fn trust_inhibition_radius(&self) -> f64 {
+        self.trust_inhibition_radius.into_inner()
+    }
+
+    pub(crate) fn trust_inhibition_factor_close_units(&self) -> Share {
+        self.trust_inhibition_factor_close_units
+    }
+
+    pub(crate) fn trust_inhibition_factor_combat(&self) -> Share {
+        self.trust_inhibition_factor_combat
     }
 
     pub(crate) fn auth_cookie_key(&self) -> Key {
@@ -356,13 +386,22 @@ impl Config {
             }
         }
 
-        for resource_value in config.trust_production.resources() {
+        for resource_value in &config.trust_production.resources {
             if !config.resources.contains(resource_value.name()) {
                 return Err(Error::ConfigValidation(format!(
                     "resource value {resource_value} is used in trust production but is not listed in resources {resources}",
                     resources = &config.resources,
                 )));
             }
+        }
+
+        if config.trust_production.inhibition_factor_combat.value()
+            > config.trust_production.inhibition_factor_close_units.value()
+        {
+            return Err(Error::ConfigValidation(
+                "trust production inhibition_factor_combat must be less than or equal to inhibition_factor_close_units"
+                    .to_string(),
+            ));
         }
 
         let blocs = config
@@ -467,7 +506,7 @@ impl Config {
         }
 
         for trust in &config.trusts {
-            if config.trust_production.resource_amount(&trust.resource).is_none() {
+            if config.trust_production.resources.get(&trust.resource).is_none() {
                 return Err(Error::ConfigValidation(format!(
                     "seeded trust on placement {placement_id} uses resource {resource} without configured trust production",
                     placement_id = &trust.placement_id,
@@ -487,6 +526,8 @@ impl Config {
             config.zones.iter().map(|zone| zone.name.clone()),
         );
 
+        let trust_production_income = Loot::new(config.trust_production.money, config.trust_production.resources);
+
         Ok(Self {
             placements,
             zones,
@@ -497,7 +538,10 @@ impl Config {
             movement_interval: config.combat.movement_interval,
             movement_step: config.combat.movement_step,
             world_bounds: config.world,
-            trust_production_income: config.trust_production,
+            trust_production_income,
+            trust_inhibition_radius: config.trust_production.inhibition_radius,
+            trust_inhibition_factor_close_units: config.trust_production.inhibition_factor_close_units,
+            trust_inhibition_factor_combat: config.trust_production.inhibition_factor_combat,
             trust_destruction_threshold: config.combat.trust_destruction_threshold,
             base_destruction_threshold: config.combat.base_destruction_threshold,
             auth_cookie_key: config.server.auth_cookie_key.0,
@@ -569,6 +613,9 @@ mod tests {
 
         [trust_production]
         money = 2.0
+        inhibition_radius = 1.0
+        inhibition_factor_close_units = 0.75
+        inhibition_factor_combat = 0.25
         resources = { lithium = 3.5, iron = 4.5 }
 
         [persistence]
@@ -727,11 +774,17 @@ mod tests {
             r#"
         [trust_production]
         money = 2.0
+        inhibition_radius = 1.0
+        inhibition_factor_close_units = 0.75
+        inhibition_factor_combat = 0.25
         resources = { lithium = 3.5, iron = 4.5 }
 "#,
             r#"
         [trust_production]
         money = 2.0
+        inhibition_radius = 1.0
+        inhibition_factor_close_units = 0.75
+        inhibition_factor_combat = 0.25
         resources = { lithium = 3.5, iron = 4.5, copper = 4.5 }
 "#,
         );
@@ -745,6 +798,23 @@ mod tests {
             }
             Err(error) => panic!("unexpected error: {error}"),
             Ok(_) => panic!("config with unknown trust production resource must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_combat_inhibition_factor_above_close_units_factor() {
+        let toml_str = base_toml().replace(
+            "        inhibition_factor_combat = 0.25",
+            "        inhibition_factor_combat = 0.8",
+        );
+
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => assert_eq!(
+                error,
+                "trust production inhibition_factor_combat must be less than or equal to inhibition_factor_close_units"
+            ),
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("config with combat inhibition above close-unit inhibition must fail"),
         }
     }
 
@@ -782,7 +852,10 @@ mod tests {
         let trust = seeded.trusts.values().next().unwrap().read().await;
         assert_eq!(trust.placement_id().to_string(), "placement_2");
         assert_eq!(trust.income().value(), 2.0);
-        assert_eq!(trust.producing().get(&ResourceName::new("lithium".into())), Some(3.5));
+        assert_eq!(
+            trust.producing_base_value().get(&ResourceName::new("lithium".into())),
+            Some(3.5)
+        );
     }
 
     #[tokio::test]

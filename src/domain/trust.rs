@@ -9,7 +9,7 @@ use crate::{
     domain::{Loot, LootFactors, Placement, PlacementId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
-    services::credit_exchange_service::{Cost, Financiers, Money, Payment, ResourceName, Resources},
+    services::credit_exchange_service::{Cost, Financiers, Money, Payment, ResourceName, Resources, Share},
 };
 
 static TRUST_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -135,7 +135,11 @@ impl Trust {
         self.income
     }
 
-    pub(crate) fn producing(&self) -> &Resources {
+    pub(crate) fn producing_base_value(&self) -> &Resources {
         &self.producing
+    }
+
+    pub(crate) fn production_with_inhibition(&self, factor: Share) -> Resources {
+        factor * self.producing.clone()
     }
 }

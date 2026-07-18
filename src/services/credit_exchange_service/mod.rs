@@ -231,10 +231,10 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    pub(crate) async fn set_trust_production(&self, trust: &Trust) -> Result<()> {
+    pub(crate) async fn set_trust_production(&self, trust: &Trust, producing: &Resources) -> Result<()> {
         let producer = Self::trust_credit_user_id(trust.id());
         self.set_credit_production(&producer, trust.income()).await?;
-        for resource in trust.producing() {
+        for resource in producing {
             self.set_resource_production(&producer, resource.name(), resource.value())
                 .await?;
         }

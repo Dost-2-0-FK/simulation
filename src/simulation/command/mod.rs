@@ -85,6 +85,7 @@ use crate::{
     handlers::{
         bases::{Financing, TargetBody, UserId},
         combats::CombatResponse,
+        trusts::TrustResponse,
         units::UnitResponse,
     },
     persistence::MongoPersistence,
@@ -118,8 +119,8 @@ pub(crate) enum Command {
         resource: ResourceName,
         response: Sender<core::result::Result<(), UserError>>,
     },
-    GetTrusts(Sender<Vec<Trust>>),
-    GetTrust(TrustId, Sender<Option<Trust>>),
+    GetTrusts(Sender<Vec<TrustResponse>>),
+    GetTrust(TrustId, Sender<Option<TrustResponse>>),
     GetPlacements(Sender<Vec<Arc<Placement>>>),
     GetZones(Sender<Vec<Arc<Zone>>>),
     GetBlocs(Sender<Vec<Bloc>>),
@@ -302,10 +303,10 @@ pub(crate) async fn run(
                 let _ = response.send(result);
             }
             Command::GetTrusts(resp) => {
-                trust::get_all(resp, &trusts).await;
+                trust::get_all(resp, &trusts, &units, config).await;
             }
             Command::GetTrust(id, resp) => {
-                trust::get(id, resp, &trusts).await;
+                trust::get(id, resp, &trusts, &units, config).await;
             }
             Command::GetPlacements(resp) => {
                 placement::get(resp, config.placements());
@@ -349,7 +350,7 @@ pub(crate) async fn run(
             }
             Command::PublishTrustProduction { response } => {
                 let result = async {
-                    trust::publish_production(&trusts, config.credit_exchange_service())
+                    trust::publish_production(&trusts, &units, config)
                         .await
                         .map_err(|err| {
                             log::error!("failed to publish trust production: {err:#}");

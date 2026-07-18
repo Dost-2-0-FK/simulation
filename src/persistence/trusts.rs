@@ -29,7 +29,7 @@ impl PersistedTrust {
             financing: trust.financing().to_vec(),
             loot: trust.loot().clone(),
             income: trust.income(),
-            producing: trust.producing().clone(),
+            producing: trust.producing_base_value().clone(),
         }
     }
 

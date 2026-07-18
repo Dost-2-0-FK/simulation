@@ -29,6 +29,9 @@ resources = { lsc = 1, oxygen = 3, solar_energy = 2, water = 4 }
 
 [trust_production]
 money = 1
+inhibition_radius = 1.0
+inhibition_factor_close_units = 0.75
+inhibition_factor_combat = 0.25
 
 [trust_production.resources]
 water = 1

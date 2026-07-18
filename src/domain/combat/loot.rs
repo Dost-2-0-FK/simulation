@@ -25,6 +25,10 @@ pub(crate) struct Loot {
 }
 
 impl Loot {
+    pub(crate) fn new(money: Money, resources: Resources) -> Self {
+        Self { money, resources }
+    }
+
     pub(crate) fn from_cost<T>(cost: &Cost<T>, factors: &LootFactors) -> Self {
         Self {
             money: cost.money() * factors.money,
