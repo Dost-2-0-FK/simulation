@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::services::credit_exchange_service::{
-    Cost, Money, ResourceName, ResourceValue, Resources, ResourcesFactors, Share,
-};
+use crate::services::credit_exchange_service::{Cost, Money, ResourceValue, Resources, ResourcesFactors, Share};
 
 #[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -25,10 +23,6 @@ pub(crate) struct Loot {
 }
 
 impl Loot {
-    pub(crate) fn new(money: Money, resources: Resources) -> Self {
-        Self { money, resources }
-    }
-
     pub(crate) fn from_cost<T>(cost: &Cost<T>, factors: &LootFactors) -> Self {
         Self {
             money: cost.money() * factors.money,
@@ -45,10 +39,6 @@ impl Loot {
 
     pub(crate) fn money(&self) -> Money {
         self.money
-    }
-
-    pub(crate) fn resource_amount(&self, resource: &ResourceName) -> Option<f32> {
-        self.resources.get(resource)
     }
 
     pub(crate) fn resources(&self) -> impl Iterator<Item = ResourceValue<'_>> {

@@ -181,6 +181,9 @@ pub(crate) async fn post(
     if let Err(err) = &result {
         match err {
             UserError::InternalError => log::error!("internal error while creating base"),
+            UserError::CreditExchangeQueryFailed => {
+                log::error!("credit exchange query failed while creating base")
+            }
             UserError::NotFound(err) => log::info!("not found: {err}"),
             UserError::Conflict(err) => log::info!("conflict: {err}"),
             UserError::Unauthorized => log::info!("unauthorized while creating base"),

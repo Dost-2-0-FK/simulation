@@ -28,10 +28,23 @@ money = 120
 resources = { lsc = 1, oxygen = 3, solar_energy = 2, water = 4 }
 
 [trust_production]
-money = 1
 inhibition_radius = 1.0
 inhibition_factor_close_units = 0.75
 inhibition_factor_combat = 0.25
+
+[trust_production.money_per_resource]
+water = 1
+thermal_oil = 1
+silicon = 1
+uxmal_gas = 1
+uxmal_crystals = 1
+lsc = 1
+solar_energy = 1
+oxygen = 1
+iron = 1
+steel = 1
+genetic_material = 1
+entropy = 1
 
 [trust_production.resources]
 water = 1

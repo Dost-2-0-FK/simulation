@@ -190,8 +190,14 @@ There are four fundamental types:
   - If financed, also book from the financier
   - If all requests succeed: `/api/units/add?id=<trust_id>`
 - Generate "money" and *one* "resource"
-- The amount of both is based on a fixed value, negatively influenced by close enemy military units and updated hourly
-  - The fixed values are configured via `[trust_production] money = <value>, resources = { <resource> = <value> }`
+- Resource production is based on a configured value, negatively influenced by close enemy military units, and updated
+  hourly.
+  - Resource values are configured via `[trust_production.resources] <resource> = <value>`.
+- Money production has a configured base value per produced resource:
+  `[trust_production.money_per_resource] <resource> = <value>`.
+  - The credit-exchanger is queried for the total balance of that resource across all users except the configured bank
+    user.
+  - Final money production is `base value / (total existing resource units + 1)`.
   - `CREDIT-EXCHANGER-SERVICE/api/units/set_credit_production?id<trust_id>&value=<value>`
   - `CREDIT-EXCHANGER-SERVICE/api/units/set_resource_production?id<trust_id>&resource=<resource>&value=<value>`
   - The resources generated are additionally influenced by the spent resources of that unit and the current production
@@ -234,8 +240,8 @@ There are four fundamental types:
 ### Logic<a name="logic"></a>
 
 - When `POST /api/bases/publish-production` is called, accumulated base loot is published to the credit service.
-- When `POST /api/trusts/publish-production` is called, each trust's configured income is published to the credit
-  service.
+- When `POST /api/trusts/publish-production` is called, each trust's resource production and dynamically discounted
+  money income are published to the credit service.
 - When `POST /api/units/produce` is called, military units are produced in bases:
   - Get the blocs' hourly income: `CREDIT-EXCHANGE-SERVICE/api/credits/hourly?id=<bloc_id>`
   - Each bloc can define what percentage of the hourly income shall be used for creating military units (can be set by

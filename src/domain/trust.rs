@@ -24,8 +24,8 @@ pub(crate) struct Trust {
     id: TrustId,
     placement: Arc<Placement>,
     financing: Vec<Financing>,
-    /// The base value of money to generate in the next production cycle
-    income: Money,
+    /// The configured base value of money to generate before applying the resource-supply discount.
+    base_income: Money,
     /// The base value of produced resources in the next production cycle
     producing: Resources,
     /// The loot that will be collected if this trust is destroyed.
@@ -85,7 +85,7 @@ impl Trust {
             financing,
             placement,
             loot,
-            income,
+            base_income: income,
             producing: Resources::new_single(resource, resource_amount),
         }
     }
@@ -106,7 +106,7 @@ impl Trust {
             financing,
             placement,
             loot,
-            income,
+            base_income: income,
             producing,
         }
     }
@@ -131,8 +131,12 @@ impl Trust {
         &self.loot
     }
 
-    pub(crate) fn income(&self) -> Money {
-        self.income
+    pub(crate) fn base_income(&self) -> Money {
+        self.base_income
+    }
+
+    pub(crate) fn resource_name(&self) -> &ResourceName {
+        self.producing.single_resource_name()
     }
 
     pub(crate) fn producing_base_value(&self) -> &Resources {

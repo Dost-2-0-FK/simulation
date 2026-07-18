@@ -5,10 +5,11 @@ use tokio::sync::{RwLock, oneshot::Sender};
 use super::CommandError;
 use crate::{
     config::Config,
-    domain::{BlocName, Loot, MilitaryUnit, Placement, PlacementId, Trust, TrustId, UnitId},
+    domain::{BlocName, MilitaryUnit, Placement, PlacementId, Trust, TrustId, UnitId},
+    error::UserError,
     geometry::{Point, Positioned, WorldBounds},
     handlers::{bases::Financing, trusts::TrustResponse},
-    services::credit_exchange_service::{CreditExchangeService, ResourceName, Resources, Share},
+    services::credit_exchange_service::{CreditExchangeService, Money, ResourceName, Resources, Share},
 };
 
 struct UnitSnapshot {
@@ -85,18 +86,23 @@ struct ProductionContext {
     inhibition_radius: f64,
     close_units_factor: Share,
     combat_factor: Share,
+    resource_totals: Resources,
 }
 
 impl ProductionContext {
-    async fn new(units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>, config: &Config) -> Self {
-        Self {
+    async fn new(units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>, config: &Config) -> anyhow::Result<Self> {
+        Ok(Self {
             units: unit_snapshots(units).await,
             placements: placement_snapshots(config.placements()),
             world_bounds: config.world_bounds(),
             inhibition_radius: config.trust_inhibition_radius(),
             close_units_factor: config.trust_inhibition_factor_close_units(),
             combat_factor: config.trust_inhibition_factor_combat(),
-        }
+            resource_totals: config
+                .credit_exchange_service()
+                .resource_totals_excluding_bank()
+                .await?,
+        })
     }
 
     fn production_for(&self, trust: &Trust) -> Resources {
@@ -111,55 +117,80 @@ impl ProductionContext {
         );
         trust.production_with_inhibition(factor)
     }
+
+    fn income_for(&self, trust: &Trust) -> Money {
+        let existing_units = self.resource_totals.get(trust.resource_name()).unwrap_or_default();
+        trust.base_income() / (existing_units + 1.0)
+    }
 }
 
 pub(crate) async fn get_all(
-    resp: Sender<Vec<TrustResponse>>,
+    resp: Sender<core::result::Result<Vec<TrustResponse>, UserError>>,
     trusts: &HashMap<TrustId, Arc<RwLock<Trust>>>,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     config: &Config,
 ) {
-    let context = ProductionContext::new(units, config).await;
-    let mut result = Vec::with_capacity(trusts.len());
-    for trust in trusts.values() {
-        let trust = trust.read().await;
-        result.push(TrustResponse::new(&trust, context.production_for(&trust)));
+    let result = async {
+        if trusts.is_empty() {
+            return Ok(Vec::new());
+        }
+        let context = ProductionContext::new(units, config).await.map_err(|err| {
+            log::error!("failed to query credit service while listing trusts: {err:#}");
+            UserError::CreditExchangeQueryFailed
+        })?;
+        let mut result = Vec::with_capacity(trusts.len());
+        for trust in trusts.values() {
+            let trust = trust.read().await;
+            result.push(TrustResponse::new(
+                &trust,
+                context.income_for(&trust),
+                context.production_for(&trust),
+            ));
+        }
+        Ok(result)
     }
+    .await;
     let _ = resp.send(result);
 }
 
 pub(crate) async fn get(
     id: TrustId,
-    resp: Sender<Option<TrustResponse>>,
+    resp: Sender<core::result::Result<Option<TrustResponse>, UserError>>,
     trusts: &HashMap<TrustId, Arc<RwLock<Trust>>>,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     config: &Config,
 ) {
-    let context = ProductionContext::new(units, config).await;
-    let trust = match trusts.get(&id) {
-        Some(trust) => {
-            let trust = trust.read().await;
-            Some(TrustResponse::new(&trust, context.production_for(&trust)))
-        }
-        None => None,
-    };
-    let _ = resp.send(trust);
+    let result = async {
+        let Some(trust) = trusts.get(&id) else {
+            return Ok(None);
+        };
+        let context = ProductionContext::new(units, config).await.map_err(|err| {
+            log::error!("failed to query credit service while getting trust {id:?}: {err:#}");
+            UserError::CreditExchangeQueryFailed
+        })?;
+        let trust = trust.read().await;
+        Ok(Some(TrustResponse::new(
+            &trust,
+            context.income_for(&trust),
+            context.production_for(&trust),
+        )))
+    }
+    .await;
+    let _ = resp.send(result);
 }
 
 pub(crate) async fn create(
     placement_id: PlacementId,
     financing: Vec<Financing>,
     resource: ResourceName,
-    trust_production_income: &Loot,
+    resource_amount: f32,
+    base_income: Money,
     credit_exchange_service: &CreditExchangeService,
     mut placements: impl Iterator<Item = Arc<Placement>>,
 ) -> Result<Trust, CommandError> {
     log::debug!("received command to create trust on placement with id {placement_id:?}");
     let Some(placement) = placements.find(|p| p.id() == &placement_id) else {
         return Err(CommandError::NotFound("Placement"));
-    };
-    let Some(resource_amount) = trust_production_income.resource_amount(&resource) else {
-        return Err(CommandError::NotFound("Resource"));
     };
     let payment = credit_exchange_service
         .pay_for_trust(placement.zone().name(), financing)
@@ -172,7 +203,7 @@ pub(crate) async fn create(
         placement,
         resource,
         resource_amount,
-        trust_production_income.money(),
+        base_income,
     );
     credit_exchange_service
         .register_trust(&trust, &payment_policy)
@@ -186,14 +217,18 @@ pub(crate) async fn publish_production(
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     config: &Config,
 ) -> anyhow::Result<()> {
-    let context = ProductionContext::new(units, config).await;
+    if trusts.is_empty() {
+        return Ok(());
+    }
+    let context = ProductionContext::new(units, config).await?;
     for trust_arc in trusts.values() {
         let trust = trust_arc.read().await;
         let producing = context.production_for(&trust);
+        let income = context.income_for(&trust);
 
         if let Err(err) = config
             .credit_exchange_service()
-            .set_trust_production(&trust, &producing)
+            .set_trust_production(&trust, income, &producing)
             .await
         {
             log::error!(
@@ -212,7 +247,7 @@ mod tests {
     use super::*;
     use crate::{
         domain::{Bloc, Chance, LootFactors, Zone, ZoneName},
-        services::credit_exchange_service::{Cost, Money},
+        services::credit_exchange_service::Cost,
     };
 
     fn point(x: f64, y: f64) -> Point {
@@ -369,5 +404,26 @@ mod tests {
 
         assert_eq!(outside_capped_radius, Share::from(1.0));
         assert_eq!(on_capped_radius, Share::from(0.75));
+    }
+
+    #[test]
+    fn income_is_base_value_divided_by_existing_resource_units_plus_one() {
+        let trust = trust(point(10.0, 10.0));
+        let mut resource_totals = Resources::default();
+        resource_totals.insert(ResourceName::new("iron".to_string()), 3.0);
+        let mut context = ProductionContext {
+            units: vec![],
+            placements: vec![],
+            world_bounds: world_bounds(),
+            inhibition_radius: 1.0,
+            close_units_factor: Share::from(0.75),
+            combat_factor: Share::from(0.25),
+            resource_totals,
+        };
+
+        assert_eq!(context.income_for(&trust), Money::from(0.5));
+
+        context.resource_totals = Resources::default();
+        assert_eq!(context.income_for(&trust), trust.base_income());
     }
 }

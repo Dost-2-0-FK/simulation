@@ -119,8 +119,8 @@ pub(crate) enum Command {
         resource: ResourceName,
         response: Sender<core::result::Result<(), UserError>>,
     },
-    GetTrusts(Sender<Vec<TrustResponse>>),
-    GetTrust(TrustId, Sender<Option<TrustResponse>>),
+    GetTrusts(Sender<core::result::Result<Vec<TrustResponse>, UserError>>),
+    GetTrust(TrustId, Sender<core::result::Result<Option<TrustResponse>, UserError>>),
     GetPlacements(Sender<Vec<Arc<Placement>>>),
     GetZones(Sender<Vec<Arc<Zone>>>),
     GetBlocs(Sender<Vec<Bloc>>),
@@ -286,11 +286,19 @@ pub(crate) async fn run(
                         return Err(UserError::Forbidden);
                     }
 
+                    let Some(resource_amount) = config.trust_resource_production(&resource) else {
+                        return Err(UserError::NotFound("Resource"));
+                    };
+                    let Some(base_income) = config.trust_base_income(&resource) else {
+                        return Err(UserError::NotFound("Resource"));
+                    };
+
                     let trust = trust::create(
                         placement_id,
                         financing,
                         resource,
-                        config.trust_production_income(),
+                        resource_amount,
+                        base_income,
                         config.credit_exchange_service(),
                         config.placements(),
                     )
@@ -354,7 +362,7 @@ pub(crate) async fn run(
                         .await
                         .map_err(|err| {
                             log::error!("failed to publish trust production: {err:#}");
-                            UserError::InternalError
+                            UserError::CreditExchangeQueryFailed
                         })?;
                     Ok(())
                 }

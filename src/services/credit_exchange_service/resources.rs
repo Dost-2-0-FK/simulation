@@ -4,6 +4,8 @@ use derive_more::Display;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Deserializer, Serialize};
 
+use crate::services::credit_exchange_service::Money;
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, derive_more::Display, utoipa::ToSchema)]
 pub(crate) struct ResourceName(String);
 
@@ -81,6 +83,11 @@ impl Resources {
         self.0.get(name).map(|value| value.0)
     }
 
+    pub(crate) fn single_resource_name(&self) -> &ResourceName {
+        assert_eq!(self.0.len(), 1, "expected exactly one resource");
+        self.0.keys().next().expect("resource count was checked above")
+    }
+
     /// Returns true if `self` has enough of every resource required by `cost`.
     pub(crate) fn covers(&self, cost: &Resources) -> bool {
         cost.0
@@ -150,5 +157,18 @@ impl std::ops::Mul<&ResourcesFactors> for Resources {
                 })
                 .collect(),
         )
+    }
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub(crate) struct MoneyPerResource(Resources);
+
+impl MoneyPerResource {
+    pub(crate) fn get(&self, resource: &ResourceName) -> Option<Money> {
+        self.0.get(resource).map(Money::from)
+    }
+
+    pub(crate) fn values(&self) -> impl Iterator<Item = ResourceValue<'_>> {
+        self.0.into_iter()
     }
 }

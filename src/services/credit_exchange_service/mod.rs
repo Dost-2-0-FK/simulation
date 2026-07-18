@@ -5,6 +5,8 @@ mod money;
 mod resources;
 mod share;
 
+use std::collections::HashMap;
+
 use anyhow::{Context, Result};
 use derive_more::derive::{Display, Error};
 use reqwest::StatusCode;
@@ -14,7 +16,7 @@ use url::Url;
 pub(crate) use self::{
     cost::{Cost, Financiers, Payment, SinglePayer},
     money::Money,
-    resources::{ResourceName, ResourceValue, Resources, ResourcesFactors, VecResourceName},
+    resources::{MoneyPerResource, ResourceName, ResourceValue, Resources, ResourcesFactors, VecResourceName},
     share::Share,
 };
 use crate::{
@@ -88,6 +90,18 @@ struct ListCreditsResponse {
 struct CreditBalanceResponse {
     credit_type: String,
     hourly: f32,
+}
+
+#[derive(Debug, Deserialize)]
+struct CreditUserResponse {
+    id: String,
+    #[serde(default)]
+    resources: HashMap<ResourceName, CreditTotalResponse>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CreditTotalResponse {
+    total: f32,
 }
 
 /// Constructed when loading the config. It owns the local simulation costs and provides the
@@ -231,14 +245,32 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    pub(crate) async fn set_trust_production(&self, trust: &Trust, producing: &Resources) -> Result<()> {
+    pub(crate) async fn set_trust_production(&self, trust: &Trust, income: Money, producing: &Resources) -> Result<()> {
         let producer = Self::trust_credit_user_id(trust.id());
-        self.set_credit_production(&producer, trust.income()).await?;
+        self.set_credit_production(&producer, income).await?;
         for resource in producing {
             self.set_resource_production(&producer, resource.name(), resource.value())
                 .await?;
         }
         Ok(())
+    }
+
+    pub(crate) async fn resource_totals_excluding_bank(&self) -> Result<Resources> {
+        let url = self.endpoint("api/users")?;
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .context("requesting credit-exchanger users for resource totals")?;
+        let response =
+            Self::error_for_status(response, "requesting credit-exchanger users for resource totals").await?;
+        let users = response
+            .json::<Vec<CreditUserResponse>>()
+            .await
+            .context("decoding credit-exchanger users for resource totals")?;
+
+        Ok(sum_resource_totals(users, &self.bank_user_id))
     }
 
     pub(crate) async fn credit_hourly_income(&self, user_id: &str) -> Result<(Money, Resources)> {
@@ -425,6 +457,17 @@ impl CreditExchangeService {
     }
 }
 
+fn sum_resource_totals(users: Vec<CreditUserResponse>, bank_user_id: &str) -> Resources {
+    let mut totals = Resources::default();
+    for user in users.into_iter().filter(|user| user.id != bank_user_id) {
+        for (resource, credit) in user.resources {
+            let total = totals.get(&resource).unwrap_or_default() + credit.total;
+            totals.insert(resource, total);
+        }
+    }
+    totals
+}
+
 fn financed_subscription_specs(policy: &Financiers, resources: &VecResourceName) -> Vec<SubscriptionSpec> {
     let mut subscriptions = policy
         .payers()
@@ -484,5 +527,37 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn resource_totals_exclude_bank_and_sum_every_other_user() {
+        let users = serde_json::from_value::<Vec<CreditUserResponse>>(serde_json::json!([
+            {
+                "id": "bank",
+                "userType": "bloc",
+                "resources": { "iron": { "total": 1000.0 } }
+            },
+            {
+                "id": "zone-1",
+                "userType": "zone",
+                "resources": { "iron": { "total": 2.5 }, "water": { "total": 4.0 } }
+            },
+            {
+                "id": "zone-2",
+                "userType": "zone",
+                "resources": { "iron": { "total": 3.5 } }
+            },
+            {
+                "id": "individual",
+                "userType": "individual",
+                "credit": { "total": 10.0 }
+            }
+        ]))
+        .unwrap();
+
+        let totals = sum_resource_totals(users, "bank");
+
+        assert_eq!(totals.get(&ResourceName::new("iron".to_string())), Some(6.0));
+        assert_eq!(totals.get(&ResourceName::new("water".to_string())), Some(4.0));
     }
 }

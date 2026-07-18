@@ -10,6 +10,8 @@ pub type Result<T> = core::result::Result<T, UserError>;
 pub enum UserError {
     #[display("An internal error occurred. Please try again later.")]
     InternalError,
+    #[display("Failed to query credit service.")]
+    CreditExchangeQueryFailed,
     #[display("Not found: {_0}")]
     NotFound(#[error(not(source))] &'static str),
     #[display("Conflict: {_0}")]
@@ -40,6 +42,7 @@ impl error::ResponseError for UserError {
     fn status_code(&self) -> StatusCode {
         match *self {
             UserError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+            UserError::CreditExchangeQueryFailed => StatusCode::INTERNAL_SERVER_ERROR,
             UserError::NotFound(_) => StatusCode::NOT_FOUND,
             UserError::Conflict(_) => StatusCode::CONFLICT,
             UserError::Unauthorized => StatusCode::UNAUTHORIZED,
@@ -68,6 +71,17 @@ mod tests {
         assert_eq!(
             to_bytes(response.into_body()).await.unwrap(),
             "Insufficient credit for booking"
+        );
+    }
+
+    #[actix_web::test]
+    async fn credit_exchange_query_failure_returns_500() {
+        let response = UserError::CreditExchangeQueryFailed.error_response();
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            to_bytes(response.into_body()).await.unwrap(),
+            "Failed to query credit service."
         );
     }
 }

@@ -47,3 +47,10 @@ impl std::ops::Mul<f32> for Money {
         Self(self.0 * rhs)
     }
 }
+
+impl std::ops::Div<f32> for Money {
+    type Output = Self;
+    fn div(self, rhs: f32) -> Self {
+        Self(self.0 / rhs)
+    }
+}

@@ -17,7 +17,7 @@ use tokio::{fs, sync::RwLock};
 use self::error::{Error, Result};
 use crate::{
     domain::{
-        BaseId, Bloc, BlocName, Chance, Loot, LootFactors, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust,
+        BaseId, Bloc, BlocName, Chance, LootFactors, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust,
         TrustId, Zone, ZoneName,
     },
     geometry::{Distance, Point, WorldBounds},
@@ -25,7 +25,7 @@ use crate::{
     services::{
         auth_service::AuthService,
         credit_exchange_service::{
-            Cost, CreditExchangeService, Money, ResourceName, Resources, Share, VecResourceName,
+            Cost, CreditExchangeService, Money, MoneyPerResource, ResourceName, Resources, Share, VecResourceName,
         },
     },
 };
@@ -68,7 +68,8 @@ pub(crate) struct Config {
     movement_interval: Duration,
     movement_step: Distance,
     world_bounds: WorldBounds,
-    trust_production_income: Loot,
+    trust_production_resources: Resources,
+    trust_money_per_resource: MoneyPerResource,
     trust_inhibition_radius: NotNan<f64>,
     trust_inhibition_factor_close_units: Share,
     trust_inhibition_factor_combat: Share,
@@ -198,7 +199,7 @@ struct TrustConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TrustProductionConfig {
-    money: Money,
+    money_per_resource: MoneyPerResource,
     resources: Resources,
     inhibition_radius: NotNan<f64>,
     inhibition_factor_close_units: Share,
@@ -279,8 +280,12 @@ impl Config {
         self.trust_destruction_threshold
     }
 
-    pub(crate) fn trust_production_income(&self) -> &Loot {
-        &self.trust_production_income
+    pub(crate) fn trust_resource_production(&self, resource: &ResourceName) -> Option<f32> {
+        self.trust_production_resources.get(resource)
+    }
+
+    pub(crate) fn trust_base_income(&self, resource: &ResourceName) -> Option<Money> {
+        self.trust_money_per_resource.get(resource)
     }
 
     pub(crate) fn trust_inhibition_radius(&self) -> f64 {
@@ -335,9 +340,11 @@ impl Config {
                     .find(|placement| placement.id() == &seed.placement_id)
                     .expect("seed placement references were validated while parsing config");
                 let resource_amount = self
-                    .trust_production_income
-                    .resource_amount(&seed.resource)
+                    .trust_resource_production(&seed.resource)
                     .expect("seed trust resources were validated while parsing config");
+                let base_income = self
+                    .trust_base_income(&seed.resource)
+                    .expect("seed trust money was validated while parsing config");
                 let trust = Trust::new_prepaid(
                     seed.payment.clone(),
                     &self.credit_exchange_service.trust,
@@ -345,7 +352,7 @@ impl Config {
                     placement,
                     seed.resource.clone(),
                     resource_amount,
-                    self.trust_production_income.money(),
+                    base_income,
                 );
                 (trust.id(), Arc::new(RwLock::new(trust)))
             })
@@ -390,6 +397,27 @@ impl Config {
             if !config.resources.contains(resource_value.name()) {
                 return Err(Error::ConfigValidation(format!(
                     "resource value {resource_value} is used in trust production but is not listed in resources {resources}",
+                    resources = &config.resources,
+                )));
+            }
+            if config
+                .trust_production
+                .money_per_resource
+                .get(resource_value.name())
+                .is_none()
+            {
+                return Err(Error::ConfigValidation(format!(
+                    "resource {resource} has configured trust production but no configured money production",
+                    resource = resource_value.name(),
+                )));
+            }
+        }
+
+        for money_value in config.trust_production.money_per_resource.values() {
+            if !config.resources.contains(money_value.name()) {
+                return Err(Error::ConfigValidation(format!(
+                    "resource {resource} has configured trust money production but is not listed in resources {resources}",
+                    resource = money_value.name(),
                     resources = &config.resources,
                 )));
             }
@@ -526,8 +554,6 @@ impl Config {
             config.zones.iter().map(|zone| zone.name.clone()),
         );
 
-        let trust_production_income = Loot::new(config.trust_production.money, config.trust_production.resources);
-
         Ok(Self {
             placements,
             zones,
@@ -538,7 +564,8 @@ impl Config {
             movement_interval: config.combat.movement_interval,
             movement_step: config.combat.movement_step,
             world_bounds: config.world,
-            trust_production_income,
+            trust_production_resources: config.trust_production.resources,
+            trust_money_per_resource: config.trust_production.money_per_resource,
             trust_inhibition_radius: config.trust_production.inhibition_radius,
             trust_inhibition_factor_close_units: config.trust_production.inhibition_factor_close_units,
             trust_inhibition_factor_combat: config.trust_production.inhibition_factor_combat,
@@ -612,7 +639,7 @@ mod tests {
         money = 1.2
 
         [trust_production]
-        money = 2.0
+        money_per_resource = { lithium = 2.0, iron = 2.5 }
         inhibition_radius = 1.0
         inhibition_factor_close_units = 0.75
         inhibition_factor_combat = 0.25
@@ -773,7 +800,7 @@ mod tests {
         let toml_str = base_toml().replace(
             r#"
         [trust_production]
-        money = 2.0
+        money_per_resource = { lithium = 2.0, iron = 2.5 }
         inhibition_radius = 1.0
         inhibition_factor_close_units = 0.75
         inhibition_factor_combat = 0.25
@@ -781,7 +808,7 @@ mod tests {
 "#,
             r#"
         [trust_production]
-        money = 2.0
+        money_per_resource = { lithium = 2.0, iron = 2.5 }
         inhibition_radius = 1.0
         inhibition_factor_close_units = 0.75
         inhibition_factor_combat = 0.25
@@ -798,6 +825,40 @@ mod tests {
             }
             Err(error) => panic!("unexpected error: {error}"),
             Ok(_) => panic!("config with unknown trust production resource must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_trust_resource_without_money_production() {
+        let toml_str = base_toml().replace(
+            "        money_per_resource = { lithium = 2.0, iron = 2.5 }",
+            "        money_per_resource = { lithium = 2.0 }",
+        );
+
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => assert_eq!(
+                error,
+                "resource iron has configured trust production but no configured money production"
+            ),
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("trust resource without money production must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_unknown_trust_money_resource() {
+        let toml_str = base_toml().replace(
+            "        money_per_resource = { lithium = 2.0, iron = 2.5 }",
+            "        money_per_resource = { lithium = 2.0, iron = 2.5, copper = 3.0 }",
+        );
+
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => assert_eq!(
+                error,
+                "resource copper has configured trust money production but is not listed in resources [\"lithium\", \"iron\"]"
+            ),
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("trust money production for an unknown resource must fail"),
         }
     }
 
@@ -851,7 +912,7 @@ mod tests {
 
         let trust = seeded.trusts.values().next().unwrap().read().await;
         assert_eq!(trust.placement_id().to_string(), "placement_2");
-        assert_eq!(trust.income().value(), 2.0);
+        assert_eq!(trust.base_income().value(), 2.0);
         assert_eq!(
             trust.producing_base_value().get(&ResourceName::new("lithium".into())),
             Some(3.5)

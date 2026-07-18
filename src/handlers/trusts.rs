@@ -30,7 +30,8 @@ pub(crate) struct TrustResponse {
     zone: ZoneName,
     payment: Vec<Financing>,
     position: Point,
-    /// The configured monetary income. Omitted without read access to the zone.
+    /// The current monetary income after applying the resource-supply discount. Omitted without read access to the
+    /// zone.
     #[serde(skip_serializing_if = "Option::is_none")]
     income: Option<Money>,
     /// The configured resource production. Omitted without read access to the zone.
@@ -39,7 +40,7 @@ pub(crate) struct TrustResponse {
 }
 
 impl TrustResponse {
-    pub(crate) fn new(trust: &Trust, producing: Resources) -> Self {
+    pub(crate) fn new(trust: &Trust, income: Money, producing: Resources) -> Self {
         let placement = trust.placement();
         Self {
             id: trust.id(),
@@ -47,7 +48,7 @@ impl TrustResponse {
             zone: placement.zone().name().clone(),
             payment: trust.financing().to_vec(),
             position: trust.position(),
-            income: Some(trust.income()),
+            income: Some(income),
             producing: Some(producing),
         }
     }
@@ -171,7 +172,7 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     let trusts = receiver.await.map_err(|e| {
         log::error!("Error receiving trusts: {e}");
         UserError::InternalError
-    })?;
+    })??;
 
     let trusts = trusts
         .into_iter()
@@ -212,7 +213,7 @@ pub(crate) async fn get(
     let trust = receiver.await.map_err(|e| {
         log::error!("Error receiving trust: {e}");
         UserError::InternalError
-    })?;
+    })??;
 
     let mut trust = trust.ok_or(UserError::NotFound("Trust"))?;
     if !can_read_zone(&session, &trust.zone)? {
