@@ -59,6 +59,13 @@ impl ResourceValue<'_> {
     }
 }
 
+impl std::ops::Mul<Money> for ResourceValue<'_> {
+    type Output = Money;
+    fn mul(self, rhs: Money) -> Self::Output {
+        rhs * self.value()
+    }
+}
+
 /// A set of resources with corresponding amounts
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Display, utoipa::ToSchema)]
 #[display("{}", 

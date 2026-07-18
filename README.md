@@ -197,7 +197,7 @@ There are four fundamental types:
   `[trust_production.money_per_resource] <resource> = <value>`.
   - The credit-exchanger is queried for the total balance of that resource across all users except the configured bank
     user.
-  - Final money production is `base value / (total existing resource units + 1)`.
+  - Final money production is `produced resource units * base value / (total existing resource units + 1)`.
   - `CREDIT-EXCHANGER-SERVICE/api/units/set_credit_production?id<trust_id>&value=<value>`
   - `CREDIT-EXCHANGER-SERVICE/api/units/set_resource_production?id<trust_id>&resource=<resource>&value=<value>`
   - The resources generated are additionally influenced by the spent resources of that unit and the current production

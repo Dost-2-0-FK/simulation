@@ -9,7 +9,7 @@ use crate::{
     error::UserError,
     geometry::{Point, Positioned, WorldBounds},
     handlers::{bases::Financing, trusts::TrustResponse},
-    services::credit_exchange_service::{CreditExchangeService, Money, ResourceName, Resources, Share},
+    services::credit_exchange_service::{CreditExchangeService, Money, ResourceName, ResourceValue, Resources, Share},
 };
 
 struct UnitSnapshot {
@@ -118,9 +118,9 @@ impl ProductionContext {
         trust.production_with_inhibition(factor)
     }
 
-    fn income_for(&self, trust: &Trust) -> Money {
+    fn income_for(&self, trust: &Trust, produced: ResourceValue<'_>) -> Money {
         let existing_units = self.resource_totals.get(trust.resource_name()).unwrap_or_default();
-        trust.base_income() / (existing_units + 1.0)
+        produced * trust.base_income() / (existing_units + 1.0)
     }
 }
 
@@ -141,10 +141,14 @@ pub(crate) async fn get_all(
         let mut result = Vec::with_capacity(trusts.len());
         for trust in trusts.values() {
             let trust = trust.read().await;
+            let producing = context.production_for(&trust);
             result.push(TrustResponse::new(
                 &trust,
-                context.income_for(&trust),
-                context.production_for(&trust),
+                context.income_for(
+                    &trust,
+                    producing.into_iter().next().expect("trusts produce one resource"),
+                ),
+                producing,
             ));
         }
         Ok(result)
@@ -169,10 +173,14 @@ pub(crate) async fn get(
             UserError::CreditExchangeQueryFailed
         })?;
         let trust = trust.read().await;
+        let producing = context.production_for(&trust);
         Ok(Some(TrustResponse::new(
             &trust,
-            context.income_for(&trust),
-            context.production_for(&trust),
+            context.income_for(
+                &trust,
+                producing.into_iter().next().expect("trusts produce one resource"),
+            ),
+            producing,
         )))
     }
     .await;
@@ -224,7 +232,10 @@ pub(crate) async fn publish_production(
     for trust_arc in trusts.values() {
         let trust = trust_arc.read().await;
         let producing = context.production_for(&trust);
-        let income = context.income_for(&trust);
+        let income = context.income_for(
+            &trust,
+            producing.into_iter().next().expect("trusts produce one resource"),
+        );
 
         if let Err(err) = config
             .credit_exchange_service()
@@ -407,7 +418,7 @@ mod tests {
     }
 
     #[test]
-    fn income_is_base_value_divided_by_existing_resource_units_plus_one() {
+    fn income_uses_inhibited_production_and_existing_resource_units() {
         let trust = trust(point(10.0, 10.0));
         let mut resource_totals = Resources::default();
         resource_totals.insert(ResourceName::new("iron".to_string()), 3.0);
@@ -421,9 +432,22 @@ mod tests {
             resource_totals,
         };
 
-        assert_eq!(context.income_for(&trust), Money::from(0.5));
+        let produced = trust.production_with_inhibition(Share::from(0.25));
+        assert_eq!(
+            context.income_for(
+                &trust,
+                produced.into_iter().next().expect("trusts produce one resource")
+            ),
+            Money::from(1.0)
+        );
 
         context.resource_totals = Resources::default();
-        assert_eq!(context.income_for(&trust), trust.base_income());
+        assert_eq!(
+            context.income_for(
+                &trust,
+                produced.into_iter().next().expect("trusts produce one resource")
+            ),
+            Money::from(4.0)
+        );
     }
 }
