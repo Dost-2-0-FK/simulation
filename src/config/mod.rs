@@ -239,6 +239,10 @@ impl Config {
         &self.credit_exchange_service
     }
 
+    pub(crate) fn resources(&self) -> &[ResourceName] {
+        self.credit_exchange_service.resources()
+    }
+
     pub(crate) fn placements(&self) -> impl Iterator<Item = Arc<Placement>> + Clone + '_ {
         self.placements.iter().cloned()
     }

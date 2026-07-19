@@ -30,6 +30,8 @@ pub(crate) struct TrustResponse {
     zone: ZoneName,
     payment: Vec<Financing>,
     position: Point,
+    /// The resource produced by this trust. Visible regardless of zone permissions.
+    resource: ResourceName,
     /// The inhibition radius applied after capping the configured radius by half the distance to the nearest placement.
     inhibition_radius: Distance,
     /// The current monetary income after applying the resource-supply discount. Omitted without read access to the
@@ -50,6 +52,7 @@ impl TrustResponse {
             zone: placement.zone().name().clone(),
             payment: trust.financing().to_vec(),
             position: trust.position(),
+            resource: trust.resource_name().clone(),
             inhibition_radius,
             income: Some(income),
             producing: Some(producing),
@@ -244,6 +247,7 @@ mod tests {
             zone: ZoneName::from("zone-w".to_string()),
             payment: vec![],
             position: Point::new(NotNan::new(1.0).unwrap(), NotNan::new(2.0).unwrap()),
+            resource: ResourceName::new("oil".to_string()),
             inhibition_radius: serde_json::from_value::<Distance>(serde_json::json!(1.0)).unwrap(),
             income: Some(Money::from(10.0)),
             producing: Some(Resources::new_single(ResourceName::new("oil".to_string()), 2.0)),
@@ -259,5 +263,6 @@ mod tests {
 
         assert!(response.get("income").is_none());
         assert!(response.get("producing").is_none());
+        assert_eq!(response["resource"], "oil");
     }
 }
