@@ -17,6 +17,7 @@ env_logger = "0.11.8"
 log = "0.4.28"
 tokio = { version = "1", features = ["fs", "macros", "time"] }
 serde = "1"
+subtle = "2"
 toml = "0.9"
 url = { version = "2.5.7", features = ["serde"] }
 anyhow = "1"
