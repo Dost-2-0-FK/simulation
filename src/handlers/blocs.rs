@@ -7,7 +7,10 @@ use crate::{
     domain::{Bloc, BlocName, Chance},
     error::{Result, UserError},
     handlers::require_bloc_write,
-    services::credit_exchange_service::Share,
+    services::{
+        coordination_service::{CoordinationCapability, OptionalCoordinationAuthorization},
+        credit_exchange_service::Share,
+    },
     simulation::Command,
 };
 
@@ -36,6 +39,24 @@ impl From<&Bloc> for BlocResponse {
 pub(crate) struct PatchBlocBody {
     chance: Option<u32>,
     military_expense: Option<Share>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PatchBlocAuthorization {
+    BlocWrite,
+    CoordinationService,
+}
+
+impl PatchBlocBody {
+    fn required_authorization(&self) -> Result<PatchBlocAuthorization> {
+        match (self.chance.is_some(), self.military_expense.is_some()) {
+            (true, true) => Err(UserError::BadRequest(
+                "chance and militaryExpense must be updated in separate requests",
+            )),
+            (true, false) => Ok(PatchBlocAuthorization::CoordinationService),
+            (false, _) => Ok(PatchBlocAuthorization::BlocWrite),
+        }
+    }
 }
 
 /// List all blocs.
@@ -104,8 +125,9 @@ pub(crate) async fn get(path: web::Path<String>, tx: web::Data<mpsc::Sender<Comm
     tag = BLOCS,
     responses(
         (status = 200, description = "Bloc updated successfully"),
-        (status = 401, description = "Not authenticated", body = String, content_type = "text/html"),
-        (status = 403, description = "No write permission for the bloc", body = String, content_type = "text/html"),
+        (status = 400, description = "Chance and military expense must be updated separately", body = String, content_type = "text/html"),
+        (status = 401, description = "Missing or invalid user or coordination service credentials", body = String, content_type = "text/html"),
+        (status = 403, description = "Missing required bloc-write or coordination-service permission", body = String, content_type = "text/html"),
         (status = 404, description = "Bloc not found", body = String, content_type = "text/html"),
         (status = 500, description = "Failed to update the bloc", body = String, content_type = "text/html")
     )
@@ -113,12 +135,18 @@ pub(crate) async fn get(path: web::Path<String>, tx: web::Data<mpsc::Sender<Comm
 #[patch("/blocs/{id}")]
 pub(crate) async fn patch(
     session: Session,
+    coordination_authorization: OptionalCoordinationAuthorization,
     path: web::Path<String>,
     body: web::Json<PatchBlocBody>,
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
     let id = BlocName::from(path.into_inner());
-    require_bloc_write(&session, &id)?;
+    match body.required_authorization()? {
+        PatchBlocAuthorization::BlocWrite => require_bloc_write(&session, &id)?,
+        PatchBlocAuthorization::CoordinationService => {
+            coordination_authorization.require(CoordinationCapability::UpdateBlocChance)?
+        }
+    }
 
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::PatchBloc {
@@ -139,4 +167,52 @@ pub(crate) async fn patch(
     })?;
 
     result.map(|()| HttpResponse::Ok())
+}
+
+#[cfg(test)]
+mod authorization_tests {
+    use super::{PatchBlocAuthorization, PatchBlocBody};
+    use crate::services::credit_exchange_service::Share;
+
+    #[test]
+    fn chance_requires_coordination_service_authorization() {
+        let body = PatchBlocBody {
+            chance: Some(42),
+            military_expense: None,
+        };
+
+        assert_eq!(
+            body.required_authorization().unwrap(),
+            PatchBlocAuthorization::CoordinationService
+        );
+    }
+
+    #[test]
+    fn military_expense_and_empty_patches_require_bloc_write_authorization() {
+        for body in [
+            PatchBlocBody {
+                chance: None,
+                military_expense: Some(Share::from(0.5)),
+            },
+            PatchBlocBody {
+                chance: None,
+                military_expense: None,
+            },
+        ] {
+            assert_eq!(
+                body.required_authorization().unwrap(),
+                PatchBlocAuthorization::BlocWrite
+            );
+        }
+    }
+
+    #[test]
+    fn chance_and_military_expense_cannot_be_patched_together() {
+        let body = PatchBlocBody {
+            chance: Some(42),
+            military_expense: Some(Share::from(0.5)),
+        };
+
+        assert!(body.required_authorization().is_err());
+    }
 }

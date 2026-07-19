@@ -16,6 +16,8 @@ pub enum UserError {
     NotFound(#[error(not(source))] &'static str),
     #[display("Conflict: {_0}")]
     Conflict(#[error(not(source))] &'static str),
+    #[display("Bad request: {_0}")]
+    BadRequest(#[error(not(source))] &'static str),
     #[display("Unauthorized.")]
     Unauthorized,
     #[display("Forbidden.")]
@@ -45,6 +47,7 @@ impl error::ResponseError for UserError {
             UserError::CreditExchangeQueryFailed => StatusCode::INTERNAL_SERVER_ERROR,
             UserError::NotFound(_) => StatusCode::NOT_FOUND,
             UserError::Conflict(_) => StatusCode::CONFLICT,
+            UserError::BadRequest(_) => StatusCode::BAD_REQUEST,
             UserError::Unauthorized => StatusCode::UNAUTHORIZED,
             UserError::Forbidden => StatusCode::FORBIDDEN,
             UserError::PaymentRequired(_) => StatusCode::PAYMENT_REQUIRED,

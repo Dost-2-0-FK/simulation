@@ -14,6 +14,7 @@ pub(crate) enum CoordinationCapability {
     TriggerUnitProduction,
     PublishBaseProduction,
     PublishTrustProduction,
+    UpdateBlocChance,
 }
 
 #[derive(Clone)]
@@ -40,6 +41,7 @@ impl CoordinationService {
                 CoordinationCapability::TriggerUnitProduction,
                 CoordinationCapability::PublishBaseProduction,
                 CoordinationCapability::PublishTrustProduction,
+                CoordinationCapability::UpdateBlocChance,
             ]),
         }
     }
@@ -54,6 +56,14 @@ impl CoordinationService {
 
 pub(crate) struct CoordinationAuthorization {
     capabilities: HashSet<CoordinationCapability>,
+}
+
+pub(crate) struct OptionalCoordinationAuthorization(Option<CoordinationAuthorization>);
+
+impl OptionalCoordinationAuthorization {
+    pub(crate) fn require(&self, capability: CoordinationCapability) -> Result<(), UserError> {
+        self.0.as_ref().ok_or(UserError::Unauthorized)?.require(capability)
+    }
 }
 
 impl CoordinationAuthorization {
@@ -87,6 +97,20 @@ impl FromRequest for CoordinationAuthorization {
     }
 }
 
+impl FromRequest for OptionalCoordinationAuthorization {
+    type Error = UserError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(request: &HttpRequest, payload: &mut Payload) -> Self::Future {
+        if request.headers().contains_key(header::AUTHORIZATION) {
+            let authorization = CoordinationAuthorization::from_request(request, payload).into_inner();
+            ready(authorization.map(|authorization| Self(Some(authorization))))
+        } else {
+            ready(Ok(Self(None)))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use actix_web::{
@@ -95,10 +119,19 @@ mod tests {
         test, web,
     };
 
-    use super::{CoordinationAuthorization, CoordinationCapability, CoordinationService};
+    use super::{
+        CoordinationAuthorization, CoordinationCapability, CoordinationService, OptionalCoordinationAuthorization,
+    };
 
     async fn protected(authorization: CoordinationAuthorization) -> Result<HttpResponse, crate::error::UserError> {
         authorization.require(CoordinationCapability::TriggerUnitProduction)?;
+        Ok(HttpResponse::Ok().finish())
+    }
+
+    async fn optionally_protected(
+        authorization: OptionalCoordinationAuthorization,
+    ) -> Result<HttpResponse, crate::error::UserError> {
+        authorization.require(CoordinationCapability::UpdateBlocChance)?;
         Ok(HttpResponse::Ok().finish())
     }
 
@@ -139,5 +172,28 @@ mod tests {
             let response = test::call_service(&app, request).await;
             assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         }
+    }
+
+    #[actix_web::test]
+    async fn optional_authorization_allows_extraction_without_credentials_but_still_requires_them_for_capabilities() {
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(CoordinationService::new("secret".to_string())))
+                .route("/protected", web::get().to(optionally_protected)),
+        )
+        .await;
+
+        let missing = test::call_service(&app, test::TestRequest::get().uri("/protected").to_request()).await;
+        assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+
+        let valid = test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri("/protected")
+                .insert_header((header::AUTHORIZATION, "Bearer secret"))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(valid.status(), StatusCode::OK);
     }
 }

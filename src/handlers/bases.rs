@@ -189,6 +189,7 @@ pub(crate) async fn post(
             }
             UserError::NotFound(err) => log::info!("not found: {err}"),
             UserError::Conflict(err) => log::info!("conflict: {err}"),
+            UserError::BadRequest(err) => log::info!("bad request: {err}"),
             UserError::Unauthorized => log::info!("unauthorized while creating base"),
             UserError::Forbidden => log::info!("forbidden while creating base"),
             UserError::PaymentRequired(body) => log::info!("base payment required: {body}"),
