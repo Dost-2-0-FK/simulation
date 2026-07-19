@@ -8,7 +8,10 @@ use crate::{
     error::{Result, UserError},
     geometry::{Point, Positioned},
     handlers::{authenticated_user, can_read_bloc, require_bloc_write},
-    services::credit_exchange_service::Share,
+    services::{
+        coordination_service::{CoordinationAuthorization, CoordinationCapability},
+        credit_exchange_service::Share,
+    },
     simulation::Command,
 };
 
@@ -241,11 +244,17 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     tag = BASES,
     responses(
         (status = 200, description = "Base production published successfully"),
+        (status = 401, description = "Missing or invalid coordination service credentials", body = String, content_type = "text/html"),
+        (status = 403, description = "Coordination service lacks permission to publish base production", body = String, content_type = "text/html"),
         (status = 500, description = "Failed to publish base production", body = String, content_type = "text/html")
     )
 )]
 #[post("/bases/publish-production")]
-pub(crate) async fn publish_production(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn publish_production(
+    authorization: CoordinationAuthorization,
+    tx: web::Data<mpsc::Sender<Command>>,
+) -> Result<impl Responder> {
+    authorization.require(CoordinationCapability::PublishBaseProduction)?;
     let (sender, receiver) = tokio::sync::oneshot::channel();
 
     tx.send(Command::PublishBaseProduction { response: sender })

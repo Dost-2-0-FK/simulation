@@ -8,7 +8,10 @@ use crate::{
     error::{Result, UserError},
     geometry::{Distance, Point, Positioned},
     handlers::{authenticated_user, bases::Financing, can_read_zone, require_zone_write},
-    services::credit_exchange_service::{Money, ResourceName, Resources},
+    services::{
+        coordination_service::{CoordinationAuthorization, CoordinationCapability},
+        credit_exchange_service::{Money, ResourceName, Resources},
+    },
     simulation::Command,
 };
 
@@ -135,11 +138,17 @@ pub(crate) async fn post(
     tag = TRUSTS,
     responses(
         (status = 200, description = "Trust production published successfully"),
+        (status = 401, description = "Missing or invalid coordination service credentials", body = String, content_type = "text/html"),
+        (status = 403, description = "Coordination service lacks permission to publish trust production", body = String, content_type = "text/html"),
         (status = 500, description = "Failed to publish trust production", body = String, content_type = "text/html")
     )
 )]
 #[post("/trusts/publish-production")]
-pub(crate) async fn publish_production(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn publish_production(
+    authorization: CoordinationAuthorization,
+    tx: web::Data<mpsc::Sender<Command>>,
+) -> Result<impl Responder> {
+    authorization.require(CoordinationCapability::PublishTrustProduction)?;
     let (sender, receiver) = tokio::sync::oneshot::channel();
 
     tx.send(Command::PublishTrustProduction { response: sender })

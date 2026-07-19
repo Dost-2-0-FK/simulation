@@ -8,6 +8,7 @@ use crate::{
     error::{Result, UserError},
     geometry::{Point, Positioned},
     handlers::{bases::BaseResponse, can_read_bloc},
+    services::coordination_service::{CoordinationAuthorization, CoordinationCapability},
     simulation::Command,
 };
 
@@ -99,11 +100,17 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     tag = UNITS,
     responses(
         (status = 200, description = "Production task completed successfully"),
+        (status = 401, description = "Missing or invalid coordination service credentials", body = String, content_type = "text/html"),
+        (status = 403, description = "Coordination service lacks permission to trigger unit production", body = String, content_type = "text/html"),
         (status = 500, description = "Failed to produce military units", body = String, content_type = "text/html")
     )
 )]
 #[post("/units/produce")]
-pub(crate) async fn produce(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn produce(
+    authorization: CoordinationAuthorization,
+    tx: web::Data<mpsc::Sender<Command>>,
+) -> Result<impl Responder> {
+    authorization.require(CoordinationCapability::TriggerUnitProduction)?;
     let (sender, receiver) = tokio::sync::oneshot::channel();
 
     tx.send(Command::ProduceMilitaryUnits { response: sender })
