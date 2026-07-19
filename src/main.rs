@@ -30,6 +30,7 @@ async fn main() -> std::io::Result<()> {
         })?;
     let auth_cookie_key = config.auth_cookie_key();
     let auth_service = config.auth_service().clone();
+    let resources = config.resources().to_vec();
     let server_address = config.server_address();
 
     let tx = app::start_simulation(config).await.map_err(|e| {
@@ -47,6 +48,7 @@ async fn main() -> std::io::Result<()> {
             .map(|app| app.wrap(IdentityMiddleware::default()).wrap(session).wrap(logger))
             .app_data(web::Data::new(tx.clone()))
             .app_data(web::Data::new(auth_service.clone()))
+            .app_data(web::Data::new(resources.clone()))
             .service(scope::scope("/api").configure(routes::configure))
             .openapi_service(|api| SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", api))
             .into_app()

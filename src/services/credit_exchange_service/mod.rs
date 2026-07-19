@@ -172,6 +172,10 @@ impl CreditExchangeService {
         &self.loot_factors
     }
 
+    pub(crate) fn resources(&self) -> &[ResourceName] {
+        &self.resources
+    }
+
     #[inline]
     fn log_payment<T: std::fmt::Debug>(&self, cost: &Cost<T>) {
         log::debug!("issuing payment of {}", cost);
