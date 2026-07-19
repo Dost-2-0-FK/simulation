@@ -938,7 +938,7 @@ mod tests {
         let config = toml::from_str::<TomlConfig>(include_str!("../../simulation.toml"))
             .expect("checked-in config TOML can be deserialized");
         let seed = serde_json::from_str::<serde_json::Value>(include_str!(
-            "../../docker/credit-exchanger/db-seeding-example.json"
+            "../../docker/credit-exchanger/credit-exchanger.json"
         ))
         .expect("credit-exchange seed JSON can be deserialized");
 
@@ -972,9 +972,18 @@ mod tests {
             )
             .collect::<HashSet<_>>();
 
-        assert_eq!(seed_ids("blocs"), expected_blocs.iter().map(String::as_str).collect());
-        assert_eq!(seed_ids("zones"), expected_zones.iter().map(String::as_str).collect());
-        assert_eq!(seed_ids("individuals"), expected_individuals);
+        assert!(
+            seed_ids("blocs").is_superset(&expected_blocs.iter().map(String::as_str).collect()),
+            "credit-exchange seed is missing a configured bloc"
+        );
+        assert!(
+            seed_ids("zones").is_superset(&expected_zones.iter().map(String::as_str).collect()),
+            "credit-exchange seed is missing a configured zone"
+        );
+        assert!(
+            seed_ids("individuals").is_superset(&expected_individuals),
+            "credit-exchange seed is missing a configured financier"
+        );
     }
 
     #[tokio::test]

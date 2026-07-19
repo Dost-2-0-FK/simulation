@@ -18,7 +18,7 @@ services:
     ports:
       - "18080:18080"
     volumes:
-      - ./docker/credit-exchanger/db-seeding-example.json:/app/credit-exchanger/src/db-seeding-example.json:ro
+      - ./docker/credit-exchanger/credit-exchanger.json:/app/credit-exchanger/src/credit-exchanger.json:ro
     environment:
       DB_URI: mongodb://mongodb:27017
       DB_DATABASE: credit_exchanger

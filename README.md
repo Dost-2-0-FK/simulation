@@ -64,7 +64,7 @@ RUST_LOG=debug cargo run
 This uses the host-facing ports from `docker-compose.yml`: MongoDB on `localhost:27017` and credit-exchanger on
 `http://127.0.0.1:18080`.
 
-The seed file is mounted into the credit-exchanger container from `docker/credit-exchanger/db-seeding-example.json`.
+The seed file is mounted into the credit-exchanger container from `docker/credit-exchanger/credit-exchanger.json`.
 Use `--force-recreate` when changing seed data so the credit-exchanger entrypoint runs the seed script again.
 `SEED_DROP_DATABASE=true` clears only the credit-exchanger database first, avoiding state left by a partial seed.
 

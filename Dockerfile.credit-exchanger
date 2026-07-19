@@ -7,7 +7,7 @@ ARG CREDIT_EXCHANGER_INSTALLER_URL=https://github.com/Dost-2-0-FK/credit-exchang
 WORKDIR /app/credit-exchanger
 COPY docker-credit-exchanger-entrypoint.sh /usr/local/bin/credit-exchanger-entrypoint
 COPY docker/credit-exchanger/seed-db.sh ./scripts/seed-db.sh
-COPY docker/credit-exchanger/db-seeding-example.json ./src/db-seeding-example.json
+COPY docker/credit-exchanger/credit-exchanger.json ./src/credit-exchanger.json
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl socat xz-utils \

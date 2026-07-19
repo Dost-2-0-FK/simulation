@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SEED_FILE="${1:-src/db-seeding-example.json}"
+SEED_FILE="${1:-src/credit-exchanger.json}"
 DB_URI="${DB_URI:-mongodb://localhost:27017}"
 DB_DATABASE="${DB_DATABASE:-credit_exchanger}"
 SEED_DROP_DATABASE="${SEED_DROP_DATABASE:-false}"
