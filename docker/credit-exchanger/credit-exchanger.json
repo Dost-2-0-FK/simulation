@@ -252,6 +252,9 @@
   ],
   "zones": [
     {
+      "id": "bank"
+    },
+    {
       "id": "WSLS-Vg5s-J4nF-uL9D",
       "credit": {
         "total": 1200,
@@ -9722,15 +9725,6 @@
     },
     {
       "id": "zone-1-b-1-w-household",
-      "credit": {
-        "total": 0,
-        "last_day_average": 0,
-        "subscriptions": [],
-        "history": []
-      }
-    },
-    {
-      "id": "bank",
       "credit": {
         "total": 0,
         "last_day_average": 0,
