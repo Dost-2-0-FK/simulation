@@ -8,5 +8,6 @@ pub(crate) fn configure(config: &mut ServiceConfig<'_>) {
         .service(bases::list)
         .service(bases::publish_production)
         .service(bases::get)
+        .service(bases::delete)
         .service(bases::patch);
 }

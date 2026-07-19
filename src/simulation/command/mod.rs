@@ -1,6 +1,7 @@
 pub(crate) mod base;
 pub(crate) mod bloc;
 pub(crate) mod combat;
+mod deletion;
 pub(crate) mod persist;
 pub(crate) mod placement;
 pub(crate) mod trust;
@@ -112,6 +113,10 @@ pub(crate) enum Command {
         target: Option<TargetBody>,
         response: Sender<core::result::Result<(), UserError>>,
     },
+    DeleteBase {
+        id: BaseId,
+        response: Sender<core::result::Result<(), UserError>>,
+    },
     CreateTrust {
         user_id: UserId,
         placement_id: PlacementId,
@@ -121,6 +126,10 @@ pub(crate) enum Command {
     },
     GetTrusts(Sender<core::result::Result<Vec<TrustResponse>, UserError>>),
     GetTrust(TrustId, Sender<core::result::Result<Option<TrustResponse>, UserError>>),
+    DeleteTrust {
+        id: TrustId,
+        response: Sender<core::result::Result<(), UserError>>,
+    },
     GetPlacements(Sender<Vec<Arc<Placement>>>),
     GetZones(Sender<Vec<Arc<Zone>>>),
     GetBlocs(Sender<Vec<Bloc>>),
@@ -256,6 +265,17 @@ pub(crate) async fn run(
                 .await;
                 let _ = response.send(result);
             }
+            Command::DeleteBase { id, response } => {
+                let result = deletion::delete_base(
+                    id,
+                    &mut bases,
+                    &mut units,
+                    &mut combats,
+                    config.credit_exchange_service(),
+                )
+                .await;
+                let _ = response.send(result);
+            }
             Command::CreateTrust {
                 user_id,
                 placement_id,
@@ -315,6 +335,17 @@ pub(crate) async fn run(
             }
             Command::GetTrust(id, resp) => {
                 trust::get(id, resp, &trusts, &units, config).await;
+            }
+            Command::DeleteTrust { id, response } => {
+                let result = deletion::delete_trust(
+                    id,
+                    &mut bases,
+                    &mut trusts,
+                    &mut combats,
+                    config.credit_exchange_service(),
+                )
+                .await;
+                let _ = response.send(result);
             }
             Command::GetPlacements(resp) => {
                 placement::get(resp, config.placements());

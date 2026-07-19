@@ -87,7 +87,7 @@ async fn transfer_loot(transfer: &crate::domain::LootTransfer, bases: &mut HashM
     }
 }
 
-async fn destroy_base(id: BaseId, bases: &mut HashMap<BaseId, Arc<RwLock<MilitaryBase>>>) {
+pub(crate) async fn destroy_base(id: BaseId, bases: &mut HashMap<BaseId, Arc<RwLock<MilitaryBase>>>) {
     if bases.remove(&id).is_some() {
         log::info!("base {id:?} was destroyed");
     }
@@ -100,7 +100,7 @@ async fn destroy_base(id: BaseId, bases: &mut HashMap<BaseId, Arc<RwLock<Militar
     }
 }
 
-async fn destroy_trust(
+pub(crate) async fn destroy_trust(
     id: TrustId,
     bases: &mut HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     trusts: &mut HashMap<TrustId, Arc<RwLock<Trust>>>,

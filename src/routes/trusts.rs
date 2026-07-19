@@ -7,5 +7,6 @@ pub(crate) fn configure(config: &mut ServiceConfig<'_>) {
         .service(trusts::post)
         .service(trusts::publish_production)
         .service(trusts::list)
-        .service(trusts::get);
+        .service(trusts::get)
+        .service(trusts::delete);
 }

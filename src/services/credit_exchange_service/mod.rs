@@ -104,6 +104,16 @@ struct CreditTotalResponse {
     total: f32,
 }
 
+#[derive(Debug, Deserialize)]
+struct ListSubscriptionsResponse {
+    subscriptions: Vec<SubscriptionResponse>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SubscriptionResponse {
+    id: String,
+}
+
 /// Constructed when loading the config. It owns the local simulation costs and provides the
 /// small subset of credit-exchanger API calls used by this simulation.
 pub(crate) struct CreditExchangeService {
@@ -259,6 +269,16 @@ impl CreditExchangeService {
         Ok(())
     }
 
+    pub(crate) async fn delete_base_subscriptions(&self, base_id: BaseId) -> Result<()> {
+        self.delete_user_subscriptions(&Self::base_credit_user_id(base_id))
+            .await
+    }
+
+    pub(crate) async fn delete_trust_subscriptions(&self, trust_id: TrustId) -> Result<()> {
+        self.delete_user_subscriptions(&Self::trust_credit_user_id(trust_id))
+            .await
+    }
+
     pub(crate) async fn resource_totals_excluding_bank(&self) -> Result<Resources> {
         let url = self.endpoint("api/users")?;
         let response = self
@@ -411,6 +431,54 @@ impl CreditExchangeService {
         Ok(())
     }
 
+    async fn delete_user_subscriptions(&self, user_id: &str) -> Result<()> {
+        let url = self.endpoint(&format!("api/users/{user_id}/subscriptions"))?;
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .with_context(|| format!("listing subscriptions for credit-exchanger user {user_id}"))?;
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(());
+        }
+        let response = Self::error_for_status(
+            response,
+            &format!("listing subscriptions for credit-exchanger user {user_id}"),
+        )
+        .await?;
+        let subscriptions = response
+            .json::<ListSubscriptionsResponse>()
+            .await
+            .with_context(|| format!("decoding subscriptions for credit-exchanger user {user_id}"))?;
+
+        for subscription in subscriptions.subscriptions {
+            let url = self.endpoint(&format!(
+                "api/users/{user_id}/subscriptions/{subscription_id}",
+                subscription_id = subscription.id,
+            ))?;
+            let response = self.client.delete(url).send().await.with_context(|| {
+                format!(
+                    "deleting subscription {subscription_id} for credit-exchanger user {user_id}",
+                    subscription_id = subscription.id,
+                )
+            })?;
+            if response.status() == StatusCode::NOT_FOUND {
+                continue;
+            }
+            Self::error_for_status(
+                response,
+                &format!(
+                    "deleting subscription {subscription_id} for credit-exchanger user {user_id}",
+                    subscription_id = subscription.id,
+                ),
+            )
+            .await?;
+        }
+
+        Ok(())
+    }
+
     async fn set_credit_production(&self, user_id: &str, value: Money) -> Result<()> {
         self.set_production(user_id, "money", value.value()).await
     }
@@ -491,8 +559,24 @@ fn financed_subscription_specs(policy: &Financiers, resources: &VecResourceName)
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use actix_web::{App, HttpResponse, HttpServer, web};
+
     use super::*;
     use crate::{handlers::bases::Financing, services::credit_exchange_service::Share};
+
+    fn test_service(url: Url) -> CreditExchangeService {
+        CreditExchangeService::new(
+            url,
+            "bank".to_string(),
+            serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
+            serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
+            serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
+            serde_json::from_value(serde_json::json!([])).unwrap(),
+            LootFactors::default(),
+        )
+    }
 
     #[test]
     fn financed_subscriptions_split_only_money() {
@@ -563,5 +647,71 @@ mod tests {
 
         assert_eq!(totals.get(&ResourceName::new("iron".to_string())), Some(6.0));
         assert_eq!(totals.get(&ResourceName::new("water".to_string())), Some(4.0));
+    }
+
+    #[actix_web::test]
+    async fn deleting_user_subscriptions_lists_and_deletes_every_subscription() {
+        let deleted = Arc::new(Mutex::new(Vec::<String>::new()));
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server_deleted = deleted.clone();
+        let server = HttpServer::new(move || {
+            App::new()
+                .app_data(web::Data::new(server_deleted.clone()))
+                .route(
+                    "/api/users/base-7/subscriptions",
+                    web::get().to(|| async {
+                        HttpResponse::Ok().json(serde_json::json!({
+                            "subscriptions": [{ "id": "first" }, { "id": "second" }]
+                        }))
+                    }),
+                )
+                .route(
+                    "/api/users/base-7/subscriptions/{subscription_id}",
+                    web::delete().to(
+                        |path: web::Path<String>, deleted: web::Data<Arc<Mutex<Vec<String>>>>| async move {
+                            deleted.lock().unwrap().push(path.into_inner());
+                            HttpResponse::Ok().finish()
+                        },
+                    ),
+                )
+        })
+        .listen(listener)
+        .unwrap()
+        .run();
+        let handle = server.handle();
+        actix_web::rt::spawn(server);
+
+        test_service(format!("http://{address}/").parse().unwrap())
+            .delete_base_subscriptions(BaseId(7))
+            .await
+            .unwrap();
+
+        assert_eq!(*deleted.lock().unwrap(), ["first", "second"]);
+        handle.stop(true).await;
+    }
+
+    #[actix_web::test]
+    async fn missing_credit_user_is_treated_as_already_clean() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = HttpServer::new(|| {
+            App::new().route(
+                "/api/users/trust-3/subscriptions",
+                web::get().to(|| async { HttpResponse::NotFound().finish() }),
+            )
+        })
+        .listen(listener)
+        .unwrap()
+        .run();
+        let handle = server.handle();
+        actix_web::rt::spawn(server);
+
+        test_service(format!("http://{address}/").parse().unwrap())
+            .delete_trust_subscriptions(TrustId(3))
+            .await
+            .unwrap();
+
+        handle.stop(true).await;
     }
 }

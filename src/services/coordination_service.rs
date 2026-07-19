@@ -15,6 +15,8 @@ pub(crate) enum CoordinationCapability {
     PublishBaseProduction,
     PublishTrustProduction,
     UpdateBlocChance,
+    DeleteBase,
+    DeleteTrust,
 }
 
 #[derive(Clone)]
@@ -42,6 +44,8 @@ impl CoordinationService {
                 CoordinationCapability::PublishBaseProduction,
                 CoordinationCapability::PublishTrustProduction,
                 CoordinationCapability::UpdateBlocChance,
+                CoordinationCapability::DeleteBase,
+                CoordinationCapability::DeleteTrust,
             ]),
         }
     }

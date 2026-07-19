@@ -1,5 +1,5 @@
 use actix_session::Session;
-use actix_web::{HttpResponse, Responder, get, patch, post, web};
+use actix_web::{HttpResponse, Responder, delete, get, patch, post, web};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
@@ -311,6 +311,43 @@ pub(crate) async fn get(
         base.redact_protected_fields();
     }
     Ok(HttpResponse::Ok().json(base))
+}
+
+/// Delete a base and its dependent simulation state.
+#[utoipa::path(
+    operation_id = "deleteBase",
+    tag = BASES,
+    responses(
+        (status = 204, description = "Base deleted successfully"),
+        (status = 401, description = "Missing or invalid coordination service credentials", body = String, content_type = "text/html"),
+        (status = 403, description = "Coordination service lacks permission to delete bases", body = String, content_type = "text/html"),
+        (status = 404, description = "Base not found", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to delete the base or its credit subscriptions", body = String, content_type = "text/html")
+    )
+)]
+#[delete("/bases/{id}")]
+pub(crate) async fn delete(
+    authorization: CoordinationAuthorization,
+    path: web::Path<u64>,
+    tx: web::Data<mpsc::Sender<Command>>,
+) -> Result<impl Responder> {
+    authorization.require(CoordinationCapability::DeleteBase)?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    tx.send(Command::DeleteBase {
+        id: BaseId(path.into_inner()),
+        response: sender,
+    })
+    .await
+    .map_err(|error| {
+        log::error!("Error sending base deletion command: {error}");
+        UserError::InternalError
+    })?;
+
+    receiver.await.map_err(|error| {
+        log::error!("Error receiving base deletion result: {error}");
+        UserError::InternalError
+    })??;
+    Ok(HttpResponse::NoContent().finish())
 }
 
 /// Update a base.

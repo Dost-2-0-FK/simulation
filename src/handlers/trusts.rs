@@ -1,5 +1,5 @@
 use actix_session::Session;
-use actix_web::{HttpResponse, Responder, get, post, web};
+use actix_web::{HttpResponse, Responder, delete, get, post, web};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
@@ -235,6 +235,43 @@ pub(crate) async fn get(
         trust.redact_protected_fields();
     }
     Ok(HttpResponse::Ok().json(trust))
+}
+
+/// Delete a trust and its dependent simulation state.
+#[utoipa::path(
+    operation_id = "deleteTrust",
+    tag = TRUSTS,
+    responses(
+        (status = 204, description = "Trust deleted successfully"),
+        (status = 401, description = "Missing or invalid coordination service credentials", body = String, content_type = "text/html"),
+        (status = 403, description = "Coordination service lacks permission to delete trusts", body = String, content_type = "text/html"),
+        (status = 404, description = "Trust not found", body = String, content_type = "text/html"),
+        (status = 500, description = "Failed to delete the trust or its credit subscriptions", body = String, content_type = "text/html")
+    )
+)]
+#[delete("/trusts/{id}")]
+pub(crate) async fn delete(
+    authorization: CoordinationAuthorization,
+    path: web::Path<u64>,
+    tx: web::Data<mpsc::Sender<Command>>,
+) -> Result<impl Responder> {
+    authorization.require(CoordinationCapability::DeleteTrust)?;
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    tx.send(Command::DeleteTrust {
+        id: TrustId(path.into_inner()),
+        response: sender,
+    })
+    .await
+    .map_err(|error| {
+        log::error!("Error sending trust deletion command: {error}");
+        UserError::InternalError
+    })?;
+
+    receiver.await.map_err(|error| {
+        log::error!("Error receiving trust deletion result: {error}");
+        UserError::InternalError
+    })??;
+    Ok(HttpResponse::NoContent().finish())
 }
 
 #[cfg(test)]
