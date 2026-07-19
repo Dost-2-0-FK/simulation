@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 use crate::{
     domain::{PlacementId, Trust, TrustId, ZoneName},
     error::{Result, UserError},
-    geometry::{Point, Positioned},
+    geometry::{Distance, Point, Positioned},
     handlers::{authenticated_user, bases::Financing, can_read_zone, require_zone_write},
     services::credit_exchange_service::{Money, ResourceName, Resources},
     simulation::Command,
@@ -30,6 +30,8 @@ pub(crate) struct TrustResponse {
     zone: ZoneName,
     payment: Vec<Financing>,
     position: Point,
+    /// The inhibition radius applied after capping the configured radius by half the distance to the nearest placement.
+    inhibition_radius: Distance,
     /// The current monetary income after applying the resource-supply discount. Omitted without read access to the
     /// zone.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -40,7 +42,7 @@ pub(crate) struct TrustResponse {
 }
 
 impl TrustResponse {
-    pub(crate) fn new(trust: &Trust, income: Money, producing: Resources) -> Self {
+    pub(crate) fn new(trust: &Trust, income: Money, producing: Resources, inhibition_radius: Distance) -> Self {
         let placement = trust.placement();
         Self {
             id: trust.id(),
@@ -48,6 +50,7 @@ impl TrustResponse {
             zone: placement.zone().name().clone(),
             payment: trust.financing().to_vec(),
             position: trust.position(),
+            inhibition_radius,
             income: Some(income),
             producing: Some(producing),
         }
@@ -229,7 +232,7 @@ mod tests {
     use super::TrustResponse;
     use crate::{
         domain::{PlacementId, TrustId, ZoneName},
-        geometry::Point,
+        geometry::{Distance, Point},
         services::credit_exchange_service::{Money, ResourceName, Resources},
     };
 
@@ -241,6 +244,7 @@ mod tests {
             zone: ZoneName::from("zone-w".to_string()),
             payment: vec![],
             position: Point::new(NotNan::new(1.0).unwrap(), NotNan::new(2.0).unwrap()),
+            inhibition_radius: serde_json::from_value::<Distance>(serde_json::json!(1.0)).unwrap(),
             income: Some(Money::from(10.0)),
             producing: Some(Resources::new_single(ResourceName::new("oil".to_string()), 2.0)),
         };
@@ -248,6 +252,7 @@ mod tests {
         let visible_response = serde_json::to_value(&response).unwrap();
         assert!(visible_response.get("income").is_some());
         assert!(visible_response.get("producing").is_some());
+        assert_eq!(visible_response["inhibitionRadius"], 1.0);
 
         response.redact_protected_fields();
         let response = serde_json::to_value(response).unwrap();

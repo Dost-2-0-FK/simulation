@@ -44,13 +44,21 @@ impl Positioned for Point {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, utoipa::ToSchema, PartialEq, PartialOrd)]
+#[schema(value_type = f64)]
 pub(crate) struct Distance(f64);
 
 impl Distance {
     /// Builds a straight-line distance from already resolved axis deltas.
     fn from_components(dx: NotNan<f64>, dy: NotNan<f64>) -> Self {
         Distance((dx * dx + dy * dy).sqrt())
+    }
+}
+
+impl std::ops::Mul<f64> for Distance {
+    type Output = Self;
+    fn mul(self, rhs: f64) -> Self {
+        Self(self.0 * rhs)
     }
 }
 

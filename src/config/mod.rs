@@ -9,7 +9,6 @@ use std::{
 };
 
 use actix_web::cookie::Key;
-use ordered_float::NotNan;
 use serde::Deserialize;
 use serde_with::{DurationSecondsWithFrac, serde_as};
 use tokio::{fs, sync::RwLock};
@@ -70,7 +69,7 @@ pub(crate) struct Config {
     world_bounds: WorldBounds,
     trust_production_resources: Resources,
     trust_money_per_resource: MoneyPerResource,
-    trust_inhibition_radius: NotNan<f64>,
+    trust_inhibition_radius: Distance,
     trust_inhibition_factor_close_units: Share,
     trust_inhibition_factor_combat: Share,
     base_destruction_threshold: u32,
@@ -201,7 +200,7 @@ struct TrustConfig {
 struct TrustProductionConfig {
     money_per_resource: MoneyPerResource,
     resources: Resources,
-    inhibition_radius: NotNan<f64>,
+    inhibition_radius: Distance,
     inhibition_factor_close_units: Share,
     inhibition_factor_combat: Share,
 }
@@ -288,8 +287,8 @@ impl Config {
         self.trust_money_per_resource.get(resource)
     }
 
-    pub(crate) fn trust_inhibition_radius(&self) -> f64 {
-        self.trust_inhibition_radius.into_inner()
+    pub(crate) fn trust_inhibition_radius(&self) -> Distance {
+        self.trust_inhibition_radius
     }
 
     pub(crate) fn trust_inhibition_factor_close_units(&self) -> Share {

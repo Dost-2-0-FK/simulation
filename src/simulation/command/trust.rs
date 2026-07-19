@@ -7,7 +7,7 @@ use crate::{
     config::Config,
     domain::{BlocName, MilitaryUnit, Placement, PlacementId, Trust, TrustId, UnitId},
     error::UserError,
-    geometry::{Point, Positioned, WorldBounds},
+    geometry::{Distance, Point, Positioned, WorldBounds},
     handlers::{bases::Financing, trusts::TrustResponse},
     services::credit_exchange_service::{CreditExchangeService, Money, ResourceName, ResourceValue, Resources, Share},
 };
@@ -46,28 +46,19 @@ fn placement_snapshots(placements: impl Iterator<Item = Arc<Placement>>) -> Vec<
 fn inhibition_factor(
     trust: &Trust,
     units: &[UnitSnapshot],
-    placements: &[PlacementSnapshot],
     world_bounds: WorldBounds,
-    inhibition_radius: f64,
+    inhibition_radius: Distance,
     close_units_factor: Share,
     combat_factor: Share,
 ) -> Share {
     let trust_bloc = trust.placement().zone().bloc_name();
-    let closest_placement_distance = placements
-        .iter()
-        .filter(|placement| &placement.id != trust.placement_id())
-        .map(|placement| world_bounds.distance_between(trust.position(), placement.position))
-        .min_by(|left, right| left.partial_cmp(right).expect("distances are finite"));
     let mut close_enemy = false;
     for unit in units.iter().filter(|unit| &unit.bloc != trust_bloc) {
         let distance = world_bounds.distance_between(trust.position(), unit.position);
         if distance == 0.0 {
             return combat_factor;
         }
-        let within_placement_cap = closest_placement_distance
-            .map(|placement_distance| placement_distance != 0.0 && distance / placement_distance <= 0.5)
-            .unwrap_or(true);
-        if distance <= inhibition_radius && within_placement_cap {
+        if distance <= inhibition_radius {
             close_enemy = true;
         }
     }
@@ -79,11 +70,29 @@ fn inhibition_factor(
     }
 }
 
+fn applied_inhibition_radius(
+    trust: &Trust,
+    placements: &[PlacementSnapshot],
+    world_bounds: WorldBounds,
+    configured_radius: Distance,
+) -> Distance {
+    placements
+        .iter()
+        .filter(|placement| &placement.id != trust.placement_id())
+        .map(|placement| world_bounds.distance_between(trust.position(), placement.position) * 0.5)
+        .fold(
+            configured_radius,
+            |radius, candidate| {
+                if candidate < radius { candidate } else { radius }
+            },
+        )
+}
+
 struct ProductionContext {
     units: Vec<UnitSnapshot>,
     placements: Vec<PlacementSnapshot>,
     world_bounds: WorldBounds,
-    inhibition_radius: f64,
+    inhibition_radius: Distance,
     close_units_factor: Share,
     combat_factor: Share,
     resource_totals: Resources,
@@ -105,17 +114,18 @@ impl ProductionContext {
         })
     }
 
-    fn production_for(&self, trust: &Trust) -> Resources {
+    fn production_for(&self, trust: &Trust) -> (Resources, Distance) {
+        let inhibition_radius =
+            applied_inhibition_radius(trust, &self.placements, self.world_bounds, self.inhibition_radius);
         let factor = inhibition_factor(
             trust,
             &self.units,
-            &self.placements,
             self.world_bounds,
-            self.inhibition_radius,
+            inhibition_radius,
             self.close_units_factor,
             self.combat_factor,
         );
-        trust.production_with_inhibition(factor)
+        (trust.production_with_inhibition(factor), inhibition_radius)
     }
 
     fn income_for(&self, trust: &Trust, produced: ResourceValue<'_>) -> Money {
@@ -141,7 +151,7 @@ pub(crate) async fn get_all(
         let mut result = Vec::with_capacity(trusts.len());
         for trust in trusts.values() {
             let trust = trust.read().await;
-            let producing = context.production_for(&trust);
+            let (producing, inhibition_radius) = context.production_for(&trust);
             result.push(TrustResponse::new(
                 &trust,
                 context.income_for(
@@ -149,6 +159,7 @@ pub(crate) async fn get_all(
                     producing.into_iter().next().expect("trusts produce one resource"),
                 ),
                 producing,
+                inhibition_radius,
             ));
         }
         Ok(result)
@@ -173,7 +184,7 @@ pub(crate) async fn get(
             UserError::CreditExchangeQueryFailed
         })?;
         let trust = trust.read().await;
-        let producing = context.production_for(&trust);
+        let (producing, inhibition_radius) = context.production_for(&trust);
         Ok(Some(TrustResponse::new(
             &trust,
             context.income_for(
@@ -181,6 +192,7 @@ pub(crate) async fn get(
                 producing.into_iter().next().expect("trusts produce one resource"),
             ),
             producing,
+            inhibition_radius,
         )))
     }
     .await;
@@ -231,7 +243,7 @@ pub(crate) async fn publish_production(
     let context = ProductionContext::new(units, config).await?;
     for trust_arc in trusts.values() {
         let trust = trust_arc.read().await;
-        let producing = context.production_for(&trust);
+        let (producing, _) = context.production_for(&trust);
         let income = context.income_for(
             &trust,
             producing.into_iter().next().expect("trusts produce one resource"),
@@ -263,6 +275,10 @@ mod tests {
 
     fn point(x: f64, y: f64) -> Point {
         Point::new(NotNan::new(x).unwrap(), NotNan::new(y).unwrap())
+    }
+
+    fn distance(value: f64) -> Distance {
+        serde_json::from_value(serde_json::json!(value)).unwrap()
     }
 
     fn world_bounds() -> WorldBounds {
@@ -323,6 +339,19 @@ mod tests {
         [placement("other-placement", point(20.0, 10.0))]
     }
 
+    fn factor(
+        trust: &Trust,
+        units: &[UnitSnapshot],
+        placements: &[PlacementSnapshot],
+        world_bounds: WorldBounds,
+        configured_radius: f64,
+        close_units_factor: Share,
+        combat_factor: Share,
+    ) -> Share {
+        let radius = applied_inhibition_radius(trust, placements, world_bounds, distance(configured_radius));
+        inhibition_factor(trust, units, world_bounds, radius, close_units_factor, combat_factor)
+    }
+
     #[test]
     fn production_is_not_inhibited_by_friendly_or_distant_units() {
         let trust = trust(point(10.0, 10.0));
@@ -331,7 +360,7 @@ mod tests {
             unit(point(12.0, 10.0), "enemy-bloc"),
         ];
 
-        let factor = inhibition_factor(
+        let factor = factor(
             &trust,
             &units,
             &distant_placement(),
@@ -349,7 +378,7 @@ mod tests {
         let trust = trust(point(0.25, 10.0));
         let units = [unit(point(29.5, 10.0), "enemy-bloc")];
 
-        let factor = inhibition_factor(
+        let factor = factor(
             &trust,
             &units,
             &distant_placement(),
@@ -370,7 +399,7 @@ mod tests {
             unit(point(10.0, 10.0), "other-enemy-bloc"),
         ];
 
-        let factor = inhibition_factor(
+        let factor = factor(
             &trust,
             &units,
             &distant_placement(),
@@ -393,8 +422,9 @@ mod tests {
     fn closest_placement_caps_inhibition_radius_at_half_its_distance() {
         let trust = trust(point(1.0, 10.0));
         let placements = [placement("other-placement", point(29.0, 10.0))];
+        let applied_radius = applied_inhibition_radius(&trust, &placements, world_bounds(), distance(10.0));
 
-        let outside_capped_radius = inhibition_factor(
+        let outside_capped_radius = factor(
             &trust,
             &[unit(point(2.5, 10.0), "enemy-bloc")],
             &placements,
@@ -403,7 +433,7 @@ mod tests {
             Share::from(0.75),
             Share::from(0.25),
         );
-        let on_capped_radius = inhibition_factor(
+        let on_capped_radius = factor(
             &trust,
             &[unit(point(2.0, 10.0), "enemy-bloc")],
             &placements,
@@ -413,6 +443,7 @@ mod tests {
             Share::from(0.25),
         );
 
+        assert_eq!(applied_radius, 1.0);
         assert_eq!(outside_capped_radius, Share::from(1.0));
         assert_eq!(on_capped_radius, Share::from(0.75));
     }
@@ -426,7 +457,7 @@ mod tests {
             units: vec![],
             placements: vec![],
             world_bounds: world_bounds(),
-            inhibition_radius: 1.0,
+            inhibition_radius: distance(1.0),
             close_units_factor: Share::from(0.75),
             combat_factor: Share::from(0.25),
             resource_totals,
