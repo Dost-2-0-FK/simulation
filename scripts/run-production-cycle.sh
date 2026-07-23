@@ -50,7 +50,7 @@ invoke_endpoint() {
 
   timestamp=$(date '+%Y-%m-%dT%H:%M:%S%z')
 
-  if curl --fail --silent --show-error \
+  if curl --fail-with-body --silent --show-error \
     --header "Authorization: Bearer ${coordination_api_key}" \
     --request POST "${base_url}${endpoint}"; then
     echo "${timestamp} POST ${base_url}${endpoint} succeeded"
