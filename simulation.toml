@@ -82,8 +82,8 @@ max_y = 83.42
 
 [combat]
 combat_tick_interval_seconds = 1.5
-movement_interval_seconds = 60
-movement_step = 2.0
+movement_interval_seconds = 1
+movement_step = 1
 base_destruction_threshold = 5
 trust_destruction_threshold = 4
 
