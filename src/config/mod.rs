@@ -957,15 +957,16 @@ mod tests {
             .iter()
             .map(|zone| zone.name.to_string())
             .collect::<HashSet<_>>();
-        let expected_individuals = std::iter::once(config.bank_user_id.as_str())
-            .chain(
-                config
-                    .bases
-                    .iter()
-                    .flat_map(|base| &base.payment)
-                    .chain(config.trusts.iter().flat_map(|trust| &trust.payment))
-                    .map(|financing| financing.financier.as_str()),
-            )
+        let expected_individuals = config
+            .bases
+            .iter()
+            .flat_map(|base| &base.payment)
+            .chain(config.trusts.iter().flat_map(|trust| &trust.payment))
+            .map(|financing| financing.financier.as_str())
+            .collect::<HashSet<_>>();
+        let seeded_resource_users = seed_ids("blocs")
+            .into_iter()
+            .chain(seed_ids("zones"))
             .collect::<HashSet<_>>();
 
         assert!(
@@ -979,6 +980,10 @@ mod tests {
         assert!(
             seed_ids("individuals").is_superset(&expected_individuals),
             "credit-exchange seed is missing a configured financier"
+        );
+        assert!(
+            seeded_resource_users.contains(config.bank_user_id.as_str()),
+            "credit-exchange seed bank user must be a bloc or zone"
         );
     }
 
