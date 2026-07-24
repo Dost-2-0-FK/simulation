@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    domain::{BlocName, Loot, PlacementId, ZoneName},
+    domain::{BlocName, PlacementId, ZoneName},
     handlers::bases::{Financing, UserId},
-    services::credit_exchange_service::Cost,
+    services::credit_exchange_service::ResourceName,
 };
 
 pub(crate) const AUTHENTICATED_USER_SESSION_KEY: &str = "authenticatedUser";
@@ -18,8 +18,6 @@ pub(crate) const AUTHENTICATED_USER_SESSION_KEY: &str = "authenticatedUser";
 pub(crate) struct AuthService {
     client: reqwest::Client,
     url: Url,
-    bloc_permissions: HashMap<BlocName, AccessLevel>,
-    zone_permissions: HashMap<ZoneName, AccessLevel>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -32,12 +30,9 @@ pub(crate) enum FinancedObject {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FinancingVerificationRequest<'a> {
-    user_id: &'a UserId,
-    financier_id: &'a UserId,
     placement_id: &'a PlacementId,
     object_type: FinancedObject,
-    share: crate::services::credit_exchange_service::Share,
-    cost: Loot,
+    trust_type: &'a str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
@@ -48,15 +43,13 @@ pub(crate) enum AccessLevel {
 }
 
 #[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub(crate) struct LoginCredentials {
-    user_id: UserId,
     password: String,
 }
 
 impl LoginCredentials {
-    pub(crate) fn new(user_id: UserId, password: String) -> Self {
-        Self { user_id, password }
+    pub(crate) fn new(password: String) -> Self {
+        Self { password }
     }
 }
 
@@ -68,19 +61,29 @@ pub(crate) struct AuthenticatedUser {
     zone_permissions: HashMap<ZoneName, AccessLevel>,
 }
 
+#[derive(Debug, Deserialize)]
+struct AuthenticationResponse {
+    #[serde(rename = "userID")]
+    user_id: UserId,
+    #[serde(rename = "blockPermissions")]
+    bloc_permissions: HashMap<BlocName, AccessLevel>,
+    #[serde(rename = "zonePermissions")]
+    zone_permissions: HashMap<ZoneName, AccessLevel>,
+}
+
+impl From<AuthenticationResponse> for AuthenticatedUser {
+    fn from(response: AuthenticationResponse) -> Self {
+        Self {
+            user_id: response.user_id,
+            bloc_permissions: response.bloc_permissions,
+            zone_permissions: response.zone_permissions,
+        }
+    }
+}
+
 impl AuthenticatedUser {
     pub(crate) fn user_id(&self) -> &UserId {
         &self.user_id
-    }
-
-    #[cfg(test)]
-    pub(crate) fn bloc_permissions(&self) -> &HashMap<BlocName, AccessLevel> {
-        &self.bloc_permissions
-    }
-
-    #[cfg(test)]
-    pub(crate) fn zone_permissions(&self) -> &HashMap<ZoneName, AccessLevel> {
-        &self.zone_permissions
     }
 
     pub(crate) fn can_read_bloc(&self, bloc: &BlocName) -> bool {
@@ -101,52 +104,62 @@ impl AuthenticatedUser {
 }
 
 impl AuthService {
-    /// Temporarily pass in the configured blocs and zones to hand out write permissions for all of them.
-    pub(crate) fn new(
-        url: Url,
-        blocs: impl IntoIterator<Item = BlocName>,
-        zones: impl IntoIterator<Item = ZoneName>,
-    ) -> Self {
+    pub(crate) fn new(url: Url) -> Self {
         Self {
             client: reqwest::Client::new(),
             url,
-            bloc_permissions: blocs.into_iter().map(|bloc| (bloc, AccessLevel::Write)).collect(),
-            zone_permissions: zones.into_iter().map(|zone| (zone, AccessLevel::Write)).collect(),
         }
     }
 
-    pub(crate) fn authenticate(&self, credentials: LoginCredentials) -> Option<AuthenticatedUser> {
-        let LoginCredentials { user_id, password } = credentials;
-        let _accepted_password = password;
+    pub(crate) async fn authenticate(&self, credentials: LoginCredentials) -> Result<Option<AuthenticatedUser>> {
+        let endpoint = self
+            .url
+            .join("api/users/auth")
+            .context("building auth-service authentication endpoint")?;
+        let response = self
+            .client
+            .post(endpoint)
+            .json(&credentials)
+            .send()
+            .await
+            .context("requesting authentication")?;
 
-        Some(AuthenticatedUser {
-            user_id,
-            bloc_permissions: self.bloc_permissions.clone(),
-            zone_permissions: self.zone_permissions.clone(),
-        })
+        if matches!(
+            response.status(),
+            StatusCode::BAD_REQUEST | StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN | StatusCode::NOT_FOUND
+        ) {
+            return Ok(None);
+        }
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_else(|err| err.to_string());
+            return Err(anyhow!("authentication failed with {status}: {body}"));
+        }
+
+        response
+            .json::<AuthenticationResponse>()
+            .await
+            .context("deserializing auth-service authentication response")
+            .map(|response| Some(response.into()))
     }
 
     /// Verifies that every listed financier consents before any payment is booked.
-    pub(crate) async fn verify_financing<T>(
+    pub(crate) async fn verify_financing(
         &self,
-        user_id: &UserId,
         placement_id: &PlacementId,
         object_type: FinancedObject,
         financing: &[Financing],
-        cost: &Cost<T>,
+        trust_type: Option<&ResourceName>,
     ) -> Result<bool> {
         for financing in financing {
             let endpoint = self
                 .url
-                .join(&format!("api/users/{}/financing/verify", financing.financier.as_str()))
+                .join(&format!("api/users/{}/verify", financing.financier.as_str()))
                 .context("building auth-service financing verification endpoint")?;
             let request = FinancingVerificationRequest {
-                user_id,
-                financier_id: &financing.financier,
                 placement_id,
                 object_type,
-                share: financing.share,
-                cost: Loot::from_cost_share(cost, financing.share),
+                trust_type: trust_type.map(ResourceName::as_str).unwrap_or_default(),
             };
 
             let response = self
@@ -181,12 +194,12 @@ mod tests {
     use std::collections::HashMap;
 
     use super::{
-        AccessLevel, AuthService, AuthenticatedUser, FinancedObject, FinancingVerificationRequest, LoginCredentials,
+        AccessLevel, AuthenticatedUser, AuthenticationResponse, FinancedObject, FinancingVerificationRequest,
+        LoginCredentials,
     };
     use crate::{
-        domain::{BlocName, Loot, PlacementId, ZoneName},
+        domain::{BlocName, PlacementId, ZoneName},
         handlers::bases::UserId,
-        services::credit_exchange_service::Share,
     };
 
     #[test]
@@ -220,66 +233,66 @@ mod tests {
     }
 
     #[test]
-    fn authentication_grants_write_access_to_every_configured_bloc_and_zone() {
-        let blocs = [BlocName::from("north".to_string()), BlocName::from("south".to_string())];
-        let zones = [ZoneName::from("alpha".to_string()), ZoneName::from("beta".to_string())];
-        let service = AuthService::new("http://127.0.0.1:18081".parse().unwrap(), blocs.clone(), zones.clone());
-
-        let user = service
-            .authenticate(LoginCredentials::new(
-                UserId::from("alice".to_string()),
-                "secret".to_string(),
-            ))
-            .unwrap();
-
-        assert_eq!(user.bloc_permissions().len(), blocs.len());
-        assert!(
-            user.bloc_permissions()
-                .values()
-                .all(|level| *level == AccessLevel::Write)
+    fn authentication_request_matches_the_auth_service_contract() {
+        assert_eq!(
+            serde_json::to_value(LoginCredentials::new("encrypted-public-key".to_string())).unwrap(),
+            serde_json::json!({ "password": "encrypted-public-key" })
         );
-        assert_eq!(user.zone_permissions().len(), zones.len());
-        assert!(
-            user.zone_permissions()
-                .values()
-                .all(|level| *level == AccessLevel::Write)
-        );
-        assert!(blocs.iter().all(|bloc| user.can_write_bloc(bloc)));
-        assert!(zones.iter().all(|zone| user.can_write_zone(zone)));
-        assert!(!user.can_write_bloc(&BlocName::from("unconfigured".to_string())));
-        assert!(!user.can_write_zone(&ZoneName::from("unconfigured".to_string())));
+    }
+
+    #[test]
+    fn authentication_response_matches_the_auth_service_contract() {
+        let response = serde_json::from_value::<AuthenticationResponse>(serde_json::json!({
+            "userID": "alice",
+            "blockPermissions": {
+                "north": "write",
+                "south": "read"
+            },
+            "zonePermissions": {
+                "alpha": "write",
+                "beta": "read"
+            }
+        }))
+        .unwrap();
+        let user = AuthenticatedUser::from(response);
+
+        assert_eq!(user.user_id().as_str(), "alice");
+        assert!(user.can_write_bloc(&BlocName::from("north".to_string())));
+        assert!(user.can_read_bloc(&BlocName::from("south".to_string())));
+        assert!(!user.can_write_bloc(&BlocName::from("south".to_string())));
+        assert!(user.can_write_zone(&ZoneName::from("alpha".to_string())));
+        assert!(user.can_read_zone(&ZoneName::from("beta".to_string())));
+        assert!(!user.can_write_zone(&ZoneName::from("beta".to_string())));
     }
 
     #[test]
     fn financing_verification_request_matches_the_auth_service_contract() {
-        let user_id = UserId::from("builder".to_string());
-        let financier_id = UserId::from("sponsor".to_string());
         let placement_id = serde_json::from_value::<PlacementId>(serde_json::json!("placement-1")).unwrap();
-        let request = FinancingVerificationRequest {
-            user_id: &user_id,
-            financier_id: &financier_id,
+        let trust_request = FinancingVerificationRequest {
             placement_id: &placement_id,
             object_type: FinancedObject::Trust,
-            share: Share::from(0.25),
-            cost: serde_json::from_value::<Loot>(serde_json::json!({
-                "money": 3.0,
-                "resources": { "iron": 2.0 }
-            }))
-            .unwrap(),
+            trust_type: "iron",
+        };
+        let base_request = FinancingVerificationRequest {
+            placement_id: &placement_id,
+            object_type: FinancedObject::Base,
+            trust_type: "",
         };
 
         assert_eq!(
-            serde_json::to_value(request).unwrap(),
+            serde_json::to_value(trust_request).unwrap(),
             serde_json::json!({
-                "userId": "builder",
-                "financierId": "sponsor",
                 "placementId": "placement-1",
                 "objectType": "trust",
-                "share": 0.25,
-                "cost": {
-                    "money": 3.0,
-                    "resources": { "iron": 2.0 }
-                }
+                "trustType": "iron"
+            })
+        );
+        assert_eq!(
+            serde_json::to_value(base_request).unwrap(),
+            serde_json::json!({
+                "placementId": "placement-1",
+                "objectType": "base",
+                "trustType": ""
             })
         );
     }

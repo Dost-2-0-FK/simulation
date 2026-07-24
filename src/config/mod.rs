@@ -551,11 +551,7 @@ impl Config {
             "unit movement step must be greater than 0"
         );
 
-        let auth_service = AuthService::new(
-            config.env.auth_service_url.clone(),
-            config.blocs.iter().map(|bloc| bloc.name.clone()),
-            config.zones.iter().map(|zone| zone.name.clone()),
-        );
+        let auth_service = AuthService::new(config.env.auth_service_url.clone());
 
         Ok(Self {
             placements,

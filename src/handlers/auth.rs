@@ -12,9 +12,7 @@ use crate::{
 const AUTH: &str = "auth";
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
-#[serde(rename_all = "camelCase")]
 pub(crate) struct LoginRequest {
-    user_id: UserId,
     password: String,
 }
 
@@ -43,10 +41,12 @@ pub(crate) async fn login(
     login_request: web::Json<LoginRequest>,
 ) -> Result<impl Responder> {
     let authenticated_user = auth_service
-        .authenticate(LoginCredentials::new(
-            login_request.user_id.clone(),
-            login_request.password.clone(),
-        ))
+        .authenticate(LoginCredentials::new(login_request.password.clone()))
+        .await
+        .map_err(|error| {
+            log::error!("Auth service failed to authenticate user: {error:#}");
+            UserError::InternalError
+        })?
         .ok_or(UserError::Unauthorized)?;
 
     session
@@ -111,23 +111,21 @@ pub(crate) async fn logout(identity: Option<Identity>, session: Session) -> Resu
 #[cfg(test)]
 mod tests {
     use actix_identity::IdentityMiddleware;
-    use actix_session::{SessionMiddleware, storage::CookieSessionStore};
+    use actix_session::{Session, SessionMiddleware, storage::CookieSessionStore};
     use actix_web::{
-        App,
+        App, HttpResponse,
         cookie::Key,
         http::{StatusCode, header},
-        test, web,
+        post, test, web,
     };
 
-    use super::{get_current_user, login};
-    use crate::services::auth_service::{AuthService, AuthenticatedUser};
+    use super::get_current_user;
+    use crate::services::auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthenticatedUser};
 
-    fn auth_service() -> AuthService {
-        AuthService::new(
-            "http://127.0.0.1:18081".parse().unwrap(),
-            [crate::domain::BlocName::from("west".to_string())],
-            [crate::domain::ZoneName::from("zone_w".to_string())],
-        )
+    #[post("/test/session")]
+    async fn seed_authenticated_session(session: Session, user: web::Data<AuthenticatedUser>) -> HttpResponse {
+        session.insert(AUTHENTICATED_USER_SESSION_KEY, user.get_ref()).unwrap();
+        HttpResponse::Ok().finish()
     }
 
     #[actix_web::test]
@@ -148,29 +146,31 @@ mod tests {
 
     #[actix_web::test]
     async fn current_user_returns_the_authenticated_user() {
+        let authenticated_user = serde_json::from_value::<AuthenticatedUser>(serde_json::json!({
+            "userId": "alice",
+            "blocPermissions": { "west": "write" },
+            "zonePermissions": { "zone_w": "write" }
+        }))
+        .unwrap();
         let app = test::init_service(
             App::new()
                 .wrap(IdentityMiddleware::default())
                 .wrap(SessionMiddleware::new(CookieSessionStore::default(), Key::generate()))
-                .app_data(web::Data::new(auth_service()))
-                .service(login)
+                .app_data(web::Data::new(authenticated_user))
+                .service(seed_authenticated_session)
                 .service(get_current_user),
         )
         .await;
 
-        let login_request = test::TestRequest::post()
-            .uri("/login")
-            .insert_header((header::CONTENT_TYPE, "application/json"))
-            .set_payload(r#"{"userId":"alice","password":"secret"}"#)
-            .to_request();
-        let login_response = test::call_service(&app, login_request).await;
-        assert_eq!(login_response.status(), StatusCode::OK);
+        let session_request = test::TestRequest::post().uri("/test/session").to_request();
+        let session_response = test::call_service(&app, session_request).await;
+        assert_eq!(session_response.status(), StatusCode::OK);
 
-        let session_cookie = login_response
+        let session_cookie = session_response
             .response()
             .cookies()
             .next()
-            .expect("login should set a session cookie");
+            .expect("seeding the authenticated session should set a cookie");
         let session_cookie = format!("{}={}", session_cookie.name(), session_cookie.value());
         let request = test::TestRequest::get()
             .uri("/me")

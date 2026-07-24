@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::services::credit_exchange_service::{Cost, Money, ResourceValue, Resources, ResourcesFactors, Share};
+use crate::services::credit_exchange_service::{Cost, Money, ResourceValue, Resources, ResourcesFactors};
 
 #[derive(Debug, Default, Clone, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -30,13 +30,6 @@ impl Loot {
         }
     }
 
-    pub(crate) fn from_cost_share<T>(cost: &Cost<T>, share: Share) -> Self {
-        Self {
-            money: share * cost.money(),
-            resources: share * cost.resources_owned(),
-        }
-    }
-
     pub(crate) fn money(&self) -> Money {
         self.money
     }
@@ -59,33 +52,5 @@ impl std::ops::AddAssign<&Loot> for Loot {
     fn add_assign(&mut self, rhs: &Loot) {
         self.money += rhs.money;
         self.resources += &rhs.resources;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Loot;
-    use crate::{
-        domain::Trust,
-        services::credit_exchange_service::{Cost, Share},
-    };
-
-    #[test]
-    fn cost_share_scales_money_and_resources() {
-        let cost = serde_json::from_value::<Cost<Trust>>(serde_json::json!({
-            "money": 12.0,
-            "resources": { "iron": 8.0 }
-        }))
-        .unwrap();
-
-        let share_cost = Loot::from_cost_share(&cost, Share::from(0.25));
-
-        assert_eq!(
-            serde_json::to_value(share_cost).unwrap(),
-            serde_json::json!({
-                "money": 3.0,
-                "resources": { "iron": 2.0 }
-            })
-        );
     }
 }
