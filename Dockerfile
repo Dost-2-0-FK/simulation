@@ -4,15 +4,19 @@ FROM debian:bookworm-slim AS downloader
 
 ARG SIMULATION_INSTALLER_URL=https://github.com/Dost-2-0-FK/simulation/releases/latest/download/simulation-installer.sh
 
-ADD --chmod=0755 ${SIMULATION_INSTALLER_URL} /tmp/simulation-installer.sh
-
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
-    && /tmp/simulation-installer.sh
+    && curl --fail --location --show-error \
+        "${SIMULATION_INSTALLER_URL}" \
+        --output /tmp/simulation-installer.sh \
+    && chmod 0755 /tmp/simulation-installer.sh \
+    && /tmp/simulation-installer.sh \
+    && rm -rf /var/lib/apt/lists/* /tmp/simulation-installer.sh
 
 FROM debian:bookworm-slim
 
 WORKDIR /app
+
 COPY --from=downloader /root/.cargo/bin/simulation /usr/local/bin/simulation
 COPY simulation.toml /app/simulation.toml
 COPY docker-simulation-entrypoint.sh /usr/local/bin/simulation-entrypoint

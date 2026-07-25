@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -z "${COORDINATION_API_KEY:-}" ]]; then
+    echo "Error: COORDINATION_API_KEY must be set at runtime." >&2
+    exit 1
+fi
+
 wait_for_tcp() {
   local host="$1"
   local port="$2"
