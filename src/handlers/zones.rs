@@ -3,6 +3,7 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
+    config::PoliticsDirectory,
     domain::{BlocName, Zone, ZoneName},
     error::{Result, UserError},
     simulation::Command,
@@ -28,6 +29,18 @@ impl From<&Zone> for ZoneResponse {
     }
 }
 
+impl ZoneResponse {
+    fn display_politics(&mut self, politics: &PoliticsDirectory) -> Result<()> {
+        self.bloc = BlocName::from(
+            politics
+                .bloc_name(&self.bloc)
+                .ok_or(UserError::InternalError)?
+                .to_owned(),
+        );
+        Ok(())
+    }
+}
+
 /// List all zones.
 #[utoipa::path(
     operation_id = "listZones",
@@ -38,7 +51,10 @@ impl From<&Zone> for ZoneResponse {
     )
 )]
 #[get("/zones")]
-pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn list(
+    tx: web::Data<mpsc::Sender<Command>>,
+    politics: web::Data<PoliticsDirectory>,
+) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetZones(sender)).await.map_err(|e| {
         log::error!("Error sending command: {e}");
@@ -52,8 +68,12 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
 
     let zones = zones
         .iter()
-        .map(|zone| ZoneResponse::from(zone.as_ref()))
-        .collect::<Vec<_>>();
+        .map(|zone| {
+            let mut response = ZoneResponse::from(zone.as_ref());
+            response.display_politics(&politics)?;
+            Ok(response)
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     Ok(HttpResponse::Ok().json(zones))
 }

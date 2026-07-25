@@ -3,6 +3,7 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
+    config::PoliticsDirectory,
     domain::{
         BaseId, BlocName, Combat, CombatEvent, CombatId, CombatState, CombatStructureSnapshot, TrustId, UnitId,
         UnitKilled,
@@ -100,6 +101,20 @@ pub(crate) struct CombatResponse {
 }
 
 impl CombatResponse {
+    fn display_politics(&mut self, politics: &PoliticsDirectory) -> Result<()> {
+        for units in &mut self.units {
+            units.bloc = BlocName::from(
+                politics
+                    .bloc_name(&units.bloc)
+                    .ok_or(UserError::InternalError)?
+                    .to_owned(),
+            );
+        }
+        Ok(())
+    }
+}
+
+impl CombatResponse {
     pub(crate) async fn from_combat(combat: &Combat) -> Self {
         let units = combat
             .unit_ids_by_bloc()
@@ -133,17 +148,24 @@ impl CombatResponse {
     )
 )]
 #[get("/combats")]
-pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn list(
+    tx: web::Data<mpsc::Sender<Command>>,
+    politics: web::Data<PoliticsDirectory>,
+) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetCombats(sender)).await.map_err(|e| {
         log::error!("Error sending command: {e}");
         UserError::InternalError
     })?;
 
-    let combats = receiver.await.map_err(|e| {
+    let mut combats = receiver.await.map_err(|e| {
         log::error!("Error receiving combats: {e}");
         UserError::InternalError
     })?;
+
+    for combat in &mut combats {
+        combat.display_politics(&politics)?;
+    }
 
     Ok(HttpResponse::Ok().json(combats))
 }
