@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
+    config::{CharacterDirectory, PoliticsDirectory},
     domain::{BaseId, BlocName, Loot, MilitaryBase, PlacementId, Target, TrustId, ZoneName},
     error::{Result, UserError},
     geometry::{Point, Positioned},
@@ -111,6 +112,28 @@ impl BaseResponse {
         self.production_count = None;
         self.target = None;
     }
+
+    pub(crate) fn display_financiers(&mut self, characters: &CharacterDirectory) -> Result<()> {
+        characters
+            .display_financing(&mut self.payment)
+            .ok_or(UserError::InternalError)
+    }
+
+    pub(crate) fn display_politics(&mut self, politics: &PoliticsDirectory) -> Result<()> {
+        self.bloc = BlocName::from(
+            politics
+                .bloc_name(&self.bloc)
+                .ok_or(UserError::InternalError)?
+                .to_owned(),
+        );
+        self.zone = ZoneName::from(
+            politics
+                .zone_name(&self.zone)
+                .ok_or(UserError::InternalError)?
+                .to_owned(),
+        );
+        Ok(())
+    }
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -141,8 +164,12 @@ pub(crate) async fn post(
     session: Session,
     body: web::Json<PostBaseBody>,
     tx: web::Data<mpsc::Sender<Command>>,
+    characters: web::Data<CharacterDirectory>,
 ) -> Result<impl Responder> {
-    let body = body.into_inner();
+    let mut body = body.into_inner();
+    body.payment = characters
+        .resolve_financing(body.payment)
+        .ok_or(UserError::BadRequest("unknown financierId"))?;
     authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
 
     let (placements_tx, placements_rx) = tokio::sync::oneshot::channel();
@@ -212,7 +239,12 @@ pub(crate) async fn post(
     )
 )]
 #[get("/bases")]
-pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn list(
+    session: Session,
+    tx: web::Data<mpsc::Sender<Command>>,
+    characters: web::Data<CharacterDirectory>,
+    politics: web::Data<PoliticsDirectory>,
+) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetBases(sender)).await.map_err(|e| {
         log::error!("Error sending command: {e}");
@@ -228,9 +260,11 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
         .iter()
         .map(|base| {
             let mut response = BaseResponse::from(base);
+            response.display_financiers(&characters)?;
             if !can_read_bloc(&session, &response.bloc)? {
                 response.redact_protected_fields();
             }
+            response.display_politics(&politics)?;
             Ok(response)
         })
         .collect::<Result<Vec<_>>>()?;
@@ -288,6 +322,8 @@ pub(crate) async fn get(
     session: Session,
     path: web::Path<u64>,
     tx: web::Data<mpsc::Sender<Command>>,
+    characters: web::Data<CharacterDirectory>,
+    politics: web::Data<PoliticsDirectory>,
 ) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetBase(BaseId(path.into_inner()), sender))
@@ -306,9 +342,11 @@ pub(crate) async fn get(
         .as_ref()
         .map(BaseResponse::from)
         .ok_or(UserError::NotFound("Base"))?;
+    base.display_financiers(&characters)?;
     if !can_read_bloc(&session, &base.bloc)? {
         base.redact_protected_fields();
     }
+    base.display_politics(&politics)?;
     Ok(HttpResponse::Ok().json(base))
 }
 

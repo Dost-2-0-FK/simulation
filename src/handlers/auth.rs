@@ -4,6 +4,7 @@ use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, get, post, we
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    config::{CharacterDirectory, PoliticsDirectory},
     error::{Result, UserError},
     handlers::bases::UserId,
     services::auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthService, AuthenticatedUser, LoginCredentials},
@@ -22,6 +23,53 @@ pub(crate) struct LoginResponse {
     user_id: UserId,
 }
 
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+struct CurrentUserResponse {
+    user_id: UserId,
+    bloc_permissions: HashMap<String, crate::services::auth_service::AccessLevel>,
+    zone_permissions: HashMap<String, crate::services::auth_service::AccessLevel>,
+}
+
+impl CurrentUserResponse {
+    fn new(user: &AuthenticatedUser, characters: &CharacterDirectory, politics: &PoliticsDirectory) -> Result<Self> {
+        let mut user_financing = vec![crate::handlers::bases::Financing {
+            financier: user.user_id().clone(),
+            share: crate::services::credit_exchange_service::Share::default(),
+        }];
+        characters
+            .display_financing(&mut user_financing)
+            .ok_or(UserError::InternalError)?;
+
+        let bloc_permissions = user
+            .bloc_permissions()
+            .iter()
+            .map(|(key, access)| {
+                politics
+                    .bloc_name(key)
+                    .map(|name| (name.to_owned(), *access))
+                    .ok_or(UserError::InternalError)
+            })
+            .collect::<Result<_>>()?;
+        let zone_permissions = user
+            .zone_permissions()
+            .iter()
+            .map(|(key, access)| {
+                politics
+                    .zone_name(key)
+                    .map(|name| (name.to_owned(), *access))
+                    .ok_or(UserError::InternalError)
+            })
+            .collect::<Result<_>>()?;
+
+        Ok(Self {
+            user_id: user_financing.remove(0).financier,
+            bloc_permissions,
+            zone_permissions,
+        })
+    }
+}
+
 /// Log in and persist the authenticated user in the identity session.
 #[utoipa::path(
     operation_id = "login",
@@ -38,6 +86,7 @@ pub(crate) async fn login(
     request: HttpRequest,
     session: Session,
     auth_service: web::Data<AuthService>,
+    characters: web::Data<CharacterDirectory>,
     login_request: web::Json<LoginRequest>,
 ) -> Result<impl Responder> {
     let authenticated_user = auth_service
@@ -61,8 +110,16 @@ pub(crate) async fn login(
         UserError::InternalError
     })?;
 
+    let mut user_financing = vec![crate::handlers::bases::Financing {
+        financier: authenticated_user.user_id().clone(),
+        share: crate::services::credit_exchange_service::Share::default(),
+    }];
+    characters
+        .display_financing(&mut user_financing)
+        .ok_or(UserError::InternalError)?;
+
     Ok(HttpResponse::Ok().json(LoginResponse {
-        user_id: authenticated_user.user_id().clone(),
+        user_id: user_financing.remove(0).financier,
     }))
 }
 
@@ -77,7 +134,11 @@ pub(crate) async fn login(
     )
 )]
 #[get("/me")]
-pub(crate) async fn get_current_user(session: Session) -> Result<impl Responder> {
+pub(crate) async fn get_current_user(
+    session: Session,
+    characters: web::Data<CharacterDirectory>,
+    politics: web::Data<PoliticsDirectory>,
+) -> Result<impl Responder> {
     let authenticated_user = session
         .get::<AuthenticatedUser>(AUTHENTICATED_USER_SESSION_KEY)
         .map_err(|error| {
@@ -86,7 +147,7 @@ pub(crate) async fn get_current_user(session: Session) -> Result<impl Responder>
         })?
         .ok_or(UserError::Unauthorized)?;
 
-    Ok(HttpResponse::Ok().json(authenticated_user))
+    Ok(HttpResponse::Ok().json(CurrentUserResponse::new(&authenticated_user, &characters, &politics)?))
 }
 
 /// Log out by clearing the identity session.
@@ -120,7 +181,18 @@ mod tests {
     };
 
     use super::get_current_user;
-    use crate::services::auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthenticatedUser};
+    use crate::{
+        config::{CharacterDirectory, PoliticsDirectory},
+        services::auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthenticatedUser},
+    };
+
+    fn character_directory() -> web::Data<CharacterDirectory> {
+        web::Data::new(CharacterDirectory::for_test("alice", "Alice"))
+    }
+
+    fn politics_directory() -> web::Data<PoliticsDirectory> {
+        web::Data::new(PoliticsDirectory::for_test(("west", "WEST"), ("zone_w", "Zone West")))
+    }
 
     #[post("/test/session")]
     async fn seed_authenticated_session(session: Session, user: web::Data<AuthenticatedUser>) -> HttpResponse {
@@ -134,6 +206,8 @@ mod tests {
             App::new()
                 .wrap(IdentityMiddleware::default())
                 .wrap(SessionMiddleware::new(CookieSessionStore::default(), Key::generate()))
+                .app_data(character_directory())
+                .app_data(politics_directory())
                 .service(get_current_user),
         )
         .await;
@@ -157,6 +231,8 @@ mod tests {
                 .wrap(IdentityMiddleware::default())
                 .wrap(SessionMiddleware::new(CookieSessionStore::default(), Key::generate()))
                 .app_data(web::Data::new(authenticated_user))
+                .app_data(character_directory())
+                .app_data(politics_directory())
                 .service(seed_authenticated_session)
                 .service(get_current_user),
         )
@@ -179,7 +255,10 @@ mod tests {
         let response = test::call_service(&app, request).await;
         assert_eq!(response.status(), StatusCode::OK);
 
-        let authenticated_user: AuthenticatedUser = test::read_body_json(response).await;
-        assert_eq!(authenticated_user.user_id().as_str(), "alice");
+        let authenticated_user: serde_json::Value = test::read_body_json(response).await;
+        assert_eq!(authenticated_user["userId"], "Alice");
+        assert_eq!(authenticated_user["blocPermissions"]["WEST"], "write");
+        assert_eq!(authenticated_user["zonePermissions"]["Zone West"], "write");
     }
 }
+use std::collections::HashMap;

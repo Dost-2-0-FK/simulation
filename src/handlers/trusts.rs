@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
+    config::{CharacterDirectory, PoliticsDirectory},
     domain::{PlacementId, Trust, TrustId, ZoneName},
     error::{Result, UserError},
     geometry::{Distance, Point, Positioned},
@@ -66,6 +67,22 @@ impl TrustResponse {
         self.income = None;
         self.producing = None;
     }
+
+    fn display_financiers(&mut self, characters: &CharacterDirectory) -> Result<()> {
+        characters
+            .display_financing(&mut self.payment)
+            .ok_or(UserError::InternalError)
+    }
+
+    fn display_politics(&mut self, politics: &PoliticsDirectory) -> Result<()> {
+        self.zone = ZoneName::from(
+            politics
+                .zone_name(&self.zone)
+                .ok_or(UserError::InternalError)?
+                .to_owned(),
+        );
+        Ok(())
+    }
 }
 
 /// Create a trust on a placement.
@@ -88,8 +105,12 @@ pub(crate) async fn post(
     session: Session,
     body: web::Json<PostTrustBody>,
     tx: web::Data<mpsc::Sender<Command>>,
+    characters: web::Data<CharacterDirectory>,
 ) -> Result<impl Responder> {
-    let body = body.into_inner();
+    let mut body = body.into_inner();
+    body.payment = characters
+        .resolve_financing(body.payment)
+        .ok_or(UserError::BadRequest("unknown financierId"))?;
     authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
 
     let (placements_tx, placements_rx) = tokio::sync::oneshot::channel();
@@ -176,7 +197,12 @@ pub(crate) async fn publish_production(
     )
 )]
 #[get("/trusts")]
-pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn list(
+    session: Session,
+    tx: web::Data<mpsc::Sender<Command>>,
+    characters: web::Data<CharacterDirectory>,
+    politics: web::Data<PoliticsDirectory>,
+) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetTrusts(sender)).await.map_err(|e| {
         log::error!("Error sending command: {e}");
@@ -191,9 +217,11 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     let trusts = trusts
         .into_iter()
         .map(|mut response| {
+            response.display_financiers(&characters)?;
             if !can_read_zone(&session, &response.zone)? {
                 response.redact_protected_fields();
             }
+            response.display_politics(&politics)?;
             Ok(response)
         })
         .collect::<Result<Vec<_>>>()?;
@@ -215,6 +243,8 @@ pub(crate) async fn get(
     session: Session,
     path: web::Path<u64>,
     tx: web::Data<mpsc::Sender<Command>>,
+    characters: web::Data<CharacterDirectory>,
+    politics: web::Data<PoliticsDirectory>,
 ) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetTrust(TrustId(path.into_inner()), sender))
@@ -230,9 +260,11 @@ pub(crate) async fn get(
     })??;
 
     let mut trust = trust.ok_or(UserError::NotFound("Trust"))?;
+    trust.display_financiers(&characters)?;
     if !can_read_zone(&session, &trust.zone)? {
         trust.redact_protected_fields();
     }
+    trust.display_politics(&politics)?;
     Ok(HttpResponse::Ok().json(trust))
 }
 
