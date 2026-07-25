@@ -49,7 +49,17 @@ impl Simulation {
             log::info!("Loaded blocs from database, applying persisted bloc overrides.");
             for persisted_bloc in blocs {
                 match blocs_by_name.get(persisted_bloc.name()) {
-                    Some(live_bloc) => *live_bloc.write().await = persisted_bloc,
+                    Some(live_bloc) => {
+                        let configured = live_bloc.read().await;
+                        let merged = crate::domain::Bloc::new(
+                            configured.name().clone(),
+                            configured.display_name().to_owned(),
+                            persisted_bloc.chance(),
+                            persisted_bloc.military_expense(),
+                        );
+                        drop(configured);
+                        *live_bloc.write().await = merged;
+                    }
                     None => log::warn!(
                         "Ignoring persisted bloc {} because it is not present in config.",
                         persisted_bloc.name()

@@ -18,5 +18,10 @@ pub(crate) async fn get_all(resp: Sender<Vec<Bloc>>, blocs: &HashMap<BlocName, A
 pub(crate) fn patch(current: &Bloc, chance: Option<Chance>, military_expense: Option<Share>) -> Bloc {
     let new_chance = chance.unwrap_or_else(|| current.chance());
     let new_military_expense = military_expense.unwrap_or_else(|| current.military_expense());
-    Bloc::new(current.name().clone(), new_chance, new_military_expense)
+    Bloc::new(
+        current.name().clone(),
+        current.display_name().to_owned(),
+        new_chance,
+        new_military_expense,
+    )
 }

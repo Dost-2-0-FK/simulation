@@ -13,14 +13,16 @@ const ZONES: &str = "zones";
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ZoneResponse {
-    name: ZoneName,
+    key: ZoneName,
+    name: String,
     bloc: BlocName,
 }
 
 impl From<&Zone> for ZoneResponse {
     fn from(zone: &Zone) -> Self {
         Self {
-            name: zone.name().clone(),
+            key: zone.name().clone(),
+            name: zone.display_name().to_owned(),
             bloc: zone.bloc_name().clone(),
         }
     }
