@@ -1,23 +1,20 @@
 # syntax=docker/dockerfile:1
 
-FROM debian:bookworm-slim AS downloader
+FROM rust:1.97-bookworm AS builder
 
-ARG SIMULATION_INSTALLER_URL=https://github.com/Dost-2-0-FK/simulation/releases/latest/download/simulation-installer.sh
+WORKDIR /build
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
-    && curl --fail --location --show-error \
-        "${SIMULATION_INSTALLER_URL}" \
-        --output /tmp/simulation-installer.sh \
-    && chmod 0755 /tmp/simulation-installer.sh \
-    && /tmp/simulation-installer.sh \
-    && rm -rf /var/lib/apt/lists/* /tmp/simulation-installer.sh
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY crates ./crates
+
+RUN cargo build --locked --release --bin simulation
 
 FROM debian:bookworm-slim
 
 WORKDIR /app
 
-COPY --from=downloader /root/.cargo/bin/simulation /usr/local/bin/simulation
+COPY --from=builder /build/target/release/simulation /usr/local/bin/simulation
 COPY simulation.toml /app/simulation.toml
 COPY docker-simulation-entrypoint.sh /usr/local/bin/simulation-entrypoint
 

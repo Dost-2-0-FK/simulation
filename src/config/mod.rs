@@ -1,7 +1,7 @@
 mod error;
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
@@ -208,7 +208,8 @@ struct TrustProductionConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BlocConfig {
-    name: BlocName,
+    key: Option<BlocName>,
+    name: String,
     chance: Chance,
     #[serde(default)]
     military_expense: Share,
@@ -217,8 +218,21 @@ struct BlocConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ZoneConfig {
-    name: ZoneName,
+    key: Option<ZoneName>,
+    name: String,
     bloc: BlocName,
+}
+
+impl BlocConfig {
+    fn key(&self) -> BlocName {
+        self.key.clone().unwrap_or_else(|| BlocName::from(self.name.clone()))
+    }
+}
+
+impl ZoneConfig {
+    fn key(&self) -> ZoneName {
+        self.key.clone().unwrap_or_else(|| ZoneName::from(self.name.clone()))
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -435,11 +449,34 @@ impl Config {
             ));
         }
 
+        let mut bloc_keys = HashSet::new();
+        let mut bloc_names = HashSet::new();
+        for bloc in &config.blocs {
+            if !bloc_keys.insert(bloc.key()) {
+                return Err(Error::ConfigValidation(format!("duplicate bloc key {}", bloc.key())));
+            }
+            if !bloc_names.insert(&bloc.name) {
+                return Err(Error::ConfigValidation(format!("duplicate bloc name {}", bloc.name)));
+            }
+        }
+
+        let mut zone_keys = HashSet::new();
+        let mut zone_names = HashSet::new();
+        for zone in &config.zones {
+            if !zone_keys.insert(zone.key()) {
+                return Err(Error::ConfigValidation(format!("duplicate zone key {}", zone.key())));
+            }
+            if !zone_names.insert(&zone.name) {
+                return Err(Error::ConfigValidation(format!("duplicate zone name {}", zone.name)));
+            }
+        }
+
         let blocs = config
             .blocs
             .iter()
             .map(|bloc_config| {
                 Arc::new(RwLock::new(Bloc::new(
+                    bloc_config.key(),
                     bloc_config.name.clone(),
                     bloc_config.chance,
                     bloc_config.military_expense,
@@ -451,7 +488,7 @@ impl Config {
             .blocs
             .iter()
             .zip(blocs.iter())
-            .map(|(bloc_config, bloc)| (bloc_config.name.clone(), bloc.clone()))
+            .map(|(bloc_config, bloc)| (bloc_config.key(), bloc.clone()))
             .collect::<HashMap<_, _>>();
 
         let zones = config
@@ -466,7 +503,12 @@ impl Config {
                     ))
                 })?;
 
-                let zone = Arc::new(Zone::new(zone_config.name.clone(), zone_config.bloc.clone(), bloc));
+                let zone = Arc::new(Zone::new(
+                    zone_config.key(),
+                    zone_config.name.clone(),
+                    zone_config.bloc.clone(),
+                    bloc,
+                ));
 
                 Ok(zone)
             })
@@ -674,6 +716,40 @@ mod tests {
         let config = Config::parse_from_str(base_toml()).await.expect("config can be parsed");
 
         assert_eq!(config.server_address(), "127.0.0.1:0".parse().unwrap());
+    }
+
+    #[tokio::test]
+    async fn parse_supports_distinct_bloc_and_zone_keys_and_names() {
+        let toml = base_toml()
+            .replace("name = \"bloc_1\"", "key = \"bloc-key\"\n        name = \"Bloc One\"")
+            .replace("name = \"zone_1\"", "key = \"zone-key\"\n        name = \"Zone One\"")
+            .replace("bloc = \"bloc_1\"", "bloc = \"bloc-key\"")
+            .replace("zone = \"zone_1\"", "zone = \"zone-key\"");
+
+        let config = Config::parse_from_str(&toml)
+            .await
+            .expect("key/name config can be parsed");
+        let bloc = config.blocs().next().unwrap();
+        let bloc = bloc.read().await;
+        assert_eq!(bloc.name().to_string(), "bloc-key");
+        assert_eq!(bloc.display_name(), "Bloc One");
+        drop(bloc);
+
+        let zone = config.zones().next().unwrap();
+        assert_eq!(zone.name().to_string(), "zone-key");
+        assert_eq!(zone.display_name(), "Zone One");
+        assert_eq!(zone.bloc_name().to_string(), "bloc-key");
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_duplicate_display_names() {
+        let toml = base_toml().replace(
+            "chance = 12",
+            "chance = 12\n\n        [[bloc]]\n        key = \"bloc_2\"\n        name = \"bloc_1\"\n        chance = 10",
+        );
+
+        let error = Config::parse_from_str(&toml).await.err().unwrap();
+        assert_eq!(error.to_string(), "Error validating config: duplicate bloc name bloc_1");
     }
 
     #[tokio::test]
@@ -950,12 +1026,12 @@ mod tests {
         let expected_blocs = config
             .blocs
             .iter()
-            .map(|bloc| bloc.name.to_string())
+            .map(|bloc| bloc.key().to_string())
             .collect::<HashSet<_>>();
         let expected_zones = config
             .zones
             .iter()
-            .map(|zone| zone.name.to_string())
+            .map(|zone| zone.key().to_string())
             .collect::<HashSet<_>>();
         let expected_individuals = config
             .bases
