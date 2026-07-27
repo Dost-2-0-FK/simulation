@@ -93,215 +93,314 @@ name = "NEUTRAL"
 chance = 100
 military_expense = 0.1
 
+[[social_rule]]
+key = "ZTS"
+name = "Zone-Transfer-Services"
+min_level = -2
+max_level = 2
+trust_production_factor_per_level = -0.025
+
+[[social_rule]]
+key = "SCE"
+name = "Sin-Chip-Enforcement"
+min_level = -2
+max_level = 2
+trust_production_factor_per_level = -0.025
+
+[[social_rule]]
+key = "GMC"
+name = "Genetic-Metric-Compliance"
+min_level = -2
+max_level = 2
+trust_production_factor_per_level = -0.025
+
+[[social_rule]]
+key = "MPL"
+name = "Migration-Permeability-Level"
+min_level = -2
+max_level = 2
+trust_production_factor_per_level = -0.025
+production_unit_factor_per_level = 0.1
+
+[[social_rule]]
+key = "EIQS"
+name = "Entropy-IQ-Standard"
+min_level = -2
+max_level = 2
+trust_production_factor_per_level = -0.025
+
+[[social_rule]]
+key = "DRC"
+name = "Deprogramming-Redemption-Category"
+min_level = -2
+max_level = 2
+trust_production_factor_per_level = -0.025
+
+[[social_rule]]
+key = "GEN-LA"
+name = "Genetic-Lucency-Award"
+min_level = -2
+max_level = 2
+trust_production_factor_per_level = -0.025
+
+[[social_rule]]
+key = "CLS"
+name = "Crowded-Living-Space-Enactment"
+min_level = -2
+max_level = 2
+trust_production_factor_per_level = -0.025
+
 [[zone]]
 key = "WSLS-Vg5s-J4nF-uL9D"
 name = "Zone 0.0 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "eTjs-NCE0-jpCH-cAXS"
 name = "Zone 0.0 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -1 }, { key = "SCE", level = -1 }]
 
 [[zone]]
 key = "pis3-MGbn-Vl78-2ZB8"
 name = "Zone 0.1 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "qcrC-wqWy-IFcG-CCo8"
 name = "Zone 0.1 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -1 }, { key = "SCE", level = -1 }]
 
 [[zone]]
 key = "i8es-hJW9-hpIB-N7jF"
 name = "Zone 0.2 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -1 }, { key = "SCE", level = -1 }]
 
 [[zone]]
 key = "strategic-1-a-1-e"
 name = "Zone 1.A.1 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -1 }, { key = "GMC", level = -1 }, { key = "MPL", level = -1 }, { key = "GEN-LA", level = -1 }]
 
 [[zone]]
 key = "ESdg-8X29-43KN-aFQT"
 name = "Zone 1.A.1 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = 0 }, { key = "SCE", level = 0 }, { key = "MPL", level = 0 }, { key = "EIQS", level = 0 }]
 
 [[zone]]
 key = "XeBt-YLoS-qDnh-VUtF"
 name = "Zone 1.A.2 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -1 }, { key = "GMC", level = -1 }, { key = "MPL", level = -1 }, { key = "GEN-LA", level = -1 }]
 
 [[zone]]
 key = "qfko-nYmv-9piG-BBxk"
 name = "Zone 1.A.2 (W)"
-bloc = "neutral"
+bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = 0 }, { key = "SCE", level = 0 }, { key = "MPL", level = 0 }, { key = "EIQS", level = 0 }]
 
 [[zone]]
 key = "hGkk-9TSW-2xTV-tHG3"
 name = "Zone 1.A.3 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = 0 }, { key = "SCE", level = 0 }, { key = "MPL", level = 0 }, { key = "EIQS", level = 0 }]
 
 [[zone]]
 key = "ZHO6-hNpX-9Wyv-yJwM"
 name = "Zone 1.A.4 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -1 }, { key = "GMC", level = -1 }, { key = "MPL", level = -1 }, { key = "GEN-LA", level = -1 }]
 
 [[zone]]
 key = "WaZS-LKed-Gofz-Ye9O"
 name = "Zone 1.A.4 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = 0 }, { key = "SCE", level = 0 }, { key = "MPL", level = 0 }, { key = "EIQS", level = 0 }]
 
 [[zone]]
 key = "eQ9R-xrSk-Filk-YKyP"
 name = "Zone 1.A.5 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -1 }, { key = "GMC", level = -1 }, { key = "MPL", level = -1 }, { key = "GEN-LA", level = -1 }]
 
 [[zone]]
 key = "rPcg-Lg2s-eKRI-3UdN"
 name = "Zone 1.A.5 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = 0 }, { key = "SCE", level = 0 }, { key = "MPL", level = 0 }, { key = "EIQS", level = 0 }]
 
 [[zone]]
 key = "Bggh-bybz-X9HR-sVRf"
 name = "Zone 1.A.6 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = 0 }, { key = "SCE", level = 0 }, { key = "MPL", level = 0 }, { key = "EIQS", level = 0 }]
 
 [[zone]]
 key = "YVsc-U036-R35W-9yLN"
 name = "Zone 1.A.7 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = 0 }, { key = "SCE", level = 0 }, { key = "MPL", level = 0 }, { key = "EIQS", level = 0 }]
 
 [[zone]]
 key = "SDxI-sQby-lEJz-flPC"
 name = "Zone 1.A.X"
 bloc = "neutral"
+initial_social_rules = [{ key = "ZTS", level = 1 }]
 
 [[zone]]
 key = "TfCE-X2Wf-MT7R-LO4i"
 name = "Zone 1.B.1 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "SCE", level = -2 }, { key = "MPL", level = -2 }, { key = "EIQS", level = -2 }, { key = "DRC", level = -2 }]
 
 [[zone]]
 key = "strategic-1-b-2-w"
 name = "Zone 1.B.2 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "SCE", level = -2 }, { key = "MPL", level = -2 }, { key = "EIQS", level = -2 }, { key = "DRC", level = -2 }]
 
 [[zone]]
 key = "Xjn0-IQ1z-43qn-lNgr"
 name = "Zone 1.B.3 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }, { key = "MPL", level = -2 }, { key = "GEN-LA", level = -2 }, { key = "CLS", level = -2 }]
 
 [[zone]]
 key = "strategic-1-b-4-w"
 name = "Zone 1.B.4 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "SCE", level = -2 }, { key = "MPL", level = -2 }, { key = "EIQS", level = -2 }, { key = "DRC", level = -2 }]
 
 [[zone]]
 key = "JF8T-Wzj3-g987-nO4p"
 name = "Zone 1.B.6 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }, { key = "MPL", level = -2 }, { key = "GEN-LA", level = -2 }, { key = "CLS", level = -2 }]
 
 [[zone]]
 key = "zXW3-8ERm-ewqW-HqiM"
 name = "Zone 1.B.8 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }, { key = "MPL", level = -2 }, { key = "GEN-LA", level = -2 }, { key = "CLS", level = -2 }]
 
 [[zone]]
 key = "CGjL-cDe5-eE4S-rHR1"
 name = "Zone 1.B.9 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }, { key = "MPL", level = -2 }, { key = "GEN-LA", level = -2 }, { key = "CLS", level = -2 }]
 
 [[zone]]
 key = "XfFR-CV3g-FJMH-pUGZ"
 name = "Zone 1.B.10 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }, { key = "MPL", level = -2 }, { key = "GEN-LA", level = -2 }, { key = "CLS", level = -2 }]
 
 [[zone]]
 key = "Iq0i-dnAB-lAsF-5c2y"
 name = "Zone 1.B.16 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "SCE", level = -2 }, { key = "MPL", level = -2 }, { key = "EIQS", level = -2 }, { key = "DRC", level = -2 }]
 
 [[zone]]
 key = "3B5i-ir71-3DXq-Vh9q"
 name = "Zone 1.B.17 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "SCE", level = -2 }, { key = "MPL", level = -2 }, { key = "EIQS", level = -2 }, { key = "DRC", level = -2 }]
 
 [[zone]]
 key = "iEme-cEH1-tq5d-s9AQ"
 name = "Zone 5.0 (E)"
-bloc = "neutral"
+bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "6tvh-zaIp-ih0s-QDTa"
 name = "Zone 5.0.6 (E)"
-bloc = "neutral"
+bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "ITdf-vWBv-5OsB-P6DN"
 name = "Zone 5.1 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "strategic-5-1-w"
 name = "Zone 5.1 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "SCE", level = -2 }]
 
 [[zone]]
 key = "strategic-5-2-e"
 name = "Zone 5.2 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "strategic-5-2-w"
 name = "Zone 5.2 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "SCE", level = -2 }]
 
 [[zone]]
 key = "strategic-5-3-e"
 name = "Zone 5.3 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "strategic-5-3-w"
 name = "Zone 5.3 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "SCE", level = -2 }]
 
 [[zone]]
 key = "strategic-5-4-e"
 name = "Zone 5.4 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "strategic-5-4-w"
 name = "Zone 5.4 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "SCE", level = -2 }]
 
 [[zone]]
 key = "strategic-5-5-e"
 name = "Zone 5.5 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "strategic-5-5-w"
 name = "Zone 5.5 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "SCE", level = -2 }]
 
 [[zone]]
 key = "XJU0-8Ucp-z35m-q6ii"
 name = "Zone 5.6 (E)"
-bloc = "neutral"
+bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "strategic-5-7-e"
 name = "Zone 5.7 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }]
 
 [[zone]]
 key = "qnec-OGRY-Q91L-2L3N"
 name = "Zone 1.B.11 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+initial_social_rules = [{ key = "ZTS", level = -2 }, { key = "GMC", level = -2 }, { key = "MPL", level = -2 }, { key = "GEN-LA", level = -2 }, { key = "CLS", level = -2 }]
 
 [[character]]
 key = "KQsf-b00z-I210-GGWL"
