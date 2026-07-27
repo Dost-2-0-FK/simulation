@@ -1476,7 +1476,7 @@ payment = [{ financierId = "RvlM-C3zD-Rlmk-N76G", share = 0.4 }]
 [[trust]]
 placement_id = "placement-5-1-w-1"
 resource = "solar_energy"
-payment = [{ financierId = "6TGn-JoBH-sdeB-jyac", share = 0.2 }]
+payment = [{ financierId = "k551-bD14-0Ydj-LUcu", share = 0.2 }]
 
 [[trust]]
 placement_id = "placement-5-5-w-2"
