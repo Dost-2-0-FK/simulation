@@ -171,7 +171,7 @@
           },
           {
             "receiver": "parca-distribution-1b",
-            "value": 3,
+            "value": 0.5,
             "subscription_type": "sr",
             "priority": 10,
             "credit_type": "money"
@@ -1678,74 +1678,177 @@
       "credit": {
         "total": 500,
         "last_day_average": 450,
-        "subscriptions": [],
+        "subscriptions": [
+          {
+            "receiver": "west-distribution-5x",
+            "value": 5,
+            "subscription_type": "sr",
+            "priority": 10,
+            "credit_type": "money"
+          },
+          {
+            "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+            "value": 12,
+            "subscription_type": "sr",
+            "priority": 10,
+            "credit_type": "money"
+          }
+        ],
         "history": []
       },
       "resources": {
         "water": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "water"
+            }
+          ],
           "history": []
         },
         "thermal_oil": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "thermal_oil"
+            }
+          ],
           "history": []
         },
         "silicon": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "silicon"
+            }
+          ],
           "history": []
         },
         "uxmal_gas": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "uxmal_gas"
+            }
+          ],
           "history": []
         },
         "uxmal_crystals": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "uxmal_crystals"
+            }
+          ],
           "history": []
         },
         "lsc": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "lsc"
+            }
+          ],
           "history": []
         },
         "solar_energy": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "solar_energy"
+            }
+          ],
           "history": []
         },
         "oxygen": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "oxygen"
+            }
+          ],
           "history": []
         },
         "iron": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "iron"
+            }
+          ],
           "history": []
         },
         "steel": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "steel"
+            }
+          ],
           "history": []
         },
         "humans": {
           "total": 200,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "h3Eg-kdoZ-G1bx-rK5W",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "humans"
+            }
+          ],
           "history": []
         }
       }
@@ -4892,74 +4995,177 @@
       "credit": {
         "total": 1000000000,
         "last_day_average": 400,
-        "subscriptions": [],
+        "subscriptions": [
+          {
+            "receiver": "r6B8-XeFz-cg6C-xMIq",
+            "value": 50,
+            "subscription_type": "sr",
+            "priority": 10,
+            "credit_type": "money"
+          },
+          {
+            "receiver": "WSLS-Vg5s-J4nF-uL9D",
+            "value": 50,
+            "subscription_type": "sr",
+            "priority": 10,
+            "credit_type": "money"
+          }
+        ],
         "history": []
       },
       "resources": {
         "water": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "water"
+            }
+          ],
           "history": []
         },
         "thermal_oil": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "thermal_oil"
+            }
+          ],
           "history": []
         },
         "silicon": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "silicon"
+            }
+          ],
           "history": []
         },
         "uxmal_gas": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "uxmal_gas"
+            }
+          ],
           "history": []
         },
         "uxmal_crystals": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "uxmal_crystals"
+            }
+          ],
           "history": []
         },
         "lsc": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "lsc"
+            }
+          ],
           "history": []
         },
         "solar_energy": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "solar_energy"
+            }
+          ],
           "history": []
         },
         "oxygen": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "oxygen"
+            }
+          ],
           "history": []
         },
         "iron": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "iron"
+            }
+          ],
           "history": []
         },
         "steel": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "steel"
+            }
+          ],
           "history": []
         },
         "humans": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "humans"
+            }
+          ],
           "history": []
         }
       }
@@ -4969,74 +5175,177 @@
       "credit": {
         "total": 1000000000,
         "last_day_average": 400,
-        "subscriptions": [],
+        "subscriptions": [
+          {
+            "receiver": "r6B8-XeFz-cg6C-xMIq",
+            "value": 50,
+            "subscription_type": "sr",
+            "priority": 10,
+            "credit_type": "money"
+          },
+          {
+            "receiver": "WSLS-Vg5s-J4nF-uL9D",
+            "value": 50,
+            "subscription_type": "sr",
+            "priority": 10,
+            "credit_type": "money"
+          }
+        ],
         "history": []
       },
       "resources": {
         "water": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "water"
+            }
+          ],
           "history": []
         },
         "thermal_oil": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "thermal_oil"
+            }
+          ],
           "history": []
         },
         "silicon": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "silicon"
+            }
+          ],
           "history": []
         },
         "uxmal_gas": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "uxmal_gas"
+            }
+          ],
           "history": []
         },
         "uxmal_crystals": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "uxmal_crystals"
+            }
+          ],
           "history": []
         },
         "lsc": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "lsc"
+            }
+          ],
           "history": []
         },
         "solar_energy": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "solar_energy"
+            }
+          ],
           "history": []
         },
         "oxygen": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "oxygen"
+            }
+          ],
           "history": []
         },
         "iron": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "iron"
+            }
+          ],
           "history": []
         },
         "steel": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "steel"
+            }
+          ],
           "history": []
         },
         "humans": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "humans"
+            }
+          ],
           "history": []
         }
       }
@@ -6846,74 +7155,177 @@
       "credit": {
         "total": 1000000000,
         "last_day_average": 400,
-        "subscriptions": [],
+        "subscriptions": [
+          {
+            "receiver": "r6B8-XeFz-cg6C-xMIq",
+            "value": 50,
+            "subscription_type": "sr",
+            "priority": 10,
+            "credit_type": "money"
+          },
+          {
+            "receiver": "WSLS-Vg5s-J4nF-uL9D",
+            "value": 50,
+            "subscription_type": "sr",
+            "priority": 10,
+            "credit_type": "money"
+          }
+        ],
         "history": []
       },
       "resources": {
         "water": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "water"
+            }
+          ],
           "history": []
         },
         "thermal_oil": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "thermal_oil"
+            }
+          ],
           "history": []
         },
         "silicon": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "silicon"
+            }
+          ],
           "history": []
         },
         "uxmal_gas": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "uxmal_gas"
+            }
+          ],
           "history": []
         },
         "uxmal_crystals": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "uxmal_crystals"
+            }
+          ],
           "history": []
         },
         "lsc": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "lsc"
+            }
+          ],
           "history": []
         },
         "solar_energy": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "solar_energy"
+            }
+          ],
           "history": []
         },
         "oxygen": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "oxygen"
+            }
+          ],
           "history": []
         },
         "iron": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "iron"
+            }
+          ],
           "history": []
         },
         "steel": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "steel"
+            }
+          ],
           "history": []
         },
         "humans": {
           "total": 1000000000,
           "last_day_average": 60,
-          "subscriptions": [],
+          "subscriptions": [
+            {
+              "receiver": "r6B8-XeFz-cg6C-xMIq",
+              "value": 50,
+              "subscription_type": "sr",
+              "priority": 10,
+              "credit_type": "humans"
+            }
+          ],
           "history": []
         }
       }
@@ -7285,6 +7697,13 @@
         "last_day_average": 72,
         "subscriptions": [
           {
+            "receiver": "qfko-nYmv-9piG-BBxk",
+            "value": 12.5,
+            "subscription_type": "sr",
+            "priority": 20,
+            "credit_type": "money"
+          },
+          {
             "receiver": "ESdg-8X29-43KN-aFQT",
             "value": 12.5,
             "subscription_type": "sr",
@@ -7501,7 +7920,7 @@
       "id": "west-distribution-5x",
       "credit": {
         "total": 1000000000,
-        "last_day_average": 354.9999999999999,
+        "last_day_average": 377.4999999999999,
         "subscriptions": [],
         "history": []
       },
@@ -7677,7 +8096,7 @@
       "id": "parca-distribution-1b",
       "credit": {
         "total": 1000000000,
-        "last_day_average": 48,
+        "last_day_average": 28,
         "subscriptions": [
           {
             "receiver": "CGjL-cDe5-eE4S-rHR1",
@@ -7791,7 +8210,29 @@
       "credit": {
         "total": 1000000000,
         "last_day_average": 264.40000000000003,
-        "subscriptions": [],
+        "subscriptions": [
+          {
+            "receiver": "iEme-cEH1-tq5d-s9AQ",
+            "value": 14.285714285714286,
+            "subscription_type": "sr",
+            "priority": 20,
+            "credit_type": "money"
+          },
+          {
+            "receiver": "XJU0-8Ucp-z35m-q6ii",
+            "value": 14.285714285714286,
+            "subscription_type": "sr",
+            "priority": 20,
+            "credit_type": "money"
+          },
+          {
+            "receiver": "6tvh-zaIp-ih0s-QDTa",
+            "value": 14.285714285714286,
+            "subscription_type": "sr",
+            "priority": 20,
+            "credit_type": "money"
+          }
+        ],
         "history": []
       },
       "resources": {
@@ -8208,7 +8649,7 @@
     {
       "id": "OhY0-4fxe-Nqp6-L8hf",
       "credit": {
-        "total": 15,
+        "total": 60,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -9494,6 +9935,131 @@
   ],
   "units": [
     {
+      "id": "humans-0-0-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "WSLS-Vg5s-J4nF-uL9D",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-0-0-w",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "eTjs-NCE0-jpCH-cAXS",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-0-1-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "pis3-MGbn-Vl78-2ZB8",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-0-1-w",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "qcrC-wqWy-IFcG-CCo8",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-0-2-w",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "i8es-hJW9-hpIB-N7jF",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
       "id": "humans-1-a-1-e",
       "credit": {
         "total": 0,
@@ -10044,6 +10610,356 @@
       }
     },
     {
+      "id": "humans-5-0-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "iEme-cEH1-tq5d-s9AQ",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-0-6-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "6tvh-zaIp-ih0s-QDTa",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-1-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "ITdf-vWBv-5OsB-P6DN",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-1-w",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "strategic-5-1-w",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-2-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "strategic-5-2-e",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-2-w",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "strategic-5-2-w",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-3-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "strategic-5-3-e",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-3-w",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "strategic-5-3-w",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-4-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "strategic-5-4-e",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-4-w",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "strategic-5-4-w",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-5-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "strategic-5-5-e",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-5-w",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "strategic-5-5-w",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-6-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "XJU0-8Ucp-z35m-q6ii",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
+      "id": "humans-5-7-e",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "humans": {
+          "total": 0,
+          "last_day_average": 1,
+          "subscriptions": [
+            {
+              "receiver": "strategic-5-7-e",
+              "value": 100,
+              "subscription_type": "contract",
+              "priority": 0,
+              "credit_type": "humans"
+            }
+          ],
+          "history": []
+        }
+      }
+    },
+    {
       "id": "humans-1-b-11-e",
       "credit": {
         "total": 0,
@@ -10364,7 +11280,7 @@
             "credit_type": "money"
           },
           {
-            "receiver": "6TGn-JoBH-sdeB-jyac",
+            "receiver": "k551-bD14-0Ydj-LUcu",
             "value": 20,
             "subscription_type": "contract",
             "priority": 0,
@@ -10386,7 +11302,7 @@
               "credit_type": "solar_energy"
             },
             {
-              "receiver": "6TGn-JoBH-sdeB-jyac",
+              "receiver": "k551-bD14-0Ydj-LUcu",
               "value": 20,
               "subscription_type": "contract",
               "priority": 0,
