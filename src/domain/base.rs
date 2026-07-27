@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
-    domain::{Bloc, BlocName, Loot, LootFactors, Placement, PlacementId, Trust, TrustId},
+    domain::{Bloc, BlocKey, BlocName, Loot, LootFactors, Placement, PlacementId, Trust, TrustId},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
     services::credit_exchange_service::{Cost, Financiers, Payment},
@@ -133,6 +133,10 @@ impl MilitaryBase {
 
     pub(crate) fn bloc_name(&self) -> &BlocName {
         self.placement().zone().bloc_name()
+    }
+
+    pub(crate) fn bloc_key(&self) -> &BlocKey {
+        self.placement().zone().bloc_key()
     }
 
     pub(crate) async fn bloc(&self) -> RwLockReadGuard<'_, Bloc> {

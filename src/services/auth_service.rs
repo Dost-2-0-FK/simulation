@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
 use reqwest::StatusCode;
@@ -6,8 +6,10 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    domain::{BlocName, PlacementId, ZoneName},
-    handlers::bases::{Financing, UserId},
+    domain::{
+        BlocKey, BlocName, CharacterKey, CharacterName, NameMappings, PlacementId, ZoneKey, ZoneName,
+    },
+    handlers::bases::Financing,
     services::credit_exchange_service::ResourceName,
 };
 
@@ -18,6 +20,7 @@ pub(crate) const AUTHENTICATED_USER_SESSION_KEY: &str = "authenticatedUser";
 pub(crate) struct AuthService {
     client: reqwest::Client,
     url: Url,
+    name_mappings: Arc<NameMappings>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -44,11 +47,11 @@ pub(crate) enum AccessLevel {
 
 #[derive(Clone, Serialize)]
 pub(crate) struct LoginCredentials {
-    password: String,
+    password: CharacterKey,
 }
 
 impl LoginCredentials {
-    pub(crate) fn new(password: String) -> Self {
+    pub(crate) fn new(password: CharacterKey) -> Self {
         Self { password }
     }
 }
@@ -56,7 +59,8 @@ impl LoginCredentials {
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AuthenticatedUser {
-    user_id: UserId,
+    #[serde(rename = "userId")]
+    character_name: CharacterName,
     bloc_permissions: HashMap<BlocName, AccessLevel>,
     zone_permissions: HashMap<ZoneName, AccessLevel>,
 }
@@ -64,26 +68,16 @@ pub(crate) struct AuthenticatedUser {
 #[derive(Debug, Deserialize)]
 struct AuthenticationResponse {
     #[serde(rename = "userID")]
-    user_id: UserId,
+    character_key: CharacterKey,
     #[serde(rename = "blockPermissions")]
-    bloc_permissions: HashMap<BlocName, AccessLevel>,
+    bloc_permissions: HashMap<BlocKey, AccessLevel>,
     #[serde(rename = "zonePermissions")]
-    zone_permissions: HashMap<ZoneName, AccessLevel>,
-}
-
-impl From<AuthenticationResponse> for AuthenticatedUser {
-    fn from(response: AuthenticationResponse) -> Self {
-        Self {
-            user_id: response.user_id,
-            bloc_permissions: response.bloc_permissions,
-            zone_permissions: response.zone_permissions,
-        }
-    }
+    zone_permissions: HashMap<ZoneKey, AccessLevel>,
 }
 
 impl AuthenticatedUser {
-    pub(crate) fn user_id(&self) -> &UserId {
-        &self.user_id
+    pub(crate) fn character_name(&self) -> &CharacterName {
+        &self.character_name
     }
 
     pub(crate) fn can_read_bloc(&self, bloc: &BlocName) -> bool {
@@ -104,10 +98,11 @@ impl AuthenticatedUser {
 }
 
 impl AuthService {
-    pub(crate) fn new(url: Url) -> Self {
+    pub(crate) fn new(url: Url, name_mappings: Arc<NameMappings>) -> Self {
         Self {
             client: reqwest::Client::new(),
             url,
+            name_mappings,
         }
     }
 
@@ -136,11 +131,48 @@ impl AuthService {
             return Err(anyhow!("authentication failed with {status}: {body}"));
         }
 
-        response
+        let response = response
             .json::<AuthenticationResponse>()
             .await
-            .context("deserializing auth-service authentication response")
-            .map(|response| Some(response.into()))
+            .context("deserializing auth-service authentication response")?;
+
+        self.map_authenticated_user(response).map(Some)
+    }
+
+    fn map_authenticated_user(&self, response: AuthenticationResponse) -> Result<AuthenticatedUser> {
+        let character_name = self
+            .name_mappings
+            .character_name(&response.character_key)
+            .cloned()
+            .with_context(|| format!("auth service returned unknown character key {}", response.character_key))?;
+        let bloc_permissions = response
+            .bloc_permissions
+            .into_iter()
+            .map(|(key, access)| {
+                self.name_mappings
+                    .bloc_name(&key)
+                    .cloned()
+                    .map(|name| (name, access))
+                    .with_context(|| format!("auth service returned unknown bloc key {key}"))
+            })
+            .collect::<Result<HashMap<_, _>>>()?;
+        let zone_permissions = response
+            .zone_permissions
+            .into_iter()
+            .map(|(key, access)| {
+                self.name_mappings
+                    .zone_name(&key)
+                    .cloned()
+                    .map(|name| (name, access))
+                    .with_context(|| format!("auth service returned unknown zone key {key}"))
+            })
+            .collect::<Result<HashMap<_, _>>>()?;
+
+        Ok(AuthenticatedUser {
+            character_name,
+            bloc_permissions,
+            zone_permissions,
+        })
     }
 
     /// Verifies that every listed financier consents before any payment is booked.
@@ -191,15 +223,16 @@ impl AuthService {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Arc};
 
     use super::{
         AccessLevel, AuthenticatedUser, AuthenticationResponse, FinancedObject, FinancingVerificationRequest,
         LoginCredentials,
     };
     use crate::{
-        domain::{BlocName, PlacementId, ZoneName},
-        handlers::bases::UserId,
+        domain::{
+            BlocKey, BlocName, CharacterKey, CharacterName, NameMappings, PlacementId, ZoneKey, ZoneName,
+        },
     };
 
     #[test]
@@ -209,7 +242,7 @@ mod tests {
         let read_zone = ZoneName::from("read-zone".to_string());
         let write_zone = ZoneName::from("write-zone".to_string());
         let user = AuthenticatedUser {
-            user_id: UserId::from("alice".to_string()),
+            character_name: CharacterName::from("Alice".to_string()),
             bloc_permissions: HashMap::from([
                 (read_bloc.clone(), AccessLevel::Read),
                 (write_bloc.clone(), AccessLevel::Write),
@@ -235,7 +268,10 @@ mod tests {
     #[test]
     fn authentication_request_matches_the_auth_service_contract() {
         assert_eq!(
-            serde_json::to_value(LoginCredentials::new("encrypted-public-key".to_string())).unwrap(),
+            serde_json::to_value(LoginCredentials::new(CharacterKey::from(
+                "encrypted-public-key".to_string(),
+            )))
+            .unwrap(),
             serde_json::json!({ "password": "encrypted-public-key" })
         );
     }
@@ -254,15 +290,33 @@ mod tests {
             }
         }))
         .unwrap();
-        let user = AuthenticatedUser::from(response);
+        let mappings = NameMappings::new(
+            HashMap::from([
+                (BlocKey::from("north".to_string()), BlocName::from("North".to_string())),
+                (BlocKey::from("south".to_string()), BlocName::from("South".to_string())),
+            ]),
+            HashMap::from([
+                (ZoneKey::from("alpha".to_string()), ZoneName::from("Alpha".to_string())),
+                (ZoneKey::from("beta".to_string()), ZoneName::from("Beta".to_string())),
+            ]),
+            HashMap::from([(
+                CharacterKey::from("alice".to_string()),
+                CharacterName::from("Alice".to_string()),
+            )]),
+        );
+        let service = super::AuthService::new("http://localhost".parse().unwrap(), Arc::new(mappings));
+        let user = service.map_authenticated_user(response).unwrap();
 
-        assert_eq!(user.user_id().as_str(), "alice");
-        assert!(user.can_write_bloc(&BlocName::from("north".to_string())));
-        assert!(user.can_read_bloc(&BlocName::from("south".to_string())));
-        assert!(!user.can_write_bloc(&BlocName::from("south".to_string())));
-        assert!(user.can_write_zone(&ZoneName::from("alpha".to_string())));
-        assert!(user.can_read_zone(&ZoneName::from("beta".to_string())));
-        assert!(!user.can_write_zone(&ZoneName::from("beta".to_string())));
+        assert_eq!(user.character_name().to_string(), "Alice");
+        assert!(user.can_write_bloc(&BlocName::from("North".to_string())));
+        assert!(user.can_read_bloc(&BlocName::from("South".to_string())));
+        assert!(user.can_write_zone(&ZoneName::from("Alpha".to_string())));
+        assert!(user.can_read_zone(&ZoneName::from("Beta".to_string())));
+
+        let frontend = serde_json::to_value(user).unwrap();
+        assert_eq!(frontend["userId"], "Alice");
+        assert_eq!(frontend["blocPermissions"]["North"], "write");
+        assert_eq!(frontend["zonePermissions"]["Alpha"], "write");
     }
 
     #[test]

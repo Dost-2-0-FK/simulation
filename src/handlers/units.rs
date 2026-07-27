@@ -80,7 +80,7 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     let mut units = get_units_rx.await.map_err(|e| {
         log::error!("Error receiving count: {e}");
         UserError::InternalError
-    })?;
+    })??;
 
     for unit in &mut units {
         if let Some(bloc) = &unit.bloc

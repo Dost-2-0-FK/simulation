@@ -7,19 +7,24 @@ use futures_util::{StreamExt, stream};
 use tokio::sync::{RwLock, oneshot::Sender};
 
 use crate::{
+    config::Config,
     domain::{BaseId, Combat, CombatEvent, MilitaryBase, MilitaryUnit, Target, Trust, TrustId, UnitId, UnitState},
     geometry::Point,
     handlers::combats::CombatResponse,
 };
 
-pub(crate) async fn get_all(resp: Sender<Vec<CombatResponse>>, combats: &HashMap<Point, Arc<RwLock<Combat>>>) {
+pub(crate) async fn get_all(
+    resp: Sender<core::result::Result<Vec<CombatResponse>, crate::error::UserError>>,
+    combats: &HashMap<Point, Arc<RwLock<Combat>>>,
+    config: &Config,
+) {
     let combat_responses: Vec<_> = stream::iter(combats.values())
         .then(async |combat| {
             let combat = combat.read().await;
             if combat.is_empty() {
                 None
             } else {
-                Some(CombatResponse::from_combat(&combat).await)
+                Some(CombatResponse::from_combat(&combat, config.name_mappings().as_ref()).await)
             }
         })
         .collect()

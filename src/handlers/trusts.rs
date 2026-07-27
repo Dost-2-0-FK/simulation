@@ -4,10 +4,14 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
-    domain::{PlacementId, Trust, TrustId, ZoneName},
+    domain::{NameMappings, PlacementId, Trust, TrustId, ZoneName},
     error::{Result, UserError},
     geometry::{Distance, Point, Positioned},
-    handlers::{authenticated_user, bases::Financing, can_read_zone, require_zone_write},
+    handlers::{
+        authenticated_user,
+        bases::{FinancingRequest, FinancingResponse, financing_response, resolve_financing},
+        can_read_zone, require_zone_write,
+    },
     services::{
         coordination_service::{CoordinationAuthorization, CoordinationCapability},
         credit_exchange_service::{Money, ResourceName, Resources},
@@ -22,7 +26,7 @@ const TRUSTS: &str = "trusts";
 struct PostTrustBody {
     placement_id: PlacementId,
     resource: ResourceName,
-    payment: Vec<Financing>,
+    payment: Vec<FinancingRequest>,
 }
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
@@ -31,7 +35,7 @@ pub(crate) struct TrustResponse {
     id: TrustId,
     placement_id: PlacementId,
     zone: ZoneName,
-    payment: Vec<Financing>,
+    payment: Vec<FinancingResponse>,
     position: Point,
     /// The resource produced by this trust. Visible regardless of zone permissions.
     resource: ResourceName,
@@ -47,19 +51,25 @@ pub(crate) struct TrustResponse {
 }
 
 impl TrustResponse {
-    pub(crate) fn new(trust: &Trust, income: Money, producing: Resources, inhibition_radius: Distance) -> Self {
+    pub(crate) fn new(
+        trust: &Trust,
+        income: Money,
+        producing: Resources,
+        inhibition_radius: Distance,
+        mappings: &NameMappings,
+    ) -> Result<Self> {
         let placement = trust.placement();
-        Self {
+        Ok(Self {
             id: trust.id(),
             placement_id: placement.id().clone(),
             zone: placement.zone().name().clone(),
-            payment: trust.financing().to_vec(),
+            payment: financing_response(trust.financing(), mappings)?,
             position: trust.position(),
             resource: trust.resource_name().clone(),
             inhibition_radius,
             income: Some(income),
             producing: Some(producing),
-        }
+        })
     }
 
     fn redact_protected_fields(&mut self) {
@@ -88,8 +98,10 @@ pub(crate) async fn post(
     session: Session,
     body: web::Json<PostTrustBody>,
     tx: web::Data<mpsc::Sender<Command>>,
+    mappings: web::Data<NameMappings>,
 ) -> Result<impl Responder> {
     let body = body.into_inner();
+    let financing = resolve_financing(body.payment, &mappings)?;
     authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
 
     let (placements_tx, placements_rx) = tokio::sync::oneshot::channel();
@@ -112,7 +124,7 @@ pub(crate) async fn post(
 
     tx.send(Command::CreateTrust {
         placement_id: body.placement_id,
-        financing: body.payment,
+        financing,
         resource: body.resource,
         response: sender,
     })

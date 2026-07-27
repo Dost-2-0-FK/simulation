@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
-    domain::{BaseId, BlocName, Loot, MilitaryBase, PlacementId, Target, TrustId, ZoneName},
+    domain::{
+        BaseId, BlocName, CharacterKey, CharacterName, Loot, MilitaryBase, NameMappings, PlacementId, Target, TrustId,
+        ZoneName,
+    },
     error::{Result, UserError},
     geometry::{Point, Positioned},
     handlers::{authenticated_user, can_read_bloc, require_bloc_write},
@@ -17,20 +20,66 @@ use crate::{
 
 const BASES: &str = "bases";
 
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema, derive_more::From, derive_more::Into)]
-pub(crate) struct UserId(String);
-
-impl UserId {
-    pub(crate) fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct Financing {
     #[serde(rename = "financierId")]
-    pub(crate) financier: UserId,
+    pub(crate) financier: CharacterKey,
     pub(crate) share: Share,
+}
+
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
+pub(crate) struct FinancingRequest {
+    #[serde(rename = "financierId")]
+    financier: CharacterName,
+    share: Share,
+}
+
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+pub(crate) struct FinancingResponse {
+    #[serde(rename = "financierId")]
+    financier: CharacterName,
+    share: Share,
+}
+
+pub(crate) fn resolve_financing(
+    requests: Vec<FinancingRequest>,
+    mappings: &NameMappings,
+) -> Result<Vec<Financing>> {
+    requests
+        .into_iter()
+        .map(|request| {
+            let financier = mappings
+                .character_key(&request.financier)
+                .cloned()
+                .ok_or(UserError::BadRequest("Unknown financier"))?;
+            Ok(Financing {
+                financier,
+                share: request.share,
+            })
+        })
+        .collect()
+}
+
+pub(crate) fn financing_response(
+    financing: &[Financing],
+    mappings: &NameMappings,
+) -> core::result::Result<Vec<FinancingResponse>, UserError> {
+    financing
+        .iter()
+        .map(|financing| {
+            let financier = mappings
+                .character_name(&financing.financier)
+                .cloned()
+                .ok_or_else(|| {
+                    log::error!("Unknown configured character key {}", financing.financier);
+                    UserError::InternalError
+                })?;
+            Ok(FinancingResponse {
+                financier,
+                share: financing.share,
+            })
+        })
+        .collect()
 }
 
 /// Serialized representation of a [Target] in HTTP responses for bases. Carries only the entity ID.
@@ -65,7 +114,7 @@ pub(crate) enum TargetBody {
 #[serde(rename_all = "camelCase")]
 struct PostBaseBody {
     placement_id: PlacementId,
-    payment: Vec<Financing>,
+    payment: Vec<FinancingRequest>,
 }
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
@@ -78,7 +127,7 @@ pub(crate) struct BaseResponse {
     pub(crate) zone: ZoneName,
     pub(crate) enabled: bool,
     pub(crate) prioritized: bool,
-    pub(crate) payment: Vec<Financing>,
+    pub(crate) payment: Vec<FinancingResponse>,
     /// How much loot has accumulated since the last transfer. Omitted without read access to the bloc.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) production_count: Option<Loot>,
@@ -87,26 +136,24 @@ pub(crate) struct BaseResponse {
     pub(crate) target: Option<BaseTargetResponse>,
 }
 
-impl From<&MilitaryBase> for BaseResponse {
-    fn from(base: &MilitaryBase) -> Self {
+impl BaseResponse {
+    pub(crate) fn new(base: &MilitaryBase, mappings: &NameMappings) -> Result<Self> {
         let placement = base.placement();
         let zone = placement.zone();
-        Self {
+        Ok(Self {
             id: base.id(),
             placement_id: placement.id().clone(),
             zone: zone.name().clone(),
             bloc: zone.bloc_name().clone(),
-            payment: base.financiers().to_vec(),
+            payment: financing_response(base.financiers(), mappings)?,
             enabled: base.enabled(),
             prioritized: base.prioritized(),
             target: Some(base.target().into()),
             position: base.position(),
             production_count: Some(base.production_count().clone()),
-        }
+        })
     }
-}
 
-impl BaseResponse {
     pub(crate) fn redact_protected_fields(&mut self) {
         self.production_count = None;
         self.target = None;
@@ -141,8 +188,10 @@ pub(crate) async fn post(
     session: Session,
     body: web::Json<PostBaseBody>,
     tx: web::Data<mpsc::Sender<Command>>,
+    mappings: web::Data<NameMappings>,
 ) -> Result<impl Responder> {
     let body = body.into_inner();
+    let financing = resolve_financing(body.payment, &mappings)?;
     authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
 
     let (placements_tx, placements_rx) = tokio::sync::oneshot::channel();
@@ -165,7 +214,7 @@ pub(crate) async fn post(
 
     tx.send(Command::CreateBase {
         placement_id: body.placement_id,
-        financing: body.payment,
+        financing,
         response: create_base_tx,
     })
     .await
@@ -212,7 +261,11 @@ pub(crate) async fn post(
     )
 )]
 #[get("/bases")]
-pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn list(
+    session: Session,
+    tx: web::Data<mpsc::Sender<Command>>,
+    mappings: web::Data<NameMappings>,
+) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetBases(sender)).await.map_err(|e| {
         log::error!("Error sending command: {e}");
@@ -227,7 +280,7 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     let bases = bases
         .iter()
         .map(|base| {
-            let mut response = BaseResponse::from(base);
+            let mut response = BaseResponse::new(base, &mappings)?;
             if !can_read_bloc(&session, &response.bloc)? {
                 response.redact_protected_fields();
             }
@@ -288,6 +341,7 @@ pub(crate) async fn get(
     session: Session,
     path: web::Path<u64>,
     tx: web::Data<mpsc::Sender<Command>>,
+    mappings: web::Data<NameMappings>,
 ) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetBase(BaseId(path.into_inner()), sender))
@@ -302,10 +356,7 @@ pub(crate) async fn get(
         UserError::InternalError
     })?;
 
-    let mut base = base
-        .as_ref()
-        .map(BaseResponse::from)
-        .ok_or(UserError::NotFound("Base"))?;
+    let mut base = BaseResponse::new(base.as_ref().ok_or(UserError::NotFound("Base"))?, &mappings)?;
     if !can_read_bloc(&session, &base.bloc)? {
         base.redact_protected_fields();
     }
@@ -411,11 +462,17 @@ pub(crate) async fn patch(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use ordered_float::NotNan;
 
-    use super::{BaseResponse, BaseTargetResponse};
+    use super::{
+        BaseResponse, BaseTargetResponse, Financing, FinancingRequest, financing_response, resolve_financing,
+    };
     use crate::{
-        domain::{BaseId, BlocName, Loot, PlacementId, ZoneName},
+        domain::{
+            BaseId, BlocName, CharacterKey, CharacterName, Loot, NameMappings, PlacementId, ZoneName,
+        },
         geometry::Point,
     };
 
@@ -443,5 +500,39 @@ mod tests {
 
         assert!(response.get("target").is_none());
         assert!(response.get("productionCount").is_none());
+    }
+
+    #[test]
+    fn frontend_financing_uses_character_names_while_internal_financing_uses_keys() {
+        let character_key = CharacterKey::from("character-key".to_string());
+        let character_name = CharacterName::from("Character Name".to_string());
+        let mappings = NameMappings::new(
+            HashMap::new(),
+            HashMap::new(),
+            HashMap::from([(character_key.clone(), character_name.clone())]),
+        );
+        let request = serde_json::from_value::<FinancingRequest>(serde_json::json!({
+            "financierId": "Character Name",
+            "share": 0.25
+        }))
+        .unwrap();
+        let internal = resolve_financing(vec![request], &mappings).unwrap();
+        assert_eq!(internal[0].financier, character_key);
+
+        let response = financing_response(
+            &[Financing {
+                financier: internal[0].financier.clone(),
+                share: internal[0].share,
+            }],
+            &mappings,
+        )
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(response).unwrap(),
+            serde_json::json!([{
+                "financierId": "Character Name",
+                "share": 0.25
+            }])
+        );
     }
 }

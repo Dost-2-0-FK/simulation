@@ -1,8 +1,9 @@
 mod error;
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
+    hash::Hash,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
     time::Duration,
@@ -16,8 +17,8 @@ use tokio::{fs, sync::RwLock};
 use self::error::{Error, Result};
 use crate::{
     domain::{
-        BaseId, Bloc, BlocName, Chance, LootFactors, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust,
-        TrustId, Zone, ZoneName,
+        BaseId, Bloc, BlocKey, BlocName, Chance, CharacterKey, CharacterName, LootFactors, MilitaryBase, MilitaryUnit,
+        NameMappings, Placement, PlacementId, Trust, TrustId, Zone, ZoneKey, ZoneName,
     },
     geometry::{Distance, Point, WorldBounds},
     handlers::bases::Financing,
@@ -48,6 +49,8 @@ struct TomlConfig {
     blocs: Vec<BlocConfig>,
     #[serde(rename = "zone")]
     zones: Vec<ZoneConfig>,
+    #[serde(rename = "character")]
+    characters: Vec<CharacterConfig>,
     #[serde(rename = "placement")]
     placements: Vec<PlacementConfig>,
     #[serde(default, rename = "base")]
@@ -76,6 +79,7 @@ pub(crate) struct Config {
     trust_destruction_threshold: u32,
     auth_cookie_key: Key,
     auth_service: AuthService,
+    name_mappings: Arc<NameMappings>,
     base_seeds: Vec<BaseConfig>,
     trust_seeds: Vec<TrustConfig>,
 }
@@ -176,7 +180,7 @@ struct CombatConfig {
 #[serde(deny_unknown_fields)]
 pub(crate) struct PlacementConfig {
     pub(crate) id: PlacementId,
-    pub(crate) zone: ZoneName,
+    pub(crate) zone: ZoneKey,
     pub(crate) position: Point,
 }
 
@@ -208,6 +212,7 @@ struct TrustProductionConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BlocConfig {
+    key: BlocKey,
     name: BlocName,
     chance: Chance,
     #[serde(default)]
@@ -217,8 +222,32 @@ struct BlocConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ZoneConfig {
+    key: ZoneKey,
     name: ZoneName,
-    bloc: BlocName,
+    bloc: BlocKey,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CharacterConfig {
+    key: CharacterKey,
+    name: CharacterName,
+}
+
+fn validate_unique<'a, T>(
+    kind: &str,
+    values: impl Iterator<Item = &'a T>,
+) -> Result<()>
+where
+    T: Eq + Hash + fmt::Display + 'a,
+{
+    let mut seen = HashSet::new();
+    for value in values {
+        if !seen.insert(value) {
+            return Err(Error::ConfigValidation(format!("duplicate {kind} {value}")));
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -311,6 +340,10 @@ impl Config {
         &self.auth_service
     }
 
+    pub(crate) fn name_mappings(&self) -> Arc<NameMappings> {
+        self.name_mappings.clone()
+    }
+
     pub(crate) fn server_address(&self) -> SocketAddr {
         self.server_address
     }
@@ -366,6 +399,50 @@ impl Config {
 
     async fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
+
+        validate_unique(
+            "bloc key",
+            config.blocs.iter().map(|bloc| &bloc.key),
+        )?;
+        validate_unique(
+            "bloc name",
+            config.blocs.iter().map(|bloc| &bloc.name),
+        )?;
+        validate_unique(
+            "zone key",
+            config.zones.iter().map(|zone| &zone.key),
+        )?;
+        validate_unique(
+            "zone name",
+            config.zones.iter().map(|zone| &zone.name),
+        )?;
+        validate_unique(
+            "character key",
+            config.characters.iter().map(|character| &character.key),
+        )?;
+        validate_unique(
+            "character name",
+            config.characters.iter().map(|character| &character.name),
+        )?;
+
+        let name_mappings = Arc::new(NameMappings::new(
+            config
+                .blocs
+                .iter()
+                .map(|bloc| (bloc.key.clone(), bloc.name.clone()))
+                .collect(),
+            config
+                .zones
+                .iter()
+                .map(|zone| (zone.key.clone(), zone.name.clone()))
+                .collect(),
+            config
+                .characters
+                .iter()
+                .map(|character| (character.key.clone(), character.name.clone()))
+                .collect(),
+        ));
+
         config
             .world
             .validate()
@@ -440,6 +517,7 @@ impl Config {
             .iter()
             .map(|bloc_config| {
                 Arc::new(RwLock::new(Bloc::new(
+                    bloc_config.key.clone(),
                     bloc_config.name.clone(),
                     bloc_config.chance,
                     bloc_config.military_expense,
@@ -447,18 +525,18 @@ impl Config {
             })
             .collect::<Vec<_>>();
 
-        let blocs_by_name = config
+        let blocs_by_key = config
             .blocs
             .iter()
             .zip(blocs.iter())
-            .map(|(bloc_config, bloc)| (bloc_config.name.clone(), bloc.clone()))
+            .map(|(bloc_config, bloc)| (bloc_config.key.clone(), bloc.clone()))
             .collect::<HashMap<_, _>>();
 
         let zones = config
             .zones
             .iter()
             .map(|zone_config| {
-                let bloc = blocs_by_name.get(&zone_config.bloc).cloned().ok_or_else(|| {
+                let bloc = blocs_by_key.get(&zone_config.bloc).cloned().ok_or_else(|| {
                     Error::ConfigValidation(format!(
                         "zone {zone} references unknown bloc {bloc}",
                         zone = &zone_config.name,
@@ -466,7 +544,17 @@ impl Config {
                     ))
                 })?;
 
-                let zone = Arc::new(Zone::new(zone_config.name.clone(), zone_config.bloc.clone(), bloc));
+                let bloc_name = name_mappings
+                    .bloc_name(&zone_config.bloc)
+                    .expect("bloc reference was resolved above")
+                    .clone();
+                let zone = Arc::new(Zone::new(
+                    zone_config.key.clone(),
+                    zone_config.name.clone(),
+                    zone_config.bloc.clone(),
+                    bloc_name,
+                    bloc,
+                ));
 
                 Ok(zone)
             })
@@ -486,7 +574,7 @@ impl Config {
 
                 let zone = zones
                     .iter()
-                    .find(|zone| zone.name() == &placement_config.zone)
+                    .find(|zone| zone.key() == &placement_config.zone)
                     .cloned()
                     .ok_or_else(|| {
                         Error::ConfigValidation(format!(
@@ -534,6 +622,15 @@ impl Config {
                     "seeded {kind} on placement {placement_id} has financier shares summing to {financier_share}, expected at most 1"
                 )));
             }
+
+            for financing in payment {
+                if name_mappings.character_name(&financing.financier).is_none() {
+                    return Err(Error::ConfigValidation(format!(
+                        "seeded {kind} on placement {placement_id} references unknown character {}",
+                        financing.financier,
+                    )));
+                }
+            }
         }
 
         for trust in &config.trusts {
@@ -551,7 +648,7 @@ impl Config {
             "unit movement step must be greater than 0"
         );
 
-        let auth_service = AuthService::new(config.env.auth_service_url.clone());
+        let auth_service = AuthService::new(config.env.auth_service_url.clone(), name_mappings.clone());
 
         Ok(Self {
             placements,
@@ -572,6 +669,7 @@ impl Config {
             base_destruction_threshold: config.combat.base_destruction_threshold,
             auth_cookie_key: config.server.auth_cookie_key.0,
             auth_service,
+            name_mappings,
             base_seeds: config.bases,
             trust_seeds: config.trusts,
             credit_exchange_service: CreditExchangeService::new(
@@ -650,12 +748,22 @@ mod tests {
         interval_seconds = 30
 
         [[bloc]]
+        key = "bloc_1"
         name = "bloc_1"
         chance = 12
 
         [[zone]]
+        key = "zone_1"
         name = "zone_1"
         bloc = "bloc_1"
+
+        [[character]]
+        key = "base-financier"
+        name = "Base Financier"
+
+        [[character]]
+        key = "trust-financier"
+        name = "Trust Financier"
 
         [[placement]]
         id = "placement_1"
@@ -727,6 +835,73 @@ mod tests {
             }
             Err(error) => panic!("unexpected error: {error}"),
             Ok(_) => panic!("config with unknown zone bloc must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_duplicate_keys_and_names() {
+        let cases = [
+            (
+                r#"
+                [[bloc]]
+                key = "bloc_1"
+                name = "another bloc"
+                chance = 12
+                "#,
+                "duplicate bloc key bloc_1",
+            ),
+            (
+                r#"
+                [[bloc]]
+                key = "another-bloc"
+                name = "bloc_1"
+                chance = 12
+                "#,
+                "duplicate bloc name bloc_1",
+            ),
+            (
+                r#"
+                [[zone]]
+                key = "zone_1"
+                name = "another zone"
+                bloc = "bloc_1"
+                "#,
+                "duplicate zone key zone_1",
+            ),
+            (
+                r#"
+                [[zone]]
+                key = "another-zone"
+                name = "zone_1"
+                bloc = "bloc_1"
+                "#,
+                "duplicate zone name zone_1",
+            ),
+            (
+                r#"
+                [[character]]
+                key = "base-financier"
+                name = "Another Character"
+                "#,
+                "duplicate character key base-financier",
+            ),
+            (
+                r#"
+                [[character]]
+                key = "another-character"
+                name = "Base Financier"
+                "#,
+                "duplicate character name Base Financier",
+            ),
+        ];
+
+        for (duplicate, expected) in cases {
+            let config = format!("{}\n{duplicate}", base_toml());
+            match Config::parse_from_str(&config).await {
+                Err(Error::ConfigValidation(error)) => assert_eq!(error, expected),
+                Err(error) => panic!("unexpected error: {error}"),
+                Ok(_) => panic!("config with {expected} must fail"),
+            }
         }
     }
 
@@ -926,7 +1101,7 @@ mod tests {
         let seeded = config.seeded_structures();
 
         assert_eq!(seeded.bases.len(), 11);
-        assert_eq!(seeded.trusts.len(), 40);
+        assert_eq!(seeded.trusts.len(), 35);
     }
 
     #[test]
@@ -950,12 +1125,12 @@ mod tests {
         let expected_blocs = config
             .blocs
             .iter()
-            .map(|bloc| bloc.name.to_string())
+            .map(|bloc| bloc.key.to_string())
             .collect::<HashSet<_>>();
         let expected_zones = config
             .zones
             .iter()
-            .map(|zone| zone.name.to_string())
+            .map(|zone| zone.key.to_string())
             .collect::<HashSet<_>>();
         let expected_individuals = config
             .bases

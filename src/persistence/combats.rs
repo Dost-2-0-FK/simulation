@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     domain::{
-        BaseId, BlocName, Combat, CombatEvent, CombatState, CombatStructureParameters, CombatStructureSnapshot,
+        BaseId, BlocKey, Combat, CombatEvent, CombatState, CombatStructureParameters, CombatStructureSnapshot,
         MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId,
     },
     geometry::Point,
@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct PersistedCombatUnits {
-    bloc: BlocName,
+    bloc: BlocKey,
     unit_ids: Vec<Uuid>,
 }
 

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
-    domain::{Bloc, BlocName, Chance},
+    domain::{Bloc, BlocName, Chance, NameMappings},
     error::{Result, UserError},
     handlers::require_bloc_write,
     services::{
@@ -97,14 +97,14 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
     )
 )]
 #[get("/blocs/{id}")]
-pub(crate) async fn get(path: web::Path<String>, tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn get(path: web::Path<BlocName>, tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     tx.send(Command::GetBlocs(sender)).await.map_err(|e| {
         log::error!("Error sending command: {e}");
         UserError::InternalError
     })?;
 
-    let id = path.into_inner();
+    let name = path.into_inner();
     let blocs = receiver.await.map_err(|e| {
         log::error!("Error receiving blocs: {e}");
         UserError::InternalError
@@ -112,7 +112,7 @@ pub(crate) async fn get(path: web::Path<String>, tx: web::Data<mpsc::Sender<Comm
 
     let bloc = blocs
         .iter()
-        .find(|bloc| bloc.name().to_string() == id)
+        .find(|bloc| bloc.name() == &name)
         .map(BlocResponse::from)
         .ok_or(UserError::NotFound("Bloc"))?;
 
@@ -136,13 +136,18 @@ pub(crate) async fn get(path: web::Path<String>, tx: web::Data<mpsc::Sender<Comm
 pub(crate) async fn patch(
     session: Session,
     coordination_authorization: OptionalCoordinationAuthorization,
-    path: web::Path<String>,
+    path: web::Path<BlocName>,
     body: web::Json<PatchBlocBody>,
     tx: web::Data<mpsc::Sender<Command>>,
+    mappings: web::Data<NameMappings>,
 ) -> Result<impl Responder> {
-    let id = BlocName::from(path.into_inner());
+    let name = path.into_inner();
+    let id = mappings
+        .bloc_key(&name)
+        .cloned()
+        .ok_or(UserError::NotFound("Bloc"))?;
     match body.required_authorization()? {
-        PatchBlocAuthorization::BlocWrite => require_bloc_write(&session, &id)?,
+        PatchBlocAuthorization::BlocWrite => require_bloc_write(&session, &name)?,
         PatchBlocAuthorization::CoordinationService => {
             coordination_authorization.require(CoordinationCapability::UpdateBlocChance)?
         }

@@ -5,7 +5,7 @@ use derive_more::Display;
 use serde::Deserialize;
 
 use crate::{
-    domain::{BlocName, MilitaryUnit},
+    domain::{BlocKey, MilitaryUnit},
     handlers::bases::Financing,
     services::credit_exchange_service::{CreditExchangeService, Money, ResourceValue, Resources, Share},
 };
@@ -120,7 +120,7 @@ impl<'a, T> Payment<'a, T, Financiers> {
 impl CreditExchangeService {
     pub(crate) async fn pay_for_military_unit(
         &self,
-        payer: &BlocName,
+        payer: &BlocKey,
     ) -> Result<Payment<'_, MilitaryUnit, SinglePayer>> {
         self.log_payment(&self.military_unit);
         let policy = SinglePayer(payer.to_string());

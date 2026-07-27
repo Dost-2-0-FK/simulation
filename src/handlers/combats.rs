@@ -4,8 +4,8 @@ use tokio::sync::mpsc;
 
 use crate::{
     domain::{
-        BaseId, BlocName, Combat, CombatEvent, CombatId, CombatState, CombatStructureSnapshot, TrustId, UnitId,
-        UnitKilled,
+        BaseId, BlocName, Combat, CombatEvent, CombatId, CombatState, CombatStructureSnapshot, NameMappings, TrustId,
+        UnitId, UnitKilled,
     },
     error::{Result, UserError},
     geometry::Point,
@@ -100,15 +100,21 @@ pub(crate) struct CombatResponse {
 }
 
 impl CombatResponse {
-    pub(crate) async fn from_combat(combat: &Combat) -> Self {
+    pub(crate) async fn from_combat(combat: &Combat, mappings: &NameMappings) -> Result<Self> {
         let units = combat
             .unit_ids_by_bloc()
             .await
             .into_iter()
-            .map(|(bloc, unit_ids)| CombatUnitsResponse { bloc, unit_ids })
-            .collect();
+            .map(|(bloc, unit_ids)| {
+                let bloc = mappings.bloc_name(&bloc).cloned().ok_or_else(|| {
+                    log::error!("Combat references unknown configured bloc key {bloc}");
+                    UserError::InternalError
+                })?;
+                Ok(CombatUnitsResponse { bloc, unit_ids })
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-        Self {
+        Ok(Self {
             id: combat.id(),
             position: combat.position(),
             units,
@@ -119,7 +125,7 @@ impl CombatResponse {
                 .iter()
                 .filter_map(CombatEventResponse::from_event)
                 .collect(),
-        }
+        })
     }
 }
 
@@ -143,7 +149,7 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
     let combats = receiver.await.map_err(|e| {
         log::error!("Error receiving combats: {e}");
         UserError::InternalError
-    })?;
+    })??;
 
     Ok(HttpResponse::Ok().json(combats))
 }

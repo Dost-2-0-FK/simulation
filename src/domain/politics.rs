@@ -10,22 +10,82 @@ use crate::services::credit_exchange_service::Share;
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
 pub(crate) struct ZoneName(String);
 
-impl From<String> for ZoneName {
-    fn from(s: String) -> Self {
-        Self(s)
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
+pub(crate) struct ZoneKey(String);
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
+pub(crate) struct BlocKey(String);
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
+pub(crate) struct CharacterKey(String);
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
+pub(crate) struct CharacterName(String);
+
+macro_rules! string_identifier {
+    ($type:ty) => {
+        impl From<String> for $type {
+            fn from(value: String) -> Self {
+                Self(value)
+            }
+        }
+
+        impl From<$type> for String {
+            fn from(value: $type) -> Self {
+                value.0
+            }
+        }
+
+    };
+}
+
+string_identifier!(ZoneName);
+string_identifier!(ZoneKey);
+string_identifier!(BlocName);
+string_identifier!(BlocKey);
+string_identifier!(CharacterKey);
+string_identifier!(CharacterName);
+
+impl BlocKey {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl CharacterKey {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
     }
 }
 
 #[derive(Debug)]
 pub(crate) struct Zone {
+    key: ZoneKey,
     name: ZoneName,
+    bloc_key: BlocKey,
     bloc_name: BlocName,
     bloc: Arc<RwLock<Bloc>>,
 }
 
 impl Zone {
-    pub(crate) fn new(name: ZoneName, bloc_name: BlocName, bloc: Arc<RwLock<Bloc>>) -> Self {
-        Self { name, bloc_name, bloc }
+    pub(crate) fn new(
+        key: ZoneKey,
+        name: ZoneName,
+        bloc_key: BlocKey,
+        bloc_name: BlocName,
+        bloc: Arc<RwLock<Bloc>>,
+    ) -> Self {
+        Self {
+            key,
+            name,
+            bloc_key,
+            bloc_name,
+            bloc,
+        }
+    }
+
+    pub(crate) fn key(&self) -> &ZoneKey {
+        &self.key
     }
 
     pub(crate) fn name(&self) -> &ZoneName {
@@ -34,6 +94,10 @@ impl Zone {
 
     pub(crate) fn bloc_name(&self) -> &BlocName {
         &self.bloc_name
+    }
+
+    pub(crate) fn bloc_key(&self) -> &BlocKey {
+        &self.bloc_key
     }
 
     pub(crate) async fn bloc(&self) -> RwLockReadGuard<'_, Bloc> {
@@ -69,22 +133,18 @@ impl Chance {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Hash, Display, utoipa::ToSchema)]
 pub(crate) struct BlocName(String);
 
-impl From<String> for BlocName {
-    fn from(s: String) -> Self {
-        Self(s)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct Bloc {
+    key: BlocKey,
     name: BlocName,
     chance: Chance,
     military_expense: Share,
 }
 
 impl Bloc {
-    pub(crate) fn new(name: BlocName, chance: Chance, military_expense: Share) -> Self {
+    pub(crate) fn new(key: BlocKey, name: BlocName, chance: Chance, military_expense: Share) -> Self {
         Self {
+            key,
             name,
             chance,
             military_expense,
@@ -93,6 +153,10 @@ impl Bloc {
 
     pub(crate) fn name(&self) -> &BlocName {
         &self.name
+    }
+
+    pub(crate) fn key(&self) -> &BlocKey {
+        &self.key
     }
 
     pub(crate) fn chance(&self) -> Chance {
