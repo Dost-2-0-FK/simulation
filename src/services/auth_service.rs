@@ -101,6 +101,14 @@ impl AuthenticatedUser {
     pub(crate) fn can_write_zone(&self, zone: &ZoneName) -> bool {
         self.zone_permissions.get(zone) == Some(&AccessLevel::Write)
     }
+
+    pub(crate) fn bloc_permissions(&self) -> &HashMap<BlocName, AccessLevel> {
+        &self.bloc_permissions
+    }
+
+    pub(crate) fn zone_permissions(&self) -> &HashMap<ZoneName, AccessLevel> {
+        &self.zone_permissions
+    }
 }
 
 impl AuthService {

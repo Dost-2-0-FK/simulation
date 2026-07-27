@@ -295,10 +295,16 @@ mod tests {
         let bloc_name = BlocName::from("trust-bloc".to_string());
         let bloc = Arc::new(RwLock::new(Bloc::new(
             bloc_name.clone(),
+            "trust-bloc".to_string(),
             Chance::new(1),
             Share::default(),
         )));
-        let zone = Arc::new(Zone::new(ZoneName::from("trust-zone".to_string()), bloc_name, bloc));
+        let zone = Arc::new(Zone::new(
+            ZoneName::from("trust-zone".to_string()),
+            "trust-zone".to_string(),
+            bloc_name,
+            bloc,
+        ));
         let placement = Arc::new(Placement::new(
             serde_json::from_str(r#""trust-placement""#).unwrap(),
             zone,

@@ -3,7 +3,7 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
-    domain::{Placement, PlacementId, ZoneName},
+    domain::{Placement, PlacementId},
     error::{Result, UserError},
     geometry::{Point, Positioned},
     simulation::Command,
@@ -15,7 +15,7 @@ const PLACEMENTS: &str = "placements";
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PlacementResponse {
     id: PlacementId,
-    zone: ZoneName,
+    zone: String,
     position: Point,
 }
 
@@ -23,7 +23,7 @@ impl From<&Placement> for PlacementResponse {
     fn from(placement: &Placement) -> Self {
         Self {
             id: placement.id().clone(),
-            zone: placement.zone().name().clone(),
+            zone: placement.zone().display_name().to_owned(),
             position: placement.position(),
         }
     }

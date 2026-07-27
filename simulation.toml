@@ -1,19 +1,5 @@
 bank_user_id = "bank"
-
-resources = [
-  "water",
-  "thermal_oil",
-  "silicon",
-  "uxmal_gas",
-  "uxmal_crystals",
-  "lsc",
-  "solar_energy",
-  "oxygen",
-  "iron",
-  "steel",
-  "genetic_material",
-  "entropy"
-]
+resources = ["water", "thermal_oil", "silicon", "uxmal_gas", "uxmal_crystals", "lsc", "solar_energy", "oxygen", "iron", "steel", "humans"]
 
 [costs.trust]
 money = 600
@@ -43,8 +29,6 @@ solar_energy = 1
 oxygen = 1
 iron = 1
 steel = 1
-genetic_material = 1
-entropy = 1
 
 [trust_production.resources]
 water = 1
@@ -57,8 +41,6 @@ solar_energy = 1
 oxygen = 1
 iron = 1
 steel = 1
-genetic_material = 1
-entropy = 1
 
 [server]
 bind_address = "127.0.0.1"
@@ -71,7 +53,7 @@ database = "simulation"
 interval_seconds = 30
 
 [env]
-auth_service_url = "https://auth.dost-2-0-fk.art/"
+auth_service_url = "http://host.docker.internal:18081"
 credit_exchange_url = "http://127.0.0.1:18080"
 
 [world]
@@ -82,8 +64,8 @@ max_y = 83.42
 
 [combat]
 combat_tick_interval_seconds = 1.5
-movement_interval_seconds = 1
-movement_step = 1
+movement_interval_seconds = 60
+movement_step = 2.0
 base_destruction_threshold = 5
 trust_destruction_threshold = 4
 
@@ -92,187 +74,500 @@ money = 0.5
 resources = { lsc = 0.5, oxygen = 0.5, solar_energy = 0.5, water = 0.5, steel = 0.5 }
 
 [[bloc]]
-name = "h3Eg-kdoZ-G1bx-rK5W"
+key = "h3Eg-kdoZ-G1bx-rK5W"
+name = "WEST"
 chance = 100
 military_expense = 0.1
 
 [[bloc]]
-name = "r6B8-XeFz-cg6C-xMIq"
+key = "r6B8-XeFz-cg6C-xMIq"
+name = "PARCA"
 chance = 100
 military_expense = 0.1
 
 [[bloc]]
-name = "neutral"
+key = "neutral"
+name = "NEUTRAL"
 chance = 100
 military_expense = 0.1
 
 [[zone]]
-name = "WSLS-Vg5s-J4nF-uL9D"
+key = "WSLS-Vg5s-J4nF-uL9D"
+name = "Zone 0.0 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "eTjs-NCE0-jpCH-cAXS"
+key = "eTjs-NCE0-jpCH-cAXS"
+name = "Zone 0.0 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "pis3-MGbn-Vl78-2ZB8"
+key = "pis3-MGbn-Vl78-2ZB8"
+name = "Zone 0.1 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "qcrC-wqWy-IFcG-CCo8"
+key = "qcrC-wqWy-IFcG-CCo8"
+name = "Zone 0.1 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "i8es-hJW9-hpIB-N7jF"
+key = "i8es-hJW9-hpIB-N7jF"
+name = "Zone 0.2 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "strategic-1-a-1-e"
+key = "strategic-1-a-1-e"
+name = "Zone 1.A.1 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "ESdg-8X29-43KN-aFQT"
+key = "ESdg-8X29-43KN-aFQT"
+name = "Zone 1.A.1 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "XeBt-YLoS-qDnh-VUtF"
+key = "XeBt-YLoS-qDnh-VUtF"
+name = "Zone 1.A.2 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "qfko-nYmv-9piG-BBxk"
+key = "qfko-nYmv-9piG-BBxk"
+name = "Zone 1.A.2 (W)"
 bloc = "neutral"
 
 [[zone]]
-name = "hGkk-9TSW-2xTV-tHG3"
+key = "hGkk-9TSW-2xTV-tHG3"
+name = "Zone 1.A.3 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "ZHO6-hNpX-9Wyv-yJwM"
+key = "ZHO6-hNpX-9Wyv-yJwM"
+name = "Zone 1.A.4 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "WaZS-LKed-Gofz-Ye9O"
+key = "WaZS-LKed-Gofz-Ye9O"
+name = "Zone 1.A.4 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "eQ9R-xrSk-Filk-YKyP"
+key = "eQ9R-xrSk-Filk-YKyP"
+name = "Zone 1.A.5 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "rPcg-Lg2s-eKRI-3UdN"
+key = "rPcg-Lg2s-eKRI-3UdN"
+name = "Zone 1.A.5 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "Bggh-bybz-X9HR-sVRf"
+key = "Bggh-bybz-X9HR-sVRf"
+name = "Zone 1.A.6 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "YVsc-U036-R35W-9yLN"
+key = "YVsc-U036-R35W-9yLN"
+name = "Zone 1.A.7 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "SDxI-sQby-lEJz-flPC"
+key = "SDxI-sQby-lEJz-flPC"
+name = "Zone 1.A.X"
 bloc = "neutral"
 
 [[zone]]
-name = "TfCE-X2Wf-MT7R-LO4i"
+key = "TfCE-X2Wf-MT7R-LO4i"
+name = "Zone 1.B.1 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "strategic-1-b-2-w"
+key = "strategic-1-b-2-w"
+name = "Zone 1.B.2 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "Xjn0-IQ1z-43qn-lNgr"
+key = "Xjn0-IQ1z-43qn-lNgr"
+name = "Zone 1.B.3 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "strategic-1-b-4-w"
+key = "strategic-1-b-4-w"
+name = "Zone 1.B.4 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "JF8T-Wzj3-g987-nO4p"
+key = "JF8T-Wzj3-g987-nO4p"
+name = "Zone 1.B.6 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "zXW3-8ERm-ewqW-HqiM"
+key = "zXW3-8ERm-ewqW-HqiM"
+name = "Zone 1.B.8 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "CGjL-cDe5-eE4S-rHR1"
+key = "CGjL-cDe5-eE4S-rHR1"
+name = "Zone 1.B.9 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "XfFR-CV3g-FJMH-pUGZ"
+key = "XfFR-CV3g-FJMH-pUGZ"
+name = "Zone 1.B.10 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "Iq0i-dnAB-lAsF-5c2y"
+key = "Iq0i-dnAB-lAsF-5c2y"
+name = "Zone 1.B.16 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "3B5i-ir71-3DXq-Vh9q"
+key = "3B5i-ir71-3DXq-Vh9q"
+name = "Zone 1.B.17 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "iEme-cEH1-tq5d-s9AQ"
+key = "iEme-cEH1-tq5d-s9AQ"
+name = "Zone 5.0 (E)"
 bloc = "neutral"
 
 [[zone]]
-name = "6tvh-zaIp-ih0s-QDTa"
+key = "6tvh-zaIp-ih0s-QDTa"
+name = "Zone 5.0.6 (E)"
 bloc = "neutral"
 
 [[zone]]
-name = "ITdf-vWBv-5OsB-P6DN"
+key = "ITdf-vWBv-5OsB-P6DN"
+name = "Zone 5.1 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "strategic-5-1-w"
+key = "strategic-5-1-w"
+name = "Zone 5.1 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "strategic-5-2-e"
+key = "strategic-5-2-e"
+name = "Zone 5.2 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "strategic-5-2-w"
+key = "strategic-5-2-w"
+name = "Zone 5.2 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "strategic-5-3-e"
+key = "strategic-5-3-e"
+name = "Zone 5.3 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "strategic-5-3-w"
+key = "strategic-5-3-w"
+name = "Zone 5.3 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "strategic-5-4-e"
+key = "strategic-5-4-e"
+name = "Zone 5.4 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "strategic-5-4-w"
+key = "strategic-5-4-w"
+name = "Zone 5.4 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "strategic-5-5-e"
+key = "strategic-5-5-e"
+name = "Zone 5.5 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "strategic-5-5-w"
+key = "strategic-5-5-w"
+name = "Zone 5.5 (W)"
 bloc = "h3Eg-kdoZ-G1bx-rK5W"
 
 [[zone]]
-name = "XJU0-8Ucp-z35m-q6ii"
+key = "XJU0-8Ucp-z35m-q6ii"
+name = "Zone 5.6 (E)"
 bloc = "neutral"
 
 [[zone]]
-name = "strategic-5-7-e"
+key = "strategic-5-7-e"
+name = "Zone 5.7 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
 
 [[zone]]
-name = "qnec-OGRY-Q91L-2L3N"
+key = "qnec-OGRY-Q91L-2L3N"
+name = "Zone 1.B.11 (E)"
 bloc = "r6B8-XeFz-cg6C-xMIq"
+
+[[character]]
+key = "KQsf-b00z-I210-GGWL"
+name = ", Segfold"
+
+[[character]]
+key = "1txX-Elq4-oUDm-a1oe"
+name = "8, X"
+
+[[character]]
+key = "wBG9-F6X6-FHHa-G3Y9"
+name = "Akshat, Sahra"
+
+[[character]]
+key = "zjIB-GwXQ-vIXA-rmqH"
+name = "Al-Ali, Handala"
+
+[[character]]
+key = "W5Jf-SSbX-GlLS-q0wz"
+name = "Anders , Cara"
+
+[[character]]
+key = "aTQh-8QG2-9uJr-qR2m"
+name = "Anders, Gregor"
+
+[[character]]
+key = "7kYc-WgGX-Iafe-TLju"
+name = "Batyr, Bogenbay"
+
+[[character]]
+key = "x7A8-mFIT-YwkB-Em2q"
+name = "Benedetta, Serafina Lucifera "
+
+[[character]]
+key = "RI7Q-gBYl-9ao0-xvHt"
+name = "Bogatst, Noah"
+
+[[character]]
+key = "AM2s-4ZxJ-I4vC-pZ24"
+name = "Caffner, Mélanie"
+
+[[character]]
+key = "0kOD-jJw6-eTUk-0xEW"
+name = "Cavelti, Ingrid"
+
+[[character]]
+key = "WTLW-mfQg-QFqb-NpzX"
+name = "Cavelti, Werdi"
+
+[[character]]
+key = "U4OC-sm7S-VATO-6rSc"
+name = "Chain, Chep"
+
+[[character]]
+key = "wfue-m3Io-PgQT-P3Xa"
+name = "Chernobylmann, ???"
+
+[[character]]
+key = "OhY0-4fxe-Nqp6-L8hf"
+name = "Chwarizmi, Roza"
+
+[[character]]
+key = "6Yz2-TZ5f-p3Ri-cvlM"
+name = "Dr. de Lavoie, David"
+
+[[character]]
+key = "CzCh-jnoo-sxew-K9qp"
+name = "Dr. Khorana, Rishi"
+
+[[character]]
+key = "br3f-wIDf-gHqo-VhTa"
+name = "Dr. Vukovic, Anastasia "
+
+[[character]]
+key = "I9MO-9QcS-o9NW-jNCf"
+name = "Dr. Wolkow, Irina"
+
+[[character]]
+key = "YWjm-oxy0-BYi5-Ku1n"
+name = "Dragun, Oleg"
+
+[[character]]
+key = "wQEv-0xCX-fU0t-qd0N"
+name = "Elena, Dr. Voss"
+
+[[character]]
+key = "UCeN-9NVh-fxjR-UI7r"
+name = "Gragvokg, DV"
+
+[[character]]
+key = "5XeZ-elqC-DYLA-AU17"
+name = "Guanqi, Luo Shi"
+
+[[character]]
+key = "5CFs-HWZD-jiBf-7D43"
+name = "Holm, Patrizia"
+
+[[character]]
+key = "kzHI-8jN6-CLpy-hktP"
+name = "Ilyan, Nadir"
+
+[[character]]
+key = "eCb9-eWgi-GWMS-Pxg9"
+name = "İmamoğlu , Ekrem"
+
+[[character]]
+key = "gMIK-3WqP-8bKC-SaYd"
+name = "Kade, Juno"
+
+[[character]]
+key = "au2n-q5ev-t0zl-iNHP"
+name = "Kessler, Mara"
+
+[[character]]
+key = "o2tX-HIFw-O8oD-P8ZQ"
+name = "Knute , Deunan"
+
+[[character]]
+key = "fa9m-sLVA-hkBp-rI4x"
+name = "Langston, Owen"
+
+[[character]]
+key = "RdgX-W4HP-o0FE-h8eV"
+name = "Lebedew, Nikolai"
+
+[[character]]
+key = "3HgN-BHhu-1oU4-hqHZ"
+name = "Leydeck, Hank"
+
+[[character]]
+key = "rP4K-x8Vu-2DnS-L5cJ"
+name = "Lin, Qiao"
+
+[[character]]
+key = "gMi6-SxnT-XQpS-pLRD"
+name = "Markova, Anja"
+
+[[character]]
+key = "6TGn-JoBH-sdeB-jyac"
+name = "McArden, Glen"
+
+[[character]]
+key = "k36L-Tj3n-FUJU-aPw4"
+name = "McKane, Mira"
+
+[[character]]
+key = "srK6-byGQ-rjjP-r2Vb"
+name = "Melnyk, Roman "
+
+[[character]]
+key = "B9tC-3wFy-H6jM-q1Ze"
+name = "Mercer, Rowan"
+
+[[character]]
+key = "gEq5-mMWO-9RQ6-azS7"
+name = "Nierendorf, Paul"
+
+[[character]]
+key = "RvlM-C3zD-Rlmk-N76G"
+name = "Nixon, Claire"
+
+[[character]]
+key = "mL7Q-v2Ns-K8pR-4XaD"
+name = "North, Avery"
+
+[[character]]
+key = "VDtq-4lT7-ck8Z-tFJu"
+name = "Okabe, Rintaro"
+
+[[character]]
+key = "dRBH-9hys-VTbV-tyhj"
+name = "Prinzessin von Luxemburg, Alix Marie Therèse Olivia Ganova"
+
+[[character]]
+key = "zP3j-RPzK-ouKI-CG3w"
+name = "Prof. Dr. Wen, Li"
+
+[[character]]
+key = "KKS6-A62j-i0FH-g1Q4"
+name = "Rahman, Amina"
+
+[[character]]
+key = "GRzH-KrHC-5SUL-yzb5"
+name = "Santos, Serafin"
+
+[[character]]
+key = "UEKq-sdBK-ngHo-uws6"
+name = "Sin, Lee"
+
+[[character]]
+key = "U28f-pogA-HZSP-4v6u"
+name = "Smirnow, Marijn"
+
+[[character]]
+key = "Bi9M-slAN-hC1r-trTF"
+name = "Sokolow, Kim "
+
+[[character]]
+key = "Q9bR-fQRf-eX3Z-BsOi"
+name = "Sommerheim, Eva"
+
+[[character]]
+key = "jGCO-kAF0-KI0S-iuBC"
+name = "Song, Yeji"
+
+[[character]]
+key = "lwSK-XvmF-pMMi-vV0Q"
+name = "Sorin, Mika"
+
+[[character]]
+key = "ZpTE-CJfb-gGsQ-C39u"
+name = "Su, Jung"
+
+[[character]]
+key = "9ELs-y59z-7Uqf-ut1l"
+name = "Szymanski, Nathalia"
+
+[[character]]
+key = "XtEl-eZVv-SX64-wYIj"
+name = "Tyndall, Hunter"
+
+[[character]]
+key = "rQhp-1Xqb-kWjN-oXux"
+name = "Värn, Niko"
+
+[[character]]
+key = "k551-bD14-0Ydj-LUcu"
+name = "Viksna, Adrian "
+
+[[character]]
+key = "zjbq-Lbt2-fJh2-oMHy"
+name = "Vintergaard, Niels"
+
+[[character]]
+key = "0VgW-Q0xK-PKK8-tNKt"
+name = "Vogelvrai, Ruth Antonia"
+
+[[character]]
+key = "T6hW-n3Gb-Y9sA-7QeF"
+name = "Volkov, Ilya"
+
+[[character]]
+key = "DS5Q-jb9H-6ncE-WSHO"
+name = "von Wiesenburg zu Falkenstein, Ruth"
+
+[[character]]
+key = "tWJE-k8y5-d4R0-IqUI"
+name = "Weber, Paul"
+
+[[character]]
+key = "L5XT-Xpnp-ROVT-bpFh"
+name = "Williams, Ladina "
+
+[[character]]
+key = "3wH9-bkd1-pVD6-3p5Q"
+name = "Xi, Louis"
+
+[[character]]
+key = "N7E5-ac08-ekbx-9z4z"
+name = "Yiapeng, Hulu"
+
+[[character]]
+key = "4o6s-1RWb-Et4U-sKsV"
+name = "Zhou, Zhang "
+
+[[character]]
+key = "3KiM-Q8sf-W1CJ-QUkO"
+name = "Simulation-Test User PARCA"
 
 [[placement]]
 id = "placement-0-0-e-1"
@@ -1117,7 +1412,7 @@ placement_id = "placement-1-b-16-w-1"
 payment = [{ financierId = "DS5Q-jb9H-6ncE-WSHO", share = 0.4 }]
 
 [[base]]
-placement_id = "placement-0-0-w-3"
+placement_id = "placement-0-0-w-2"
 payment = [{ financierId = "fa9m-sLVA-hkBp-rI4x", share = 0.25 }]
 
 [[base]]
@@ -1141,7 +1436,7 @@ placement_id = "placement-0-1-e-3"
 payment = [{ financierId = "CzCh-jnoo-sxew-K9qp", share = 0.4 }]
 
 [[base]]
-placement_id = "placement-5-3-e-4"
+placement_id = "placement-5-3-e-3"
 payment = [{ financierId = "T6hW-n3Gb-Y9sA-7QeF", share = 0.35 }]
 
 [[base]]
@@ -1289,16 +1584,6 @@ resource = "steel"
 payment = [{ financierId = "9ELs-y59z-7Uqf-ut1l", share = 0.35 }]
 
 [[trust]]
-placement_id = "placement-0-0-w-2"
-resource = "genetic_material"
-payment = [{ financierId = "mL7Q-v2Ns-K8pR-4XaD", share = 0.35 }]
-
-[[trust]]
-placement_id = "placement-0-1-w-2"
-resource = "entropy"
-payment = [{ financierId = "aTQh-8QG2-9uJr-qR2m", share = 0.4 }]
-
-[[trust]]
 placement_id = "placement-1-a-5-e-1"
 resource = "silicon"
 payment = [{ financierId = "KKS6-A62j-i0FH-g1Q4", share = 0.2 }]
@@ -1306,27 +1591,17 @@ payment = [{ financierId = "KKS6-A62j-i0FH-g1Q4", share = 0.2 }]
 [[trust]]
 placement_id = "placement-0-1-e-1"
 resource = "uxmal_crystals"
-payment = [{ financierId = "UEKq-sdBK-ngHo-uws6", share = 0.25 }]
+payment = [{ financierId = "rP4K-x8Vu-2DnS-L5cJ", share = 0.35 }]
 
 [[trust]]
 placement_id = "placement-0-0-e-1"
 resource = "lsc"
-payment = [{ financierId = "YWjm-oxy0-BYi5-Ku1n", share = 0.3 }]
+payment = [{ financierId = "UEKq-sdBK-ngHo-uws6", share = 0.25 }]
 
 [[trust]]
 placement_id = "placement-0-1-e-2"
 resource = "steel"
-payment = [{ financierId = "4o6s-1RWb-Et4U-sKsV", share = 0.35 }]
-
-[[trust]]
-placement_id = "placement-0-0-e-2"
-resource = "genetic_material"
-payment = [{ financierId = "5XeZ-elqC-DYLA-AU17", share = 0.4 }]
-
-[[trust]]
-placement_id = "placement-5-3-e-3"
-resource = "entropy"
-payment = [{ financierId = "CzCh-jnoo-sxew-K9qp", share = 0.2 }]
+payment = [{ financierId = "YWjm-oxy0-BYi5-Ku1n", share = 0.3 }]
 
 [[trust]]
 placement_id = "placement-1-a-x-1"
@@ -1337,11 +1612,6 @@ payment = [{ financierId = "1txX-Elq4-oUDm-a1oe", share = 0.4 }]
 placement_id = "placement-1-a-x-2"
 resource = "lsc"
 payment = [{ financierId = "WTLW-mfQg-QFqb-NpzX", share = 0.4 }]
-
-[[trust]]
-placement_id = "placement-1-a-x-3"
-resource = "entropy"
-payment = [{ financierId = "gEq5-mMWO-9RQ6-azS7", share = 0.4 }]
 
 [[trust]]
 placement_id = "placement-1-b-8-e-1"

@@ -45,6 +45,8 @@ async fn main() -> std::io::Result<()> {
     }
     let coordination_service = CoordinationService::new(coordination_api_key);
     let resources = config.resources().to_vec();
+    let characters = config.characters().clone();
+    let politics = config.politics().clone();
     let server_address = config.server_address();
 
     let tx = app::start_simulation(config).await.map_err(|e| {
@@ -64,6 +66,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(coordination_service.clone()))
             .app_data(web::Data::new(resources.clone()))
+            .app_data(web::Data::new(characters.clone()))
+            .app_data(web::Data::new(politics.clone()))
             .service(scope::scope("/api").configure(routes::configure))
             .openapi_service(|api| SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", api))
             .into_app()
