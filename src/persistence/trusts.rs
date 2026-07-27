@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{parse_id, placement_by_id};
 use crate::{
-    domain::{Loot, Placement, PlacementId, Trust, TrustId},
+    domain::{Loot, Placement, PlacementId, Production, Trust, TrustId},
     handlers::bases::Financing,
     services::credit_exchange_service::{Money, Resources},
 };
@@ -46,8 +46,7 @@ impl PersistedTrust {
             placement,
             self.financing,
             self.loot,
-            self.income,
-            self.producing,
+            Production::from_parts(self.income, self.producing),
         ))
     }
 }

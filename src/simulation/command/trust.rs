@@ -5,7 +5,9 @@ use tokio::sync::{RwLock, oneshot::Sender};
 use super::CommandError;
 use crate::{
     config::Config,
-    domain::{BlocKey, MilitaryUnit, Placement, PlacementId, Trust, TrustId, UnitId},
+    domain::{
+        BlocKey, MilitaryUnit, Placement, PlacementId, ProductionUnit, ProductionUnitKey, Trust, TrustId, UnitId,
+    },
     error::UserError,
     geometry::{Distance, Point, Positioned, WorldBounds},
     handlers::{bases::Financing, trusts::TrustResponse},
@@ -130,7 +132,7 @@ impl ProductionContext {
 
     fn income_for(&self, trust: &Trust, produced: ResourceValue<'_>) -> Money {
         let existing_units = self.resource_totals.get(trust.resource_name()).unwrap_or_default();
-        produced * trust.base_income() / (existing_units + 1.0)
+        trust.income(produced, existing_units)
     }
 }
 
@@ -236,10 +238,11 @@ pub(crate) async fn create(
 
 pub(crate) async fn publish_production(
     trusts: &HashMap<TrustId, Arc<RwLock<Trust>>>,
+    production_units: &HashMap<ProductionUnitKey, Arc<RwLock<ProductionUnit>>>,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     config: &Config,
 ) -> anyhow::Result<()> {
-    if trusts.is_empty() {
+    if trusts.is_empty() && production_units.is_empty() {
         return Ok(());
     }
     let context = ProductionContext::new(units, config).await?;
@@ -259,6 +262,33 @@ pub(crate) async fn publish_production(
             log::error!(
                 "failed to publish credit production for trust {trust_id:?}: {err}",
                 trust_id = trust.id()
+            );
+        }
+    }
+
+    for production_unit in production_units.values() {
+        let production_unit = production_unit.read().await;
+        let producing = production_unit.production_without_inhibition();
+        let existing_units = context
+            .resource_totals
+            .get(production_unit.resource_name())
+            .unwrap_or_default();
+        let income = production_unit.income(
+            producing
+                .into_iter()
+                .next()
+                .expect("production units produce one resource"),
+            existing_units,
+        );
+
+        if let Err(err) = config
+            .credit_exchange_service()
+            .set_production_unit_production(&production_unit, income, &producing)
+            .await
+        {
+            log::error!(
+                "failed to publish credit production for production unit {key}: {err}",
+                key = production_unit.key(),
             );
         }
     }

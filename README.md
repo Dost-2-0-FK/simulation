@@ -282,6 +282,8 @@ trusts are returned or only a subset (only associated by block/zone financed by 
 - `GET /api/placements` (returns placements and associated zone)
 - `GET /api/placements/{id}`
 - `GET /api/resources` (returns all configured resource names)
+- `GET /api/production-units`
+- `GET /api/production-units/{key}`
 - `GET /api/trusts` (returns trusts and associated zone and financier and the percentage the trust was financed by the
   financier)
 - `GET /api/trusts/{id}`

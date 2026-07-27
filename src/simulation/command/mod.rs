@@ -4,6 +4,7 @@ pub(crate) mod combat;
 mod deletion;
 pub(crate) mod persist;
 pub(crate) mod placement;
+pub(crate) mod production_unit;
 pub(crate) mod trust;
 pub(crate) mod unit;
 pub(crate) mod zone;
@@ -79,13 +80,14 @@ use crate::{
     config::Config,
     domain::{
         BaseId, Bloc, BlocKey, Chance, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust,
-        TrustId, UnitId, Zone,
+        ProductionUnit, ProductionUnitKey, TrustId, UnitId, Zone,
     },
     error::UserError,
     geometry::Point,
     handlers::{
         bases::{Financing, TargetBody},
         combats::CombatResponse,
+        production_units::ProductionUnitResponse,
         trusts::TrustResponse,
         units::UnitResponse,
     },
@@ -124,6 +126,11 @@ pub(crate) enum Command {
     },
     GetTrusts(Sender<core::result::Result<Vec<TrustResponse>, UserError>>),
     GetTrust(TrustId, Sender<core::result::Result<Option<TrustResponse>, UserError>>),
+    GetProductionUnits(Sender<core::result::Result<Vec<ProductionUnitResponse>, UserError>>),
+    GetProductionUnit(
+        ProductionUnitKey,
+        Sender<core::result::Result<Option<ProductionUnitResponse>, UserError>>,
+    ),
     DeleteTrust {
         id: TrustId,
         response: Sender<core::result::Result<(), UserError>>,
@@ -166,6 +173,7 @@ pub(crate) async fn run(
     mut units: HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     mut bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     mut trusts: HashMap<TrustId, Arc<RwLock<Trust>>>,
+    production_units: HashMap<ProductionUnitKey, Arc<RwLock<ProductionUnit>>>,
     blocs: HashMap<BlocKey, Arc<RwLock<Bloc>>>,
     mut combats: HashMap<Point, Arc<RwLock<Combat>>>,
 ) {
@@ -330,6 +338,18 @@ pub(crate) async fn run(
             Command::GetTrust(id, resp) => {
                 trust::get(id, resp, &trusts, &units, config).await;
             }
+            Command::GetProductionUnits(response) => {
+                production_unit::get_all(response, &production_units, config.credit_exchange_service()).await;
+            }
+            Command::GetProductionUnit(key, response) => {
+                production_unit::get(
+                    &key,
+                    response,
+                    &production_units,
+                    config.credit_exchange_service(),
+                )
+                .await;
+            }
             Command::DeleteTrust { id, response } => {
                 let result = deletion::delete_trust(
                     id,
@@ -366,7 +386,16 @@ pub(crate) async fn run(
                 let _ = response.send(result);
             }
             Command::Persist => {
-                persist::persist_all(persistence, &units, &bases, &trusts, &blocs, &combats).await;
+                persist::persist_all(
+                    persistence,
+                    &units,
+                    &bases,
+                    &trusts,
+                    &production_units,
+                    &blocs,
+                    &combats,
+                )
+                .await;
             }
             Command::PublishBaseProduction { response } => {
                 let result = async {
@@ -383,7 +412,7 @@ pub(crate) async fn run(
             }
             Command::PublishTrustProduction { response } => {
                 let result = async {
-                    trust::publish_production(&trusts, &units, config)
+                    trust::publish_production(&trusts, &production_units, &units, config)
                         .await
                         .map_err(|err| {
                             log::error!("failed to publish trust production: {err:#}");

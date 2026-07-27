@@ -16,16 +16,17 @@ pub(crate) async fn start_simulation(config: Config) -> Result<mpsc::Sender<Comm
         .await
         .context("connecting persistence layer".to_string())?;
     let mut loaded_state = persistence
-        .load(config.placements())
+        .load(config.placements(), config.zones())
         .await
         .context("loading simulation state from persistence".to_string())?;
 
     if loaded_state.is_empty() {
         let seeded = config.seeded_structures();
         log::info!(
-            "No simulation state persisted, instantiating {} bases and {} trusts from config.",
+            "No simulation state persisted, instantiating {} bases, {} trusts, and {} production units from config.",
             seeded.bases.len(),
             seeded.trusts.len(),
+            seeded.production_units.len(),
         );
 
         for base in seeded.bases.values() {
@@ -44,9 +45,18 @@ pub(crate) async fn start_simulation(config: Config) -> Result<mpsc::Sender<Comm
                 .await
                 .context("registering configured trust with credit-exchange service")?;
         }
+        for production_unit in seeded.production_units.values() {
+            let production_unit = production_unit.read().await;
+            config
+                .credit_exchange_service()
+                .register_prepaid_production_unit(&production_unit)
+                .await
+                .context("registering configured production unit with credit-exchange service")?;
+        }
 
         loaded_state.bases = seeded.bases;
         loaded_state.trusts = seeded.trusts;
+        loaded_state.production_units = seeded.production_units;
     } else {
         log::info!("Loaded simulation state from database, ignoring configured base and trust seeds.");
     }
@@ -81,6 +91,7 @@ pub(crate) fn openapi() -> utoipa::openapi::OpenApi {
             (name = "bases", description = "Endpoints related to military bases."),
             (name = "placements", description = "Endpoints related to placements."),
             (name = "resources", description = "Endpoints related to configured resources."),
+            (name = "production-units", description = "Read-only endpoints for configured production units."),
             (name = "trusts", description = "Endpoints related to trusts."),
             (name = "blocs", description = "Endpoints related to blocs."),
             (name = "combats", description = "Endpoints related to combats."),

@@ -6,10 +6,12 @@ use std::sync::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    domain::{Loot, LootFactors, Placement, PlacementId},
+    domain::{Loot, LootFactors, Placement, PlacementId, Production},
     geometry::{Point, Positioned},
     handlers::bases::Financing,
-    services::credit_exchange_service::{Cost, Financiers, Money, Payment, ResourceName, Resources, Share},
+    services::credit_exchange_service::{
+        Cost, Financiers, Money, Payment, ResourceName, ResourceValue, Resources, Share,
+    },
 };
 
 static TRUST_INSTANCE_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -24,10 +26,7 @@ pub(crate) struct Trust {
     id: TrustId,
     placement: Arc<Placement>,
     financing: Vec<Financing>,
-    /// The configured base value of money to generate before applying the resource-supply discount.
-    base_income: Money,
-    /// The base value of produced resources in the next production cycle
-    producing: Resources,
+    production: Production,
     /// The loot that will be collected if this trust is destroyed.
     loot: Loot,
 }
@@ -85,8 +84,7 @@ impl Trust {
             financing,
             placement,
             loot,
-            base_income: income,
-            producing: Resources::new_single(resource, resource_amount),
+            production: Production::new(resource, resource_amount, income),
         }
     }
 
@@ -95,8 +93,7 @@ impl Trust {
         placement: Arc<Placement>,
         financing: Vec<Financing>,
         loot: Loot,
-        income: Money,
-        producing: Resources,
+        production: Production,
     ) -> Self {
         assert_ne!(id.0, u64::MAX, "ID counter has overflowed and is no longer unique");
         TRUST_INSTANCE_COUNT.fetch_max(id.0 + 1, SeqCst);
@@ -106,8 +103,7 @@ impl Trust {
             financing,
             placement,
             loot,
-            base_income: income,
-            producing,
+            production,
         }
     }
 
@@ -132,18 +128,22 @@ impl Trust {
     }
 
     pub(crate) fn base_income(&self) -> Money {
-        self.base_income
+        self.production.base_income()
     }
 
     pub(crate) fn resource_name(&self) -> &ResourceName {
-        self.producing.single_resource_name()
+        self.production.resource_name()
     }
 
     pub(crate) fn producing_base_value(&self) -> &Resources {
-        &self.producing
+        self.production.producing_base_value()
     }
 
     pub(crate) fn production_with_inhibition(&self, factor: Share) -> Resources {
-        factor * self.producing.clone()
+        self.production.with_factor(factor)
+    }
+
+    pub(crate) fn income(&self, produced: ResourceValue<'_>, existing_resource_units: f32) -> Money {
+        self.production.income(produced, existing_resource_units)
     }
 }

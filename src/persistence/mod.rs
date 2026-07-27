@@ -7,19 +7,24 @@ use tokio::sync::RwLock;
 
 use crate::{
     config::PersistenceConfig,
-    domain::{BaseId, Bloc, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, Trust, TrustId, UnitId},
+    domain::{
+        BaseId, Bloc, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, ProductionUnit, ProductionUnitKey,
+        Trust, TrustId, UnitId, Zone,
+    },
     geometry::Point,
 };
 
 mod bases;
 mod blocs;
 mod combats;
+mod production_units;
 mod trusts;
 mod units;
 
 use bases::PersistedBase;
 pub(crate) use blocs::PersistedBloc;
 use combats::PersistedCombat;
+use production_units::PersistedProductionUnit;
 use trusts::PersistedTrust;
 use units::PersistedUnit;
 
@@ -30,6 +35,7 @@ pub(crate) struct MongoPersistence {
     units: Collection<PersistedUnit>,
     blocs: Collection<PersistedBloc>,
     combats: Collection<PersistedCombat>,
+    production_units: Collection<PersistedProductionUnit>,
 }
 
 pub(crate) struct LoadedState {
@@ -38,6 +44,7 @@ pub(crate) struct LoadedState {
     pub(crate) units: HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     pub(crate) blocs: Vec<PersistedBloc>,
     pub(crate) combats: HashMap<Point, Arc<RwLock<Combat>>>,
+    pub(crate) production_units: HashMap<ProductionUnitKey, Arc<RwLock<ProductionUnit>>>,
 }
 
 impl LoadedState {
@@ -47,6 +54,7 @@ impl LoadedState {
             && self.units.is_empty()
             && self.blocs.is_empty()
             && self.combats.is_empty()
+            && self.production_units.is_empty()
     }
 }
 
@@ -74,10 +82,15 @@ impl MongoPersistence {
             units: database.collection("units"),
             blocs: database.collection("blocs"),
             combats: database.collection("combats"),
+            production_units: database.collection("production_units"),
         })
     }
 
-    pub(crate) async fn load(&self, placements: impl Iterator<Item = Arc<Placement>> + Clone) -> Result<LoadedState> {
+    pub(crate) async fn load(
+        &self,
+        placements: impl Iterator<Item = Arc<Placement>> + Clone,
+        zones: impl Iterator<Item = Arc<Zone>> + Clone,
+    ) -> Result<LoadedState> {
         // Phase 1: load raw persisted bases and create MilitaryBase instances with Target::None.
         let raw_bases: Vec<PersistedBase> = self
             .bases
@@ -109,6 +122,21 @@ impl MongoPersistence {
             .collect::<Result<Vec<_>>>()?
             .into_iter()
             .map(|trust| (trust.id(), Arc::new(RwLock::new(trust))))
+            .collect();
+
+        let production_units = self
+            .production_units
+            .find(doc! {})
+            .await
+            .context("loading production units from MongoDB")?
+            .map_ok(|unit| unit.into_production_unit(zones.clone()))
+            .try_collect::<Vec<_>>()
+            .await
+            .context("reading persisted production units")?
+            .into_iter()
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .map(|unit| (unit.key().clone(), Arc::new(RwLock::new(unit))))
             .collect();
 
         // Phase 2: resolve base targets now that all bases and trusts are available.
@@ -170,6 +198,7 @@ impl MongoPersistence {
             units,
             blocs,
             combats,
+            production_units,
         })
     }
 
@@ -190,6 +219,16 @@ impl MongoPersistence {
             .upsert(true)
             .await
             .context("saving trust to MongoDB")?;
+        Ok(())
+    }
+
+    pub(crate) async fn save_production_unit(&self, unit: &ProductionUnit) -> Result<()> {
+        let persisted = PersistedProductionUnit::from_production_unit(unit);
+        self.production_units
+            .replace_one(doc! { "_id": persisted.key().as_str() }, persisted)
+            .upsert(true)
+            .await
+            .context("saving production unit to MongoDB")?;
         Ok(())
     }
 
@@ -244,6 +283,15 @@ impl MongoPersistence {
             .delete_many(doc! { "_id": { "$nin": ids } })
             .await
             .context("deleting stale trusts from MongoDB")?;
+        Ok(())
+    }
+
+    pub(crate) async fn delete_production_units_except(&self, keys: Vec<ProductionUnitKey>) -> Result<()> {
+        let keys = keys.iter().map(ProductionUnitKey::as_str).collect::<Vec<_>>();
+        self.production_units
+            .delete_many(doc! { "_id": { "$nin": keys } })
+            .await
+            .context("deleting stale production units from MongoDB")?;
         Ok(())
     }
 

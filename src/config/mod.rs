@@ -18,7 +18,8 @@ use self::error::{Error, Result};
 use crate::{
     domain::{
         BaseId, Bloc, BlocKey, BlocName, Chance, CharacterKey, CharacterName, LootFactors, MilitaryBase, MilitaryUnit,
-        NameMappings, Placement, PlacementId, Trust, TrustId, Zone, ZoneKey, ZoneName,
+        NameMappings, Placement, PlacementId, ProductionUnit, ProductionUnitKey, Trust, TrustId, Zone, ZoneKey,
+        ZoneName,
     },
     geometry::{Distance, Point, WorldBounds},
     handlers::bases::Financing,
@@ -57,6 +58,8 @@ struct TomlConfig {
     bases: Vec<BaseConfig>,
     #[serde(default, rename = "trust")]
     trusts: Vec<TrustConfig>,
+    #[serde(default, rename = "production_unit")]
+    production_units: Vec<ProductionUnitConfig>,
 }
 
 pub(crate) struct Config {
@@ -82,11 +85,13 @@ pub(crate) struct Config {
     name_mappings: Arc<NameMappings>,
     base_seeds: Vec<BaseConfig>,
     trust_seeds: Vec<TrustConfig>,
+    production_unit_seeds: Vec<ProductionUnitConfig>,
 }
 
 pub(crate) struct SeededStructures {
     pub(crate) bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     pub(crate) trusts: HashMap<TrustId, Arc<RwLock<Trust>>>,
+    pub(crate) production_units: HashMap<ProductionUnitKey, Arc<RwLock<ProductionUnit>>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -201,6 +206,14 @@ struct TrustConfig {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct ProductionUnitConfig {
+    key: ProductionUnitKey,
+    zone: ZoneKey,
+    resource: ResourceName,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct TrustProductionConfig {
     money_per_resource: MoneyPerResource,
     resources: Resources,
@@ -276,7 +289,7 @@ impl Config {
         self.placements.iter().cloned()
     }
 
-    pub(crate) fn zones(&self) -> impl Iterator<Item = Arc<Zone>> + '_ {
+    pub(crate) fn zones(&self) -> impl Iterator<Item = Arc<Zone>> + Clone + '_ {
         self.zones.iter().cloned()
     }
 
@@ -394,7 +407,31 @@ impl Config {
             })
             .collect();
 
-        SeededStructures { bases, trusts }
+        let production_units = self
+            .production_unit_seeds
+            .iter()
+            .map(|seed| {
+                let zone = self
+                    .zones()
+                    .find(|zone| zone.key() == &seed.zone)
+                    .expect("seed production unit zone references were validated while parsing config");
+                let resource_amount = self
+                    .trust_resource_production(&seed.resource)
+                    .expect("seed production unit resources were validated while parsing config");
+                let base_income = self
+                    .trust_base_income(&seed.resource)
+                    .expect("seed production unit money was validated while parsing config");
+                let production_unit =
+                    ProductionUnit::new(seed.key.clone(), zone, seed.resource.clone(), resource_amount, base_income);
+                (seed.key.clone(), Arc::new(RwLock::new(production_unit)))
+            })
+            .collect();
+
+        SeededStructures {
+            bases,
+            trusts,
+            production_units,
+        }
     }
 
     async fn parse_from_str(config: &str) -> Result<Self> {
@@ -423,6 +460,10 @@ impl Config {
         validate_unique(
             "character name",
             config.characters.iter().map(|character| &character.name),
+        )?;
+        validate_unique(
+            "production unit key",
+            config.production_units.iter().map(|unit| &unit.key),
         )?;
 
         let name_mappings = Arc::new(NameMappings::new(
@@ -643,6 +684,27 @@ impl Config {
             }
         }
 
+        for production_unit in &config.production_units {
+            if !zones.iter().any(|zone| zone.key() == &production_unit.zone) {
+                return Err(Error::ConfigValidation(format!(
+                    "seeded production unit {} references unknown zone {}",
+                    production_unit.key, production_unit.zone,
+                )));
+            }
+            if config
+                .trust_production
+                .resources
+                .get(&production_unit.resource)
+                .is_none()
+            {
+                return Err(Error::ConfigValidation(format!(
+                    "seeded production unit {key} uses resource {resource} without configured production",
+                    key = production_unit.key,
+                    resource = production_unit.resource,
+                )));
+            }
+        }
+
         assert!(
             config.combat.movement_step > 0.0,
             "unit movement step must be greater than 0"
@@ -672,6 +734,7 @@ impl Config {
             name_mappings,
             base_seeds: config.bases,
             trust_seeds: config.trusts,
+            production_unit_seeds: config.production_units,
             credit_exchange_service: CreditExchangeService::new(
                 config.env.credit_exchange_url,
                 config.bank_user_id,
@@ -1094,6 +1157,35 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn parse_builds_typed_production_unit_seed() {
+        let toml = format!(
+            r#"{}
+
+            [[production_unit]]
+            key = "people-factory"
+            zone = "zone_1"
+            resource = "Lithium"
+            "#,
+            base_toml()
+        );
+        let config = Config::parse_from_str(&toml)
+            .await
+            .expect("config with a production unit can be parsed");
+        let seeded = config.seeded_structures();
+
+        let production_unit = seeded.production_units.values().next().unwrap().read().await;
+        assert_eq!(production_unit.key().to_string(), "people-factory");
+        assert_eq!(production_unit.zone().key().to_string(), "zone_1");
+        assert_eq!(production_unit.resource_name().to_string(), "lithium");
+        assert_eq!(
+            production_unit
+                .production_without_inhibition()
+                .get(&ResourceName::new("lithium".into())),
+            Some(3.5)
+        );
+    }
+
+    #[tokio::test]
     async fn parse_checked_in_config() {
         let config = Config::parse_from_str(include_str!("../../simulation.toml"))
             .await
@@ -1102,6 +1194,7 @@ mod tests {
 
         assert_eq!(seeded.bases.len(), 11);
         assert_eq!(seeded.trusts.len(), 35);
+        assert_eq!(seeded.production_units.len(), 42);
     }
 
     #[test]
@@ -1220,6 +1313,56 @@ mod tests {
             }
             Err(error) => panic!("unexpected error: {error}"),
             Ok(_) => panic!("trust seed without configured production must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_production_unit_with_unknown_zone() {
+        let toml = format!(
+            r#"{}
+
+            [[production_unit]]
+            key = "people-factory"
+            zone = "missing"
+            resource = "Lithium"
+            "#,
+            base_toml()
+        );
+
+        match Config::parse_from_str(&toml).await {
+            Err(Error::ConfigValidation(error)) => assert_eq!(
+                error,
+                "seeded production unit people-factory references unknown zone missing"
+            ),
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("production unit with an unknown zone must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_duplicate_production_unit_key() {
+        let toml = format!(
+            r#"{}
+
+            [[production_unit]]
+            key = "people-factory"
+            zone = "zone_1"
+            resource = "Lithium"
+
+            [[production_unit]]
+            key = "people-factory"
+            zone = "zone_1"
+            resource = "Iron"
+            "#,
+            base_toml()
+        );
+
+        match Config::parse_from_str(&toml).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(error, "duplicate production unit key people-factory")
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("duplicate production unit keys must fail"),
         }
     }
 }
