@@ -29,6 +29,7 @@ solar_energy = 1
 oxygen = 1
 iron = 1
 steel = 1
+humans = 0
 
 [trust_production.resources]
 water = 1
@@ -41,6 +42,7 @@ solar_energy = 1
 oxygen = 1
 iron = 1
 steel = 1
+humans = 1
 
 [server]
 bind_address = "127.0.0.1"
@@ -568,6 +570,216 @@ name = "Zhou, Zhang "
 [[character]]
 key = "3KiM-Q8sf-W1CJ-QUkO"
 name = "Simulation-Test User PARCA"
+
+[[production_unit]]
+key = "humans-0-0-e"
+zone = "WSLS-Vg5s-J4nF-uL9D"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-0-0-w"
+zone = "eTjs-NCE0-jpCH-cAXS"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-0-1-e"
+zone = "pis3-MGbn-Vl78-2ZB8"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-0-1-w"
+zone = "qcrC-wqWy-IFcG-CCo8"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-0-2-w"
+zone = "i8es-hJW9-hpIB-N7jF"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-1-e"
+zone = "strategic-1-a-1-e"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-1-w"
+zone = "ESdg-8X29-43KN-aFQT"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-2-e"
+zone = "XeBt-YLoS-qDnh-VUtF"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-2-w"
+zone = "qfko-nYmv-9piG-BBxk"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-3-w"
+zone = "hGkk-9TSW-2xTV-tHG3"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-4-e"
+zone = "ZHO6-hNpX-9Wyv-yJwM"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-4-w"
+zone = "WaZS-LKed-Gofz-Ye9O"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-5-e"
+zone = "eQ9R-xrSk-Filk-YKyP"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-5-w"
+zone = "rPcg-Lg2s-eKRI-3UdN"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-6-w"
+zone = "Bggh-bybz-X9HR-sVRf"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-7-w"
+zone = "YVsc-U036-R35W-9yLN"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-a-x"
+zone = "SDxI-sQby-lEJz-flPC"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-1-w"
+zone = "TfCE-X2Wf-MT7R-LO4i"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-2-w"
+zone = "strategic-1-b-2-w"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-3-e"
+zone = "Xjn0-IQ1z-43qn-lNgr"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-4-w"
+zone = "strategic-1-b-4-w"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-6-e"
+zone = "JF8T-Wzj3-g987-nO4p"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-8-e"
+zone = "zXW3-8ERm-ewqW-HqiM"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-9-e"
+zone = "CGjL-cDe5-eE4S-rHR1"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-10-e"
+zone = "XfFR-CV3g-FJMH-pUGZ"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-16-w"
+zone = "Iq0i-dnAB-lAsF-5c2y"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-17-w"
+zone = "3B5i-ir71-3DXq-Vh9q"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-0-e"
+zone = "iEme-cEH1-tq5d-s9AQ"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-0-6-e"
+zone = "6tvh-zaIp-ih0s-QDTa"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-1-e"
+zone = "ITdf-vWBv-5OsB-P6DN"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-1-w"
+zone = "strategic-5-1-w"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-2-e"
+zone = "strategic-5-2-e"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-2-w"
+zone = "strategic-5-2-w"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-3-e"
+zone = "strategic-5-3-e"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-3-w"
+zone = "strategic-5-3-w"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-4-e"
+zone = "strategic-5-4-e"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-4-w"
+zone = "strategic-5-4-w"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-5-e"
+zone = "strategic-5-5-e"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-5-w"
+zone = "strategic-5-5-w"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-6-e"
+zone = "XJU0-8Ucp-z35m-q6ii"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-5-7-e"
+zone = "strategic-5-7-e"
+resource = "humans"
+
+[[production_unit]]
+key = "humans-1-b-11-e"
+zone = "qnec-OGRY-Q91L-2L3N"
+resource = "humans"
 
 [[placement]]
 id = "placement-0-0-e-1"
