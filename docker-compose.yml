@@ -42,6 +42,7 @@ services:
       dockerfile: Dockerfile
     environment:
       RUST_LOG: ${RUST_LOG:-info}
+      COORDINATION_API_KEY: ${COORDINATION_API_KEY:?COORDINATION_API_KEY must be set}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -49,6 +50,8 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   mongo-data:

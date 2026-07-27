@@ -19,7 +19,8 @@ const BLOCS: &str = "blocs";
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct BlocResponse {
-    name: BlocName,
+    key: BlocName,
+    name: String,
     chance: Chance,
     military_expense: Share,
 }
@@ -27,11 +28,19 @@ pub(crate) struct BlocResponse {
 impl From<&Bloc> for BlocResponse {
     fn from(bloc: &Bloc) -> Self {
         Self {
-            name: bloc.name().clone(),
+            key: bloc.name().clone(),
+            name: bloc.display_name().to_owned(),
             chance: bloc.chance(),
             military_expense: bloc.military_expense(),
         }
     }
+}
+
+fn resolve_key<'a>(blocs: &'a [Bloc], requested_id: &str) -> Option<&'a BlocName> {
+    blocs
+        .iter()
+        .find(|bloc| bloc.name().to_string() == requested_id || bloc.display_name() == requested_id)
+        .map(Bloc::name)
 }
 
 #[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
@@ -110,9 +119,10 @@ pub(crate) async fn get(path: web::Path<String>, tx: web::Data<mpsc::Sender<Comm
         UserError::InternalError
     })?;
 
+    let resolved = resolve_key(&blocs, &id);
     let bloc = blocs
         .iter()
-        .find(|bloc| bloc.name().to_string() == id)
+        .find(|bloc| Some(bloc.name()) == resolved)
         .map(BlocResponse::from)
         .ok_or(UserError::NotFound("Bloc"))?;
 
@@ -140,7 +150,19 @@ pub(crate) async fn patch(
     body: web::Json<PatchBlocBody>,
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
-    let id = BlocName::from(path.into_inner());
+    let requested_id = path.into_inner();
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    tx.send(Command::GetBlocs(sender)).await.map_err(|e| {
+        log::error!("Error sending command: {e}");
+        UserError::InternalError
+    })?;
+    let blocs = receiver.await.map_err(|e| {
+        log::error!("Error receiving blocs: {e}");
+        UserError::InternalError
+    })?;
+    let id = resolve_key(&blocs, &requested_id)
+        .cloned()
+        .ok_or(UserError::NotFound("Bloc"))?;
     match body.required_authorization()? {
         PatchBlocAuthorization::BlocWrite => require_bloc_write(&session, &id)?,
         PatchBlocAuthorization::CoordinationService => {
@@ -214,5 +236,29 @@ mod authorization_tests {
         };
 
         assert!(body.required_authorization().is_err());
+    }
+}
+
+#[cfg(test)]
+mod resolution_tests {
+    use super::resolve_key;
+    use crate::{
+        domain::{Bloc, BlocName, Chance},
+        services::credit_exchange_service::Share,
+    };
+
+    #[test]
+    fn resolves_both_stable_key_and_display_name_to_key() {
+        let blocs = [Bloc::new(
+            BlocName::from("bloc-key".to_string()),
+            "WEST".to_string(),
+            Chance::new(10),
+            Share::default(),
+        )];
+
+        for input in ["bloc-key", "WEST"] {
+            assert_eq!(resolve_key(&blocs, input).unwrap().to_string(), "bloc-key");
+        }
+        assert!(resolve_key(&blocs, "unknown").is_none());
     }
 }

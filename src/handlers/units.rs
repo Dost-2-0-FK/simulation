@@ -4,6 +4,7 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 
 use crate::{
+    config::{CharacterDirectory, PoliticsDirectory},
     domain::{BaseId, BlocName, MilitaryUnit, TrustId, UnitId},
     error::{Result, UserError},
     geometry::{Point, Positioned},
@@ -53,6 +54,23 @@ impl UnitResponse {
             base.redact_protected_fields();
         }
     }
+
+    fn display_financiers(&mut self, characters: &CharacterDirectory) -> Result<()> {
+        if let Some(base) = &mut self.base {
+            base.display_financiers(characters)?;
+        }
+        Ok(())
+    }
+
+    fn display_politics(&mut self, politics: &PoliticsDirectory) -> Result<()> {
+        if let Some(base) = &mut self.base {
+            base.display_politics(politics)?;
+        }
+        if let Some(bloc) = &mut self.bloc {
+            *bloc = BlocName::from(politics.bloc_name(bloc).ok_or(UserError::InternalError)?.to_owned());
+        }
+        Ok(())
+    }
 }
 
 /// List all units.
@@ -65,7 +83,12 @@ impl UnitResponse {
     )
 )]
 #[get("/units")]
-pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Responder> {
+pub(crate) async fn list(
+    session: Session,
+    tx: web::Data<mpsc::Sender<Command>>,
+    characters: web::Data<CharacterDirectory>,
+    politics: web::Data<PoliticsDirectory>,
+) -> Result<impl Responder> {
     // This channel is one-shot: it is only used once and gets re-created on every request
     let (get_units_tx, get_units_rx) = tokio::sync::oneshot::channel();
 
@@ -83,11 +106,13 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
     })?;
 
     for unit in &mut units {
+        unit.display_financiers(&characters)?;
         if let Some(bloc) = &unit.bloc
             && !can_read_bloc(&session, bloc)?
         {
             unit.redact_protected_base_fields();
         }
+        unit.display_politics(&politics)?;
     }
 
     let response = HttpResponse::Ok().json(units);

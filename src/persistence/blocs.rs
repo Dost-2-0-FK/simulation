@@ -23,7 +23,8 @@ impl PersistedBloc {
     }
 
     pub(super) fn into_bloc(self) -> Bloc {
-        Bloc::new(BlocName::from(self.id), self.chance, self.military_expense)
+        let key = BlocName::from(self.id);
+        Bloc::new(key.clone(), key.to_string(), self.chance, self.military_expense)
     }
 
     pub(crate) fn id(&self) -> &str {

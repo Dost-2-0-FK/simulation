@@ -18,17 +18,28 @@ impl From<String> for ZoneName {
 
 #[derive(Debug)]
 pub(crate) struct Zone {
-    name: ZoneName,
+    key: ZoneName,
+    name: String,
     bloc_name: BlocName,
     bloc: Arc<RwLock<Bloc>>,
 }
 
 impl Zone {
-    pub(crate) fn new(name: ZoneName, bloc_name: BlocName, bloc: Arc<RwLock<Bloc>>) -> Self {
-        Self { name, bloc_name, bloc }
+    pub(crate) fn new(key: ZoneName, name: String, bloc_name: BlocName, bloc: Arc<RwLock<Bloc>>) -> Self {
+        Self {
+            key,
+            name,
+            bloc_name,
+            bloc,
+        }
     }
 
+    /// Stable key used by persistence and integrations.
     pub(crate) fn name(&self) -> &ZoneName {
+        &self.key
+    }
+
+    pub(crate) fn display_name(&self) -> &str {
         &self.name
     }
 
@@ -77,21 +88,28 @@ impl From<String> for BlocName {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Bloc {
-    name: BlocName,
+    key: BlocName,
+    name: String,
     chance: Chance,
     military_expense: Share,
 }
 
 impl Bloc {
-    pub(crate) fn new(name: BlocName, chance: Chance, military_expense: Share) -> Self {
+    pub(crate) fn new(key: BlocName, name: String, chance: Chance, military_expense: Share) -> Self {
         Self {
+            key,
             name,
             chance,
             military_expense,
         }
     }
 
+    /// Stable key used by persistence, authorization, and integrations.
     pub(crate) fn name(&self) -> &BlocName {
+        &self.key
+    }
+
+    pub(crate) fn display_name(&self) -> &str {
         &self.name
     }
 

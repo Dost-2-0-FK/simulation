@@ -1,7 +1,7 @@
 mod error;
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
@@ -20,7 +20,7 @@ use crate::{
         TrustId, Zone, ZoneName,
     },
     geometry::{Distance, Point, WorldBounds},
-    handlers::bases::Financing,
+    handlers::bases::{Financing, UserId},
     services::{
         auth_service::AuthService,
         credit_exchange_service::{
@@ -48,6 +48,8 @@ struct TomlConfig {
     blocs: Vec<BlocConfig>,
     #[serde(rename = "zone")]
     zones: Vec<ZoneConfig>,
+    #[serde(default, rename = "character")]
+    characters: Vec<CharacterConfig>,
     #[serde(rename = "placement")]
     placements: Vec<PlacementConfig>,
     #[serde(default, rename = "base")]
@@ -78,6 +80,8 @@ pub(crate) struct Config {
     auth_service: AuthService,
     base_seeds: Vec<BaseConfig>,
     trust_seeds: Vec<TrustConfig>,
+    characters: CharacterDirectory,
+    politics: PoliticsDirectory,
 }
 
 pub(crate) struct SeededStructures {
@@ -208,7 +212,8 @@ struct TrustProductionConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BlocConfig {
-    name: BlocName,
+    key: Option<BlocName>,
+    name: String,
     chance: Chance,
     #[serde(default)]
     military_expense: Share,
@@ -217,8 +222,132 @@ struct BlocConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ZoneConfig {
-    name: ZoneName,
+    key: Option<ZoneName>,
+    name: String,
     bloc: BlocName,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CharacterConfig {
+    key: String,
+    name: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct CharacterDirectory {
+    keys_by_name: HashMap<String, String>,
+    names_by_key: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct PoliticsDirectory {
+    bloc_names_by_key: HashMap<BlocName, String>,
+    zone_names_by_key: HashMap<ZoneName, String>,
+}
+
+impl PoliticsDirectory {
+    fn new(blocs: &[BlocConfig], zones: &[ZoneConfig]) -> Self {
+        Self {
+            bloc_names_by_key: blocs.iter().map(|bloc| (bloc.key(), bloc.name.clone())).collect(),
+            zone_names_by_key: zones.iter().map(|zone| (zone.key(), zone.name.clone())).collect(),
+        }
+    }
+
+    pub(crate) fn bloc_name(&self, key: &BlocName) -> Option<&str> {
+        self.bloc_names_by_key.get(key).map(String::as_str)
+    }
+
+    pub(crate) fn zone_name(&self, key: &ZoneName) -> Option<&str> {
+        self.zone_names_by_key.get(key).map(String::as_str)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(bloc: (&str, &str), zone: (&str, &str)) -> Self {
+        Self {
+            bloc_names_by_key: HashMap::from([(BlocName::from(bloc.0.to_owned()), bloc.1.to_owned())]),
+            zone_names_by_key: HashMap::from([(ZoneName::from(zone.0.to_owned()), zone.1.to_owned())]),
+        }
+    }
+}
+
+impl CharacterDirectory {
+    fn new(characters: &[CharacterConfig]) -> Result<Self> {
+        let mut directory = Self::default();
+        for character in characters {
+            if directory
+                .keys_by_name
+                .insert(character.name.clone(), character.key.clone())
+                .is_some()
+            {
+                return Err(Error::ConfigValidation(format!(
+                    "duplicate character name {}",
+                    character.name
+                )));
+            }
+            if directory
+                .names_by_key
+                .insert(character.key.clone(), character.name.clone())
+                .is_some()
+            {
+                return Err(Error::ConfigValidation(format!(
+                    "duplicate character key {}",
+                    character.key
+                )));
+            }
+        }
+        Ok(directory)
+    }
+
+    pub(crate) fn resolve_financing(&self, financing: Vec<Financing>) -> Option<Vec<Financing>> {
+        financing
+            .into_iter()
+            .map(|entry| {
+                let supplied = entry.financier.as_str();
+                let key = self
+                    .keys_by_name
+                    .get(supplied)
+                    .cloned()
+                    .or_else(|| self.names_by_key.contains_key(supplied).then(|| supplied.to_owned()))?;
+                Some(Financing {
+                    financier: UserId::from(key),
+                    share: entry.share,
+                })
+            })
+            .collect()
+    }
+
+    pub(crate) fn display_financing(&self, financing: &mut [Financing]) -> Option<()> {
+        for entry in financing {
+            let name = self.names_by_key.get(entry.financier.as_str())?;
+            entry.financier = UserId::from(name.clone());
+        }
+        Some(())
+    }
+
+    fn contains_key(&self, key: &str) -> bool {
+        self.names_by_key.contains_key(key)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(key: &str, name: &str) -> Self {
+        Self {
+            keys_by_name: HashMap::from([(name.to_owned(), key.to_owned())]),
+            names_by_key: HashMap::from([(key.to_owned(), name.to_owned())]),
+        }
+    }
+}
+
+impl BlocConfig {
+    fn key(&self) -> BlocName {
+        self.key.clone().unwrap_or_else(|| BlocName::from(self.name.clone()))
+    }
+}
+
+impl ZoneConfig {
+    fn key(&self) -> ZoneName {
+        self.key.clone().unwrap_or_else(|| ZoneName::from(self.name.clone()))
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -311,6 +440,14 @@ impl Config {
         &self.auth_service
     }
 
+    pub(crate) fn characters(&self) -> &CharacterDirectory {
+        &self.characters
+    }
+
+    pub(crate) fn politics(&self) -> &PoliticsDirectory {
+        &self.politics
+    }
+
     pub(crate) fn server_address(&self) -> SocketAddr {
         self.server_address
     }
@@ -366,6 +503,8 @@ impl Config {
 
     async fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
+        let characters = CharacterDirectory::new(&config.characters)?;
+        let politics = PoliticsDirectory::new(&config.blocs, &config.zones);
         config
             .world
             .validate()
@@ -435,11 +574,34 @@ impl Config {
             ));
         }
 
+        let mut bloc_keys = HashSet::new();
+        let mut bloc_names = HashSet::new();
+        for bloc in &config.blocs {
+            if !bloc_keys.insert(bloc.key()) {
+                return Err(Error::ConfigValidation(format!("duplicate bloc key {}", bloc.key())));
+            }
+            if !bloc_names.insert(&bloc.name) {
+                return Err(Error::ConfigValidation(format!("duplicate bloc name {}", bloc.name)));
+            }
+        }
+
+        let mut zone_keys = HashSet::new();
+        let mut zone_names = HashSet::new();
+        for zone in &config.zones {
+            if !zone_keys.insert(zone.key()) {
+                return Err(Error::ConfigValidation(format!("duplicate zone key {}", zone.key())));
+            }
+            if !zone_names.insert(&zone.name) {
+                return Err(Error::ConfigValidation(format!("duplicate zone name {}", zone.name)));
+            }
+        }
+
         let blocs = config
             .blocs
             .iter()
             .map(|bloc_config| {
                 Arc::new(RwLock::new(Bloc::new(
+                    bloc_config.key(),
                     bloc_config.name.clone(),
                     bloc_config.chance,
                     bloc_config.military_expense,
@@ -451,7 +613,7 @@ impl Config {
             .blocs
             .iter()
             .zip(blocs.iter())
-            .map(|(bloc_config, bloc)| (bloc_config.name.clone(), bloc.clone()))
+            .map(|(bloc_config, bloc)| (bloc_config.key(), bloc.clone()))
             .collect::<HashMap<_, _>>();
 
         let zones = config
@@ -466,7 +628,12 @@ impl Config {
                     ))
                 })?;
 
-                let zone = Arc::new(Zone::new(zone_config.name.clone(), zone_config.bloc.clone(), bloc));
+                let zone = Arc::new(Zone::new(
+                    zone_config.key(),
+                    zone_config.name.clone(),
+                    zone_config.bloc.clone(),
+                    bloc,
+                ));
 
                 Ok(zone)
             })
@@ -546,13 +713,28 @@ impl Config {
             }
         }
 
+        if !config.characters.is_empty() {
+            for financing in config
+                .bases
+                .iter()
+                .flat_map(|base| &base.payment)
+                .chain(config.trusts.iter().flat_map(|trust| &trust.payment))
+            {
+                if !characters.contains_key(financing.financier.as_str()) {
+                    return Err(Error::ConfigValidation(format!(
+                        "seed references unknown character key {}",
+                        financing.financier.as_str()
+                    )));
+                }
+            }
+        }
+
         assert!(
             config.combat.movement_step > 0.0,
             "unit movement step must be greater than 0"
         );
 
         let auth_service = AuthService::new(config.env.auth_service_url.clone());
-
         Ok(Self {
             placements,
             zones,
@@ -574,6 +756,8 @@ impl Config {
             auth_service,
             base_seeds: config.bases,
             trust_seeds: config.trusts,
+            characters,
+            politics,
             credit_exchange_service: CreditExchangeService::new(
                 config.env.credit_exchange_url,
                 config.bank_user_id,
@@ -674,6 +858,98 @@ mod tests {
         let config = Config::parse_from_str(base_toml()).await.expect("config can be parsed");
 
         assert_eq!(config.server_address(), "127.0.0.1:0".parse().unwrap());
+    }
+
+    #[tokio::test]
+    async fn parse_supports_distinct_bloc_and_zone_keys_and_names() {
+        let toml = base_toml()
+            .replace("name = \"bloc_1\"", "key = \"bloc-key\"\n        name = \"Bloc One\"")
+            .replace("name = \"zone_1\"", "key = \"zone-key\"\n        name = \"Zone One\"")
+            .replace("bloc = \"bloc_1\"", "bloc = \"bloc-key\"")
+            .replace("zone = \"zone_1\"", "zone = \"zone-key\"");
+
+        let config = Config::parse_from_str(&toml)
+            .await
+            .expect("key/name config can be parsed");
+        let bloc = config.blocs().next().unwrap();
+        let bloc = bloc.read().await;
+        assert_eq!(bloc.name().to_string(), "bloc-key");
+        assert_eq!(bloc.display_name(), "Bloc One");
+        drop(bloc);
+
+        let zone = config.zones().next().unwrap();
+        assert_eq!(zone.name().to_string(), "zone-key");
+        assert_eq!(zone.display_name(), "Zone One");
+        assert_eq!(zone.bloc_name().to_string(), "bloc-key");
+        assert_eq!(
+            config.politics().bloc_name(&BlocName::from("bloc-key".to_string())),
+            Some("Bloc One")
+        );
+        assert_eq!(
+            config.politics().zone_name(&ZoneName::from("zone-key".to_string())),
+            Some("Zone One")
+        );
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_duplicate_display_names() {
+        let toml = base_toml().replace(
+            "chance = 12",
+            "chance = 12\n\n        [[bloc]]\n        key = \"bloc_2\"\n        name = \"bloc_1\"\n        chance = 10",
+        );
+
+        let error = Config::parse_from_str(&toml).await.err().unwrap();
+        assert_eq!(error.to_string(), "Error validating config: duplicate bloc name bloc_1");
+    }
+
+    #[test]
+    fn character_directory_resolves_names_and_legacy_keys_without_exposing_keys() {
+        let directory = CharacterDirectory::new(&[CharacterConfig {
+            key: "character-key".to_string(),
+            name: "Dr. Erika Mustermann".to_string(),
+        }])
+        .unwrap();
+
+        for supplied in ["Dr. Erika Mustermann", "character-key"] {
+            let mut financing = directory
+                .resolve_financing(vec![Financing {
+                    financier: UserId::from(supplied.to_string()),
+                    share: Share::from(0.35),
+                }])
+                .unwrap();
+
+            assert_eq!(financing[0].financier.as_str(), "character-key");
+            directory.display_financing(&mut financing).unwrap();
+            assert_eq!(financing[0].financier.as_str(), "Dr. Erika Mustermann");
+        }
+    }
+
+    #[test]
+    fn character_directory_rejects_duplicate_names_and_keys() {
+        for characters in [
+            vec![
+                CharacterConfig {
+                    key: "one".to_string(),
+                    name: "Same".to_string(),
+                },
+                CharacterConfig {
+                    key: "two".to_string(),
+                    name: "Same".to_string(),
+                },
+            ],
+            vec![
+                CharacterConfig {
+                    key: "same".to_string(),
+                    name: "One".to_string(),
+                },
+                CharacterConfig {
+                    key: "same".to_string(),
+                    name: "Two".to_string(),
+                },
+            ],
+        ] {
+            assert!(CharacterDirectory::new(&characters).is_err());
+        }
     }
 
     #[tokio::test]
@@ -926,7 +1202,7 @@ mod tests {
         let seeded = config.seeded_structures();
 
         assert_eq!(seeded.bases.len(), 11);
-        assert_eq!(seeded.trusts.len(), 40);
+        assert_eq!(seeded.trusts.len(), 35);
     }
 
     #[test]
@@ -950,12 +1226,12 @@ mod tests {
         let expected_blocs = config
             .blocs
             .iter()
-            .map(|bloc| bloc.name.to_string())
+            .map(|bloc| bloc.key().to_string())
             .collect::<HashSet<_>>();
         let expected_zones = config
             .zones
             .iter()
-            .map(|zone| zone.name.to_string())
+            .map(|zone| zone.key().to_string())
             .collect::<HashSet<_>>();
         let expected_individuals = config
             .bases
