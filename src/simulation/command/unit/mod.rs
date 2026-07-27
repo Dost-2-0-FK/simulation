@@ -8,36 +8,41 @@ use tokio::sync::{RwLock, oneshot::Sender};
 
 pub(crate) use crate::simulation::command::unit::{movement::*, production::*};
 use crate::{
-    domain::{BlocName, MilitaryUnit, Target, UnitId},
+    config::Config,
+    domain::{BlocKey, MilitaryUnit, Target, UnitId},
+    error::UserError,
     geometry::{Point, Positioned, WorldBounds},
     handlers::units::{UnitResponse, UnitTargetResponse},
 };
 
 pub(crate) async fn get(
-    resp: Sender<Vec<UnitResponse>>,
+    resp: Sender<core::result::Result<Vec<UnitResponse>, UserError>>,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
-    world_bounds: WorldBounds,
+    config: &Config,
 ) {
     let unit_responses = stream::iter(units.values())
         .then(async |unit| {
             let unit_guard = unit.read().await;
             let base_guard = unit_guard.base().await;
-            let bloc_name = base_guard.bloc_name().clone();
+            let bloc_key = base_guard.bloc_key().clone();
             let target = effective_target(
                 unit_guard.id(),
                 unit_guard.position(),
-                &bloc_name,
+                &bloc_key,
                 base_guard.target(),
                 units,
-                world_bounds,
+                config.world_bounds(),
             )
             .await;
-            let base_response = (&(*base_guard)).into();
-            UnitResponse::new(&unit_guard, Some(base_response), target)
+            let base_response = crate::handlers::bases::BaseResponse::new(
+                &base_guard,
+                config.name_mappings().as_ref(),
+            )?;
+            Ok(UnitResponse::new(&unit_guard, Some(base_response), target))
         })
-        .collect()
+        .collect::<Vec<core::result::Result<_, UserError>>>()
         .await;
-    let _ = resp.send(unit_responses);
+    let _ = resp.send(unit_responses.into_iter().collect());
 }
 
 /// Computes the effective target a unit would move toward right now and returns it as a
@@ -45,7 +50,7 @@ pub(crate) async fn get(
 async fn effective_target(
     unit_id: UnitId,
     from: Point,
-    unit_bloc: &BlocName,
+    unit_bloc: &BlocKey,
     target: &Target,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     world_bounds: WorldBounds,

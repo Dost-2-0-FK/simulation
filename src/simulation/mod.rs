@@ -37,10 +37,10 @@ impl Simulation {
         } = self.loaded_state;
 
         let live_blocs = self.config.blocs().collect::<Vec<_>>();
-        let mut blocs_by_name = HashMap::with_capacity(live_blocs.len());
+        let mut blocs_by_key = HashMap::with_capacity(live_blocs.len());
         for bloc in live_blocs {
-            let name = bloc.read().await.name().clone();
-            blocs_by_name.insert(name, bloc);
+            let key = bloc.read().await.key().clone();
+            blocs_by_key.insert(key, bloc);
         }
 
         if blocs.is_empty() {
@@ -48,11 +48,19 @@ impl Simulation {
         } else {
             log::info!("Loaded blocs from database, applying persisted bloc overrides.");
             for persisted_bloc in blocs {
-                match blocs_by_name.get(persisted_bloc.name()) {
-                    Some(live_bloc) => *live_bloc.write().await = persisted_bloc,
+                match blocs_by_key.get(persisted_bloc.key()) {
+                    Some(live_bloc) => {
+                        let mut live_bloc = live_bloc.write().await;
+                        *live_bloc = crate::domain::Bloc::new(
+                            live_bloc.key().clone(),
+                            live_bloc.name().clone(),
+                            persisted_bloc.chance(),
+                            persisted_bloc.military_expense(),
+                        );
+                    }
                     None => log::warn!(
                         "Ignoring persisted bloc {} because it is not present in config.",
-                        persisted_bloc.name()
+                        persisted_bloc.key()
                     ),
                 }
             }
@@ -67,7 +75,7 @@ impl Simulation {
             units,
             bases,
             trusts,
-            blocs_by_name,
+            blocs_by_key,
             combats,
         )
         .await;

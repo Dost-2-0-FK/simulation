@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
-use crate::domain::{BlocName, MilitaryBase, Trust};
+use crate::domain::{BlocKey, MilitaryBase, Trust};
 
 /// Whether a structure exists at a combat's position. Note: this may change when a structure is destroyed.
 #[derive(Debug)]
@@ -37,17 +37,17 @@ impl CombatStructure {
         None
     }
 
-    pub(super) async fn bloc(&self) -> Option<BlocName> {
+    pub(super) async fn bloc(&self) -> Option<BlocKey> {
         match self {
             CombatStructure::None => None,
             CombatStructure::Trust { trust, .. } => {
                 let trust = trust.read().await;
-                Some(trust.placement().zone().bloc_name().clone())
+                Some(trust.placement().zone().bloc_key().clone())
             }
 
             CombatStructure::Base { base, .. } => {
                 let trust = base.read().await;
-                Some(trust.placement().zone().bloc_name().clone())
+                Some(trust.placement().zone().bloc_key().clone())
             }
         }
     }

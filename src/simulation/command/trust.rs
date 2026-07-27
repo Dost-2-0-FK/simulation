@@ -5,7 +5,7 @@ use tokio::sync::{RwLock, oneshot::Sender};
 use super::CommandError;
 use crate::{
     config::Config,
-    domain::{BlocName, MilitaryUnit, Placement, PlacementId, Trust, TrustId, UnitId},
+    domain::{BlocKey, MilitaryUnit, Placement, PlacementId, Trust, TrustId, UnitId},
     error::UserError,
     geometry::{Distance, Point, Positioned, WorldBounds},
     handlers::{bases::Financing, trusts::TrustResponse},
@@ -14,7 +14,7 @@ use crate::{
 
 struct UnitSnapshot {
     position: Point,
-    bloc: BlocName,
+    bloc: BlocKey,
 }
 
 struct PlacementSnapshot {
@@ -28,7 +28,7 @@ async fn unit_snapshots(units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>) -> V
         let unit = unit.read().await;
         snapshots.push(UnitSnapshot {
             position: unit.position(),
-            bloc: unit.base().await.bloc_name().clone(),
+            bloc: unit.base().await.bloc_key().clone(),
         });
     }
     snapshots
@@ -51,7 +51,7 @@ fn inhibition_factor(
     close_units_factor: Share,
     combat_factor: Share,
 ) -> Share {
-    let trust_bloc = trust.placement().zone().bloc_name();
+    let trust_bloc = trust.placement().zone().bloc_key();
     let mut close_enemy = false;
     for unit in units.iter().filter(|unit| &unit.bloc != trust_bloc) {
         let distance = world_bounds.distance_between(trust.position(), unit.position);
@@ -160,7 +160,8 @@ pub(crate) async fn get_all(
                 ),
                 producing,
                 inhibition_radius,
-            ));
+                config.name_mappings().as_ref(),
+            )?);
         }
         Ok(result)
     }
@@ -193,7 +194,8 @@ pub(crate) async fn get(
             ),
             producing,
             inhibition_radius,
-        )))
+            config.name_mappings().as_ref(),
+        )?))
     }
     .await;
     let _ = resp.send(result);
@@ -213,7 +215,7 @@ pub(crate) async fn create(
         return Err(CommandError::NotFound("Placement"));
     };
     let payment = credit_exchange_service
-        .pay_for_trust(placement.zone().name(), financing)
+        .pay_for_trust(placement.zone().key(), financing)
         .await
         .map_err(CommandError::CreditExchange)?;
     let payment_policy = payment.policy().clone();
@@ -269,7 +271,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        domain::{Bloc, Chance, LootFactors, Zone, ZoneName},
+        domain::{Bloc, BlocKey, BlocName, Chance, LootFactors, Zone, ZoneKey, ZoneName},
         services::credit_exchange_service::Cost,
     };
 
@@ -293,12 +295,20 @@ mod tests {
 
     fn trust(position: Point) -> Trust {
         let bloc_name = BlocName::from("trust-bloc".to_string());
+        let bloc_key = BlocKey::from("trust-bloc".to_string());
         let bloc = Arc::new(RwLock::new(Bloc::new(
+            bloc_key.clone(),
             bloc_name.clone(),
             Chance::new(1),
             Share::default(),
         )));
-        let zone = Arc::new(Zone::new(ZoneName::from("trust-zone".to_string()), bloc_name, bloc));
+        let zone = Arc::new(Zone::new(
+            ZoneKey::from("trust-zone-key".to_string()),
+            ZoneName::from("trust-zone".to_string()),
+            bloc_key,
+            bloc_name,
+            bloc,
+        ));
         let placement = Arc::new(Placement::new(
             serde_json::from_str(r#""trust-placement""#).unwrap(),
             zone,
@@ -324,7 +334,7 @@ mod tests {
     fn unit(position: Point, bloc: &str) -> UnitSnapshot {
         UnitSnapshot {
             position,
-            bloc: BlocName::from(bloc.to_string()),
+            bloc: BlocKey::from(bloc.to_string()),
         }
     }
 

@@ -18,7 +18,7 @@ mod trusts;
 mod units;
 
 use bases::PersistedBase;
-use blocs::PersistedBloc;
+pub(crate) use blocs::PersistedBloc;
 use combats::PersistedCombat;
 use trusts::PersistedTrust;
 use units::PersistedUnit;
@@ -36,7 +36,7 @@ pub(crate) struct LoadedState {
     pub(crate) bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     pub(crate) trusts: HashMap<TrustId, Arc<RwLock<Trust>>>,
     pub(crate) units: HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
-    pub(crate) blocs: Vec<Bloc>,
+    pub(crate) blocs: Vec<PersistedBloc>,
     pub(crate) combats: HashMap<Point, Arc<RwLock<Combat>>>,
 }
 
@@ -145,7 +145,6 @@ impl MongoPersistence {
             .find(doc! {})
             .await
             .context("loading bloc overrides from MongoDB")?
-            .map_ok(PersistedBloc::into_bloc)
             .try_collect()
             .await
             .context("reading persisted bloc overrides")?;
@@ -207,7 +206,7 @@ impl MongoPersistence {
     pub(crate) async fn save_bloc(&self, bloc: &Bloc) -> Result<()> {
         let persisted = PersistedBloc::from_bloc(bloc);
         self.blocs
-            .replace_one(doc! { "_id": persisted.id() }, persisted)
+            .replace_one(doc! { "_id": persisted.id().as_str() }, persisted)
             .upsert(true)
             .await
             .context("saving bloc override to MongoDB")?;

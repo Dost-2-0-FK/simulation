@@ -4,7 +4,7 @@ use anyhow::Result;
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{BaseId, Bloc, BlocName, MilitaryBase, MilitaryUnit, UnitId},
+    domain::{BaseId, Bloc, BlocKey, MilitaryBase, MilitaryUnit, UnitId},
     geometry::{Point, Positioned},
     services::credit_exchange_service::CreditExchangeService,
 };
@@ -15,7 +15,7 @@ async fn create(
     credit_exchange_service: &CreditExchangeService,
 ) -> Result<MilitaryUnit> {
     let base_guard = base.read().await;
-    let bloc = base_guard.bloc_name();
+    let bloc = base_guard.bloc_key();
     let payment = credit_exchange_service.pay_for_military_unit(bloc).await?;
     drop(base_guard);
     let unit = MilitaryUnit::new(payment, credit_exchange_service.loot_factors(), base, position);
@@ -29,7 +29,7 @@ async fn create(
 /// pass, regular enabled bases 1. After iterating all bases, the cycle restarts from the
 /// beginning until the budget (money and resources) is exhausted.
 pub(crate) async fn produce_units(
-    blocs: &HashMap<BlocName, Arc<RwLock<Bloc>>>,
+    blocs: &HashMap<BlocKey, Arc<RwLock<Bloc>>>,
     bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     credit_exchange_service: &CreditExchangeService,
@@ -55,7 +55,7 @@ pub(crate) async fn produce_units(
         let mut enabled_bases_with_quota: Vec<(BaseId, Arc<RwLock<MilitaryBase>>, u32)> = Vec::new();
         for base_arc in bases.values() {
             let base = base_arc.read().await;
-            if !base.enabled() || base.bloc_name() != bloc_name {
+            if !base.enabled() || base.bloc_key() != bloc_name {
                 continue;
             }
             // Prioritized bases produce 2 units per pass, non-prioritized produce 1 unit per pass.

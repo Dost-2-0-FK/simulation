@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{BlocName, Combat, CombatParameters, CombatState, MilitaryUnit, Target, UnitId},
+    domain::{BlocKey, Combat, CombatParameters, CombatState, MilitaryUnit, Target, UnitId},
     geometry::{Distance, Point, Positioned, WorldBounds},
 };
 
@@ -21,7 +21,7 @@ pub(super) enum MoveTo {
 /// Returns `true` if combat should be initiated, `false` otherwise.
 async fn move_toward_target(
     unit: &mut MilitaryUnit,
-    unit_bloc: &BlocName,
+    unit_bloc: &BlocKey,
     target: &Target,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     step: Distance,
@@ -70,7 +70,7 @@ pub(crate) async fn move_units(
         let mut unit_write_guard = unit.write().await;
         let (unit_bloc, target) = {
             let base = unit_write_guard.base().await;
-            (base.bloc_name().clone(), base.target().clone())
+            (base.bloc_key().clone(), base.target().clone())
         };
 
         let should_start_combat =
@@ -115,7 +115,7 @@ pub(crate) async fn move_units(
                             continue;
                         }
 
-                        let other_unit_bloc = other_unit_guard.base().await.bloc_name().clone();
+                        let other_unit_bloc = other_unit_guard.base().await.bloc_key().clone();
                         let other_unit_id = other_unit_guard.id();
                         // and group them by bloc
                         units_by_bloc
@@ -144,7 +144,7 @@ pub(crate) async fn move_units(
 pub(super) async fn select_move_target(
     from: Point,
     unit_id: UnitId,
-    unit_bloc: &BlocName,
+    unit_bloc: &BlocKey,
     target_point: Option<Point>,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     world_bounds: WorldBounds,
@@ -156,7 +156,7 @@ pub(super) async fn select_move_target(
         }
 
         let other_unit = other_unit.read().await;
-        let other_unit_bloc = other_unit.base().await.bloc_name().clone();
+        let other_unit_bloc = other_unit.base().await.bloc_key().clone();
         if other_unit_bloc == *unit_bloc {
             continue;
         }

@@ -4,8 +4,8 @@ use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, get, post, we
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    domain::{CharacterKey, CharacterName},
     error::{Result, UserError},
-    handlers::bases::UserId,
     services::auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthService, AuthenticatedUser, LoginCredentials},
 };
 
@@ -13,13 +13,13 @@ const AUTH: &str = "auth";
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub(crate) struct LoginRequest {
-    password: String,
+    password: CharacterKey,
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct LoginResponse {
-    user_id: UserId,
+    user_id: CharacterName,
 }
 
 /// Log in and persist the authenticated user in the identity session.
@@ -56,13 +56,17 @@ pub(crate) async fn login(
             UserError::InternalError
         })?;
 
-    Identity::login(&request.extensions(), authenticated_user.user_id().clone().into()).map_err(|error| {
+    Identity::login(
+        &request.extensions(),
+        authenticated_user.character_name().clone().into(),
+    )
+    .map_err(|error| {
         log::error!("Error storing identity: {error}");
         UserError::InternalError
     })?;
 
     Ok(HttpResponse::Ok().json(LoginResponse {
-        user_id: authenticated_user.user_id().clone(),
+        user_id: authenticated_user.character_name().clone(),
     }))
 }
 
@@ -180,6 +184,6 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let authenticated_user: AuthenticatedUser = test::read_body_json(response).await;
-        assert_eq!(authenticated_user.user_id().as_str(), "alice");
+        assert_eq!(authenticated_user.character_name().to_string(), "alice");
     }
 }

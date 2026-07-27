@@ -20,7 +20,7 @@ pub(crate) use self::{
     share::Share,
 };
 use crate::{
-    domain::{BaseId, BlocName, Loot, LootFactors, MilitaryBase, MilitaryUnit, Trust, TrustId, ZoneName},
+    domain::{BaseId, BlocKey, Loot, LootFactors, MilitaryBase, MilitaryUnit, Trust, TrustId, ZoneKey},
     handlers::bases::Financing,
     services::credit_exchange_service::cost::Payers,
 };
@@ -192,11 +192,11 @@ impl CreditExchangeService {
     }
 
     /// Returns the hourly income for the given bloc.
-    pub(crate) async fn hourly_income(&self, bloc_name: &BlocName) -> (Money, Resources) {
-        match self.credit_hourly_income(&bloc_name.to_string()).await {
+    pub(crate) async fn hourly_income(&self, bloc_key: &BlocKey) -> (Money, Resources) {
+        match self.credit_hourly_income(bloc_key.as_str()).await {
             Ok(income) => income,
             Err(err) => {
-                log::error!("failed to fetch hourly income for bloc {bloc_name}: {err}");
+                log::error!("failed to fetch hourly income for bloc {bloc_key}: {err}");
                 (Money::default(), Resources::default())
             }
         }
@@ -204,7 +204,7 @@ impl CreditExchangeService {
 
     pub(crate) async fn pay_for_military_base(
         &self,
-        primary_payer_id: &BlocName,
+        primary_payer_id: &BlocKey,
         financiers: Vec<Financing>,
     ) -> Result<Payment<'_, MilitaryBase, Financiers>> {
         self.log_payment(&self.military_base);
@@ -222,13 +222,13 @@ impl CreditExchangeService {
 
     /// Register a configured base whose financing was completed before simulation startup.
     pub(crate) async fn register_prepaid_military_base(&self, base: &MilitaryBase) -> Result<()> {
-        let policy = Financiers::new(base.bloc_name().to_string(), base.financiers().to_vec())?;
+        let policy = Financiers::new(base.bloc_key().to_string(), base.financiers().to_vec())?;
         self.register_military_base(base, policy).await
     }
 
     pub(crate) async fn pay_for_trust(
         &self,
-        primary_payer_id: &ZoneName,
+        primary_payer_id: &ZoneKey,
         financiers: Vec<Financing>,
     ) -> Result<Payment<'_, Trust, Financiers>> {
         self.log_payment(&self.trust);
@@ -245,7 +245,7 @@ impl CreditExchangeService {
 
     /// Register a configured trust whose financing was completed before simulation startup.
     pub(crate) async fn register_prepaid_trust(&self, trust: &Trust) -> Result<()> {
-        let policy = Financiers::new(trust.placement().zone().name().to_string(), trust.financing().to_vec())?;
+        let policy = Financiers::new(trust.placement().zone().key().to_string(), trust.financing().to_vec())?;
         self.register_trust(trust, &policy).await
     }
 

@@ -1,5 +1,6 @@
 mod base;
 mod combat;
+mod names;
 mod placement;
 mod politics;
 mod trust;
@@ -12,6 +13,9 @@ pub(crate) use combat::{
     loot::{Loot, LootFactors},
 };
 pub(crate) use placement::{Placement, PlacementId};
-pub(crate) use politics::{Bloc, BlocName, Chance, Zone, ZoneName};
+pub(crate) use names::NameMappings;
+pub(crate) use politics::{
+    Bloc, BlocKey, BlocName, Chance, CharacterKey, CharacterName, Zone, ZoneKey, ZoneName,
+};
 pub(crate) use trust::{Trust, TrustId};
 pub(crate) use unit::{AttackOutcome, MilitaryUnit, UnitId, UnitState};

@@ -78,7 +78,7 @@ use tokio::sync::{Mutex, RwLock, mpsc::Receiver, oneshot::Sender};
 use crate::{
     config::Config,
     domain::{
-        BaseId, Bloc, BlocName, Chance, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust,
+        BaseId, Bloc, BlocKey, Chance, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust,
         TrustId, UnitId, Zone,
     },
     error::UserError,
@@ -96,8 +96,8 @@ use crate::{
 /// Used to query or mutate the state of the [state_loop].
 #[derive(Debug)]
 pub(crate) enum Command {
-    GetUnits(Sender<Vec<UnitResponse>>),
-    GetCombats(Sender<Vec<CombatResponse>>),
+    GetUnits(Sender<core::result::Result<Vec<UnitResponse>, UserError>>),
+    GetCombats(Sender<core::result::Result<Vec<CombatResponse>, UserError>>),
     CreateBase {
         placement_id: PlacementId,
         financing: Vec<Financing>,
@@ -132,7 +132,7 @@ pub(crate) enum Command {
     GetZones(Sender<Vec<Arc<Zone>>>),
     GetBlocs(Sender<Vec<Bloc>>),
     PatchBloc {
-        id: BlocName,
+        id: BlocKey,
         chance: Option<Chance>,
         military_expense: Option<Share>,
         response: Sender<core::result::Result<(), UserError>>,
@@ -166,7 +166,7 @@ pub(crate) async fn run(
     mut units: HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     mut bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     mut trusts: HashMap<TrustId, Arc<RwLock<Trust>>>,
-    blocs: HashMap<BlocName, Arc<RwLock<Bloc>>>,
+    blocs: HashMap<BlocKey, Arc<RwLock<Bloc>>>,
     mut combats: HashMap<Point, Arc<RwLock<Combat>>>,
 ) {
     // We need this because combat tick and combat initiation should never happen concurrently.
@@ -175,10 +175,10 @@ pub(crate) async fn run(
     while let Some(cmd) = receiver.recv().await {
         match cmd {
             Command::GetUnits(resp) => {
-                unit::get(resp, &units, config.world_bounds()).await;
+                unit::get(resp, &units, config).await;
             }
             Command::GetCombats(resp) => {
-                combat::get_all(resp, &combats).await;
+                combat::get_all(resp, &combats, config).await;
             }
             Command::CreateBase {
                 placement_id,

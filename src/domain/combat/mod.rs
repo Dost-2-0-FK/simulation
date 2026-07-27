@@ -12,7 +12,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     domain::{
-        AttackOutcome, BaseId, BlocName, Loot, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId, UnitState,
+        AttackOutcome, BaseId, BlocKey, Loot, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId, UnitState,
         combat::structure::CombatStructure,
     },
     geometry::{Point, Positioned},
@@ -94,7 +94,7 @@ impl CombatEvent {
 /// These are the possible initial states of a combat
 pub(crate) enum CombatParameters {
     /// Just units in a combat
-    Units(HashMap<BlocName, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>),
+    Units(HashMap<BlocKey, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>),
     /// A trust is attacked
     Trust(Arc<RwLock<MilitaryUnit>>, Arc<RwLock<Trust>>, u32),
     /// A base is attacked
@@ -143,7 +143,7 @@ pub(crate) struct CombatId(Uuid);
 pub(crate) struct Combat {
     id: CombatId,
     position: Point,
-    units: HashMap<BlocName, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>,
+    units: HashMap<BlocKey, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>,
     structure: CombatStructure,
     state: CombatState,
     events: Vec<CombatEvent>,
@@ -233,7 +233,7 @@ impl Combat {
     pub(crate) fn from_persisted(
         id: Uuid,
         position: Point,
-        units: HashMap<BlocName, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>,
+        units: HashMap<BlocKey, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>,
         structure: CombatStructureParameters,
         state: CombatState,
         events: Vec<CombatEvent>,
@@ -260,7 +260,7 @@ impl Combat {
         }
     }
 
-    pub(crate) async fn unit_ids_by_bloc(&self) -> Vec<(BlocName, Vec<UnitId>)> {
+    pub(crate) async fn unit_ids_by_bloc(&self) -> Vec<(BlocKey, Vec<UnitId>)> {
         let mut result = Vec::with_capacity(self.units.len());
         for (bloc, units) in &self.units {
             let unit_ids = units.keys().copied().collect();
@@ -483,8 +483,8 @@ impl Combat {
     }
 }
 
-async fn unit_bloc_name(unit_a: &RwLock<MilitaryUnit>) -> BlocName {
+async fn unit_bloc_name(unit_a: &RwLock<MilitaryUnit>) -> BlocKey {
     let military_unit = unit_a.read().await;
     let military_base = military_unit.base().await;
-    military_base.bloc_name().clone()
+    military_base.bloc_key().clone()
 }

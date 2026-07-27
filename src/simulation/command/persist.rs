@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{BaseId, Bloc, BlocName, Combat, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId},
+    domain::{BaseId, Bloc, BlocKey, Combat, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId},
     geometry::Point,
     persistence::MongoPersistence,
 };
@@ -13,7 +13,7 @@ pub(crate) async fn persist_all(
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     trusts: &HashMap<TrustId, Arc<RwLock<Trust>>>,
-    blocs: &HashMap<BlocName, Arc<RwLock<Bloc>>>,
+    blocs: &HashMap<BlocKey, Arc<RwLock<Bloc>>>,
     combats: &HashMap<Point, Arc<RwLock<Combat>>>,
 ) {
     let mut unit_ids = Vec::with_capacity(units.len());
