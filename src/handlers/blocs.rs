@@ -90,6 +90,9 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
 #[utoipa::path(
     operation_id = "getBloc",
     tag = BLOCS,
+    params(
+        ("id" = BlocName, Path, description = "Bloc name")
+    ),
     responses(
         (status = 200, description = "Existing bloc", body = BlocResponse),
         (status = 404, description = "Bloc not found", body = String, content_type = "text/html"),
@@ -123,6 +126,9 @@ pub(crate) async fn get(path: web::Path<BlocName>, tx: web::Data<mpsc::Sender<Co
 #[utoipa::path(
     operation_id = "patchBloc",
     tag = BLOCS,
+    params(
+        ("id" = BlocName, Path, description = "Bloc name")
+    ),
     responses(
         (status = 200, description = "Bloc updated successfully"),
         (status = 400, description = "Chance and military expense must be updated separately", body = String, content_type = "text/html"),

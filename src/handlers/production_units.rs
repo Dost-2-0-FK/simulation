@@ -77,6 +77,9 @@ pub(crate) async fn list(session: Session, tx: web::Data<mpsc::Sender<Command>>)
 #[utoipa::path(
     operation_id = "getProductionUnit",
     tag = PRODUCTION_UNITS,
+    params(
+        ("key" = ProductionUnitKey, Path, description = "Production unit key")
+    ),
     responses(
         (status = 200, description = "Existing production unit", body = ProductionUnitResponse),
         (status = 404, description = "Production unit not found", body = String, content_type = "text/html"),

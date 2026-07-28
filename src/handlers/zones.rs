@@ -102,6 +102,9 @@ pub(crate) async fn list(tx: web::Data<mpsc::Sender<Command>>) -> Result<impl Re
 #[utoipa::path(
     operation_id = "patchZone",
     tag = ZONES,
+    params(
+        ("id" = ZoneName, Path, description = "Zone name")
+    ),
     responses(
         (status = 200, description = "Zone social-rule levels updated successfully"),
         (status = 400, description = "Duplicate, unassigned, or out-of-range social rule", body = String, content_type = "text/html"),
