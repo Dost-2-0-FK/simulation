@@ -116,7 +116,7 @@ impl ProductionContext {
         })
     }
 
-    fn production_for(&self, trust: &Trust) -> (Resources, Distance) {
+    async fn production_for(&self, trust: &Trust) -> (Resources, Distance) {
         let inhibition_radius =
             applied_inhibition_radius(trust, &self.placements, self.world_bounds, self.inhibition_radius);
         let factor = inhibition_factor(
@@ -127,7 +127,7 @@ impl ProductionContext {
             self.close_units_factor,
             self.combat_factor,
         );
-        (trust.production_with_inhibition(factor), inhibition_radius)
+        (trust.production_with_inhibition(factor).await, inhibition_radius)
     }
 
     fn income_for(&self, trust: &Trust, produced: ResourceValue<'_>) -> Money {
@@ -153,7 +153,7 @@ pub(crate) async fn get_all(
         let mut result = Vec::with_capacity(trusts.len());
         for trust in trusts.values() {
             let trust = trust.read().await;
-            let (producing, inhibition_radius) = context.production_for(&trust);
+            let (producing, inhibition_radius) = context.production_for(&trust).await;
             result.push(TrustResponse::new(
                 &trust,
                 context.income_for(
@@ -187,7 +187,7 @@ pub(crate) async fn get(
             UserError::CreditExchangeQueryFailed
         })?;
         let trust = trust.read().await;
-        let (producing, inhibition_radius) = context.production_for(&trust);
+        let (producing, inhibition_radius) = context.production_for(&trust).await;
         Ok(Some(TrustResponse::new(
             &trust,
             context.income_for(
@@ -248,7 +248,7 @@ pub(crate) async fn publish_production(
     let context = ProductionContext::new(units, config).await?;
     for trust_arc in trusts.values() {
         let trust = trust_arc.read().await;
-        let (producing, _) = context.production_for(&trust);
+        let (producing, _) = context.production_for(&trust).await;
         let income = context.income_for(
             &trust,
             producing.into_iter().next().expect("trusts produce one resource"),
@@ -268,7 +268,7 @@ pub(crate) async fn publish_production(
 
     for production_unit in production_units.values() {
         let production_unit = production_unit.read().await;
-        let producing = production_unit.production_without_inhibition();
+        let producing = production_unit.production_without_inhibition().await;
         let existing_units = context
             .resource_totals
             .get(production_unit.resource_name())
@@ -301,7 +301,10 @@ mod tests {
 
     use super::*;
     use crate::{
-        domain::{Bloc, BlocKey, BlocName, Chance, LootFactors, Zone, ZoneKey, ZoneName},
+        domain::{
+            Bloc, BlocKey, BlocName, Chance, LootFactors, SocialRule, SocialRuleFactorPerLevel, SocialRuleKey,
+            SocialRuleLevel, SocialRuleName, Zone, ZoneKey, ZoneName, ZoneSocialRule,
+        },
         services::credit_exchange_service::Cost,
     };
 
@@ -324,6 +327,10 @@ mod tests {
     }
 
     fn trust(position: Point) -> Trust {
+        trust_with_social_rules(position, Vec::new())
+    }
+
+    fn trust_with_social_rules(position: Point, social_rules: Vec<ZoneSocialRule>) -> Trust {
         let bloc_name = BlocName::from("trust-bloc".to_string());
         let bloc_key = BlocKey::from("trust-bloc".to_string());
         let bloc = Arc::new(RwLock::new(Bloc::new(
@@ -332,12 +339,13 @@ mod tests {
             Chance::new(1),
             Share::default(),
         )));
-        let zone = Arc::new(Zone::new(
+        let zone = Arc::new(Zone::new_with_social_rules(
             ZoneKey::from("trust-zone-key".to_string()),
             ZoneName::from("trust-zone".to_string()),
             bloc_key,
             bloc_name,
             bloc,
+            social_rules,
         ));
         let placement = Arc::new(Placement::new(
             serde_json::from_str(r#""trust-placement""#).unwrap(),
@@ -431,8 +439,8 @@ mod tests {
         assert_eq!(factor, Share::from(0.75));
     }
 
-    #[test]
-    fn enemy_at_trust_uses_combat_factor_and_scales_resources() {
+    #[tokio::test]
+    async fn enemy_at_trust_uses_combat_factor_and_scales_resources() {
         let trust = trust(point(10.0, 10.0));
         let units = [
             unit(point(10.5, 10.0), "enemy-bloc"),
@@ -448,7 +456,7 @@ mod tests {
             Share::from(0.75),
             Share::from(0.25),
         );
-        let producing = trust.production_with_inhibition(factor);
+        let producing = trust.production_with_inhibition(factor).await;
 
         assert_eq!(factor, Share::from(0.25));
         assert_eq!(producing.get(&ResourceName::new("iron".to_string())), Some(2.0));
@@ -488,8 +496,8 @@ mod tests {
         assert_eq!(on_capped_radius, Share::from(0.75));
     }
 
-    #[test]
-    fn income_uses_inhibited_production_and_existing_resource_units() {
+    #[tokio::test]
+    async fn income_uses_inhibited_production_and_existing_resource_units() {
         let trust = trust(point(10.0, 10.0));
         let mut resource_totals = Resources::default();
         resource_totals.insert(ResourceName::new("iron".to_string()), 3.0);
@@ -503,7 +511,7 @@ mod tests {
             resource_totals,
         };
 
-        let produced = trust.production_with_inhibition(Share::from(0.25));
+        let produced = trust.production_with_inhibition(Share::from(0.25)).await;
         assert_eq!(
             context.income_for(
                 &trust,
@@ -519,6 +527,30 @@ mod tests {
                 produced.into_iter().next().expect("trusts produce one resource")
             ),
             Money::from(4.0)
+        );
+    }
+
+    #[tokio::test]
+    async fn social_rule_factor_is_multiplied_with_trust_inhibition() {
+        let level = serde_json::from_value::<SocialRuleLevel>(serde_json::json!(2)).unwrap();
+        let rule = SocialRule::new(
+            SocialRuleKey::from("rule".to_string()),
+            SocialRuleName::from("Rule".to_string()),
+            serde_json::from_value(serde_json::json!(-2)).unwrap(),
+            level,
+            Some(serde_json::from_value::<SocialRuleFactorPerLevel>(serde_json::json!(0.1)).unwrap()),
+            None,
+        );
+        let trust = trust_with_social_rules(
+            point(10.0, 10.0),
+            vec![ZoneSocialRule::new(rule, level)],
+        );
+
+        let produced = trust.production_with_inhibition(Share::from(0.25)).await;
+
+        assert_eq!(
+            produced.get(&ResourceName::new("iron".to_string())),
+            Some(2.4)
         );
     }
 }

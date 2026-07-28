@@ -6,11 +6,13 @@ use crate::{
     domain::{
         BaseId, Bloc, BlocKey, Combat, MilitaryBase, MilitaryUnit, ProductionUnit, ProductionUnitKey, Trust, TrustId,
         UnitId,
+        Zone,
     },
     geometry::Point,
     persistence::MongoPersistence,
 };
 
+#[expect(clippy::too_many_arguments, reason = "persists each top-level simulation state collection")]
 pub(crate) async fn persist_all(
     persistence: &MongoPersistence,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
@@ -19,6 +21,7 @@ pub(crate) async fn persist_all(
     production_units: &HashMap<ProductionUnitKey, Arc<RwLock<ProductionUnit>>>,
     blocs: &HashMap<BlocKey, Arc<RwLock<Bloc>>>,
     combats: &HashMap<Point, Arc<RwLock<Combat>>>,
+    zones: impl Iterator<Item = Arc<Zone>>,
 ) {
     let mut unit_ids = Vec::with_capacity(units.len());
     for unit in units.values() {
@@ -75,6 +78,18 @@ pub(crate) async fn persist_all(
         if let Err(e) = persistence.save_bloc(&*bloc.read().await).await {
             log::error!("Error persisting bloc: {e:#}");
         }
+    }
+
+    let zones = zones.collect::<Vec<_>>();
+    let mut zone_keys = Vec::with_capacity(zones.len());
+    for zone in zones {
+        zone_keys.push(zone.key().clone());
+        if let Err(e) = persistence.save_zone(&zone).await {
+            log::error!("Error persisting zone social-rule levels: {e:#}");
+        }
+    }
+    if let Err(e) = persistence.delete_zones_except(zone_keys).await {
+        log::error!("Error deleting stale zones: {e:#}");
     }
 
     let mut combat_ids = Vec::with_capacity(combats.len());

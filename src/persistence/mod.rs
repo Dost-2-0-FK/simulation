@@ -9,7 +9,7 @@ use crate::{
     config::PersistenceConfig,
     domain::{
         BaseId, Bloc, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, ProductionUnit, ProductionUnitKey,
-        Trust, TrustId, UnitId, Zone,
+        Trust, TrustId, UnitId, Zone, ZoneKey,
     },
     geometry::Point,
 };
@@ -20,6 +20,7 @@ mod combats;
 mod production_units;
 mod trusts;
 mod units;
+mod zones;
 
 use bases::PersistedBase;
 pub(crate) use blocs::PersistedBloc;
@@ -27,6 +28,7 @@ use combats::PersistedCombat;
 use production_units::PersistedProductionUnit;
 use trusts::PersistedTrust;
 use units::PersistedUnit;
+pub(crate) use zones::PersistedZone;
 
 #[derive(Clone)]
 pub(crate) struct MongoPersistence {
@@ -36,6 +38,7 @@ pub(crate) struct MongoPersistence {
     blocs: Collection<PersistedBloc>,
     combats: Collection<PersistedCombat>,
     production_units: Collection<PersistedProductionUnit>,
+    zones: Collection<PersistedZone>,
 }
 
 pub(crate) struct LoadedState {
@@ -45,6 +48,7 @@ pub(crate) struct LoadedState {
     pub(crate) blocs: Vec<PersistedBloc>,
     pub(crate) combats: HashMap<Point, Arc<RwLock<Combat>>>,
     pub(crate) production_units: HashMap<ProductionUnitKey, Arc<RwLock<ProductionUnit>>>,
+    pub(crate) zones: Vec<PersistedZone>,
 }
 
 impl LoadedState {
@@ -55,6 +59,7 @@ impl LoadedState {
             && self.blocs.is_empty()
             && self.combats.is_empty()
             && self.production_units.is_empty()
+            && self.zones.is_empty()
     }
 }
 
@@ -83,6 +88,7 @@ impl MongoPersistence {
             blocs: database.collection("blocs"),
             combats: database.collection("combats"),
             production_units: database.collection("production_units"),
+            zones: database.collection("zones"),
         })
     }
 
@@ -177,6 +183,15 @@ impl MongoPersistence {
             .await
             .context("reading persisted bloc overrides")?;
 
+        let persisted_zones = self
+            .zones
+            .find(doc! {})
+            .await
+            .context("loading zone social-rule levels from MongoDB")?
+            .try_collect()
+            .await
+            .context("reading persisted zone social-rule levels")?;
+
         let combats = self
             .combats
             .find(doc! {})
@@ -199,6 +214,7 @@ impl MongoPersistence {
             blocs,
             combats,
             production_units,
+            zones: persisted_zones,
         })
     }
 
@@ -252,6 +268,16 @@ impl MongoPersistence {
         Ok(())
     }
 
+    pub(crate) async fn save_zone(&self, zone: &Zone) -> Result<()> {
+        let persisted = PersistedZone::from_zone(zone).await;
+        self.zones
+            .replace_one(doc! { "_id": persisted.id().as_str() }, persisted)
+            .upsert(true)
+            .await
+            .context("saving zone social-rule levels to MongoDB")?;
+        Ok(())
+    }
+
     pub(crate) async fn save_combat(&self, combat: &Combat) -> Result<()> {
         let persisted = PersistedCombat::from_combat(combat).await;
         self.combats
@@ -292,6 +318,15 @@ impl MongoPersistence {
             .delete_many(doc! { "_id": { "$nin": keys } })
             .await
             .context("deleting stale production units from MongoDB")?;
+        Ok(())
+    }
+
+    pub(crate) async fn delete_zones_except(&self, keys: Vec<ZoneKey>) -> Result<()> {
+        let keys = keys.iter().map(ZoneKey::as_str).collect::<Vec<_>>();
+        self.zones
+            .delete_many(doc! { "_id": { "$nin": keys } })
+            .await
+            .context("deleting stale zones from MongoDB")?;
         Ok(())
     }
 

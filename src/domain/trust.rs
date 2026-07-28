@@ -139,8 +139,14 @@ impl Trust {
         self.production.producing_base_value()
     }
 
-    pub(crate) fn production_with_inhibition(&self, factor: Share) -> Resources {
-        self.production.with_factor(factor)
+    pub(crate) async fn production_with_inhibition(&self, factor: Share) -> Resources {
+        self.production.with_factor(
+            self.placement
+                .zone()
+                .trust_production_factor()
+                .await
+                .combined_with(factor),
+        )
     }
 
     pub(crate) fn income(&self, produced: ResourceValue<'_>, existing_resource_units: f32) -> Money {

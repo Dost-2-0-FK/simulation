@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     domain::{Production, Zone},
-    services::credit_exchange_service::{Money, ResourceName, ResourceValue, Resources, Share},
+    services::credit_exchange_service::{Money, ResourceName, ResourceValue, Resources},
 };
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
@@ -58,8 +58,9 @@ impl ProductionUnit {
         self.production.resource_name()
     }
 
-    pub(crate) fn production_without_inhibition(&self) -> Resources {
-        self.production.with_factor(Share::from(1.0))
+    pub(crate) async fn production_without_inhibition(&self) -> Resources {
+        self.production
+            .with_factor(self.zone.production_unit_factor().await)
     }
 
     pub(crate) fn income(&self, produced: ResourceValue<'_>, existing_resource_units: f32) -> Money {

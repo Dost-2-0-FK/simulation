@@ -18,8 +18,8 @@ use self::error::{Error, Result};
 use crate::{
     domain::{
         BaseId, Bloc, BlocKey, BlocName, Chance, CharacterKey, CharacterName, LootFactors, MilitaryBase, MilitaryUnit,
-        NameMappings, Placement, PlacementId, ProductionUnit, ProductionUnitKey, Trust, TrustId, Zone, ZoneKey,
-        ZoneName,
+        NameMappings, Placement, PlacementId, ProductionUnit, ProductionUnitKey, SocialRule, SocialRuleFactorPerLevel,
+        SocialRuleKey, SocialRuleLevel, SocialRuleName, Trust, TrustId, Zone, ZoneKey, ZoneName, ZoneSocialRule,
     },
     geometry::{Distance, Point, WorldBounds},
     handlers::bases::Financing,
@@ -48,6 +48,8 @@ struct TomlConfig {
     world: WorldBounds,
     #[serde(rename = "bloc")]
     blocs: Vec<BlocConfig>,
+    #[serde(default, rename = "social_rule")]
+    social_rules: Vec<SocialRuleConfig>,
     #[serde(rename = "zone")]
     zones: Vec<ZoneConfig>,
     #[serde(rename = "character")]
@@ -238,6 +240,50 @@ struct ZoneConfig {
     key: ZoneKey,
     name: ZoneName,
     bloc: BlocKey,
+    #[serde(default)]
+    initial_social_rules: Vec<InitialSocialRuleConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SocialRuleConfig {
+    key: SocialRuleKey,
+    name: SocialRuleName,
+    min_level: SocialRuleLevel,
+    max_level: SocialRuleLevel,
+    trust_production_factor_per_level: Option<SocialRuleFactorPerLevel>,
+    production_unit_factor_per_level: Option<SocialRuleFactorPerLevel>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct InitialSocialRuleConfig {
+    key: SocialRuleKey,
+    level: SocialRuleLevel,
+}
+
+#[derive(Clone, Copy)]
+enum SocialRuleProductionKind {
+    Trust,
+    ProductionUnit,
+}
+
+impl SocialRuleProductionKind {
+    fn factor_per_level(self, rule: &SocialRuleConfig) -> Option<SocialRuleFactorPerLevel> {
+        match self {
+            Self::Trust => rule.trust_production_factor_per_level,
+            Self::ProductionUnit => rule.production_unit_factor_per_level,
+        }
+    }
+}
+
+impl fmt::Display for SocialRuleProductionKind {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Trust => formatter.write_str("trust"),
+            Self::ProductionUnit => formatter.write_str("production unit"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -454,6 +500,14 @@ impl Config {
             config.zones.iter().map(|zone| &zone.name),
         )?;
         validate_unique(
+            "social rule key",
+            config.social_rules.iter().map(|rule| &rule.key),
+        )?;
+        validate_unique(
+            "social rule name",
+            config.social_rules.iter().map(|rule| &rule.name),
+        )?;
+        validate_unique(
             "character key",
             config.characters.iter().map(|character| &character.key),
         )?;
@@ -553,6 +607,73 @@ impl Config {
             ));
         }
 
+        for rule in &config.social_rules {
+            if rule.min_level > rule.max_level {
+                return Err(Error::ConfigValidation(format!(
+                    "social rule {rule} has min_level {min} above max_level {max}",
+                    rule = rule.name,
+                    min = rule.min_level,
+                    max = rule.max_level,
+                )));
+            }
+        }
+
+        let social_rules_by_key = config
+            .social_rules
+            .iter()
+            .map(|rule| (&rule.key, rule))
+            .collect::<HashMap<_, _>>();
+        for zone in &config.zones {
+            validate_unique(
+                "social rule assignment",
+                zone.initial_social_rules.iter().map(|assignment| &assignment.key),
+            )?;
+            for assignment in &zone.initial_social_rules {
+                let rule = social_rules_by_key.get(&assignment.key).ok_or_else(|| {
+                    Error::ConfigValidation(format!(
+                        "zone {zone} references unknown social rule {rule}",
+                        zone = zone.name,
+                        rule = assignment.key,
+                    ))
+                })?;
+                if !(rule.min_level..=rule.max_level).contains(&assignment.level) {
+                    return Err(Error::ConfigValidation(format!(
+                        "zone {zone} assigns social rule {rule} level {level}, expected {min} through {max}",
+                        zone = zone.name,
+                        rule = rule.name,
+                        level = assignment.level,
+                        min = rule.min_level,
+                        max = rule.max_level,
+                    )));
+                }
+            }
+
+            for kind in [
+                SocialRuleProductionKind::Trust,
+                SocialRuleProductionKind::ProductionUnit,
+            ] {
+                let minimum_factor = 1.0
+                    + zone
+                        .initial_social_rules
+                        .iter()
+                        .filter_map(|assignment| {
+                            let rule = social_rules_by_key[&assignment.key];
+                            kind.factor_per_level(rule).map(|factor| {
+                                let at_min = rule.min_level.value() as f32 * factor.value();
+                                let at_max = rule.max_level.value() as f32 * factor.value();
+                                at_min.min(at_max)
+                            })
+                        })
+                        .sum::<f32>();
+                if minimum_factor < 0.0 {
+                    return Err(Error::ConfigValidation(format!(
+                        "zone {zone} social rules can produce a negative {kind} production factor {minimum_factor}",
+                        zone = zone.name,
+                    )));
+                }
+            }
+        }
+
         let blocs = config
             .blocs
             .iter()
@@ -573,6 +694,24 @@ impl Config {
             .map(|(bloc_config, bloc)| (bloc_config.key.clone(), bloc.clone()))
             .collect::<HashMap<_, _>>();
 
+        let social_rules_by_key = config
+            .social_rules
+            .iter()
+            .map(|rule| {
+                (
+                    rule.key.clone(),
+                    SocialRule::new(
+                        rule.key.clone(),
+                        rule.name.clone(),
+                        rule.min_level,
+                        rule.max_level,
+                        rule.trust_production_factor_per_level,
+                        rule.production_unit_factor_per_level,
+                    ),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+
         let zones = config
             .zones
             .iter()
@@ -589,12 +728,24 @@ impl Config {
                     .bloc_name(&zone_config.bloc)
                     .expect("bloc reference was resolved above")
                     .clone();
-                let zone = Arc::new(Zone::new(
+                let social_rules = zone_config
+                    .initial_social_rules
+                    .iter()
+                    .map(|assignment| {
+                        let rule = social_rules_by_key
+                            .get(&assignment.key)
+                            .expect("social-rule assignment references were validated above")
+                            .clone();
+                        ZoneSocialRule::new(rule, assignment.level)
+                    })
+                    .collect();
+                let zone = Arc::new(Zone::new_with_social_rules(
                     zone_config.key.clone(),
                     zone_config.name.clone(),
                     zone_config.bloc.clone(),
                     bloc_name,
                     bloc,
+                    social_rules,
                 ));
 
                 Ok(zone)
@@ -1180,6 +1331,7 @@ mod tests {
         assert_eq!(
             production_unit
                 .production_without_inhibition()
+                .await
                 .get(&ResourceName::new("lithium".into())),
             Some(3.5)
         );
@@ -1363,6 +1515,52 @@ mod tests {
             }
             Err(error) => panic!("unexpected error: {error}"),
             Ok(_) => panic!("duplicate production unit keys must fail"),
+        }
+    }
+
+    fn with_social_rule(factor_per_level: f32) -> String {
+        let config = base_toml().replace(
+            "        bloc = \"bloc_1\"\n\n        [[character]]",
+            "        bloc = \"bloc_1\"\n        initial_social_rules = [{ key = \"rule-key\", level = 1 }]\n\n        [[character]]",
+        );
+        format!(
+            r#"{config}
+
+        [[social_rule]]
+        key = "rule-key"
+        name = "Rule Name"
+        min_level = -2
+        max_level = 2
+        trust_production_factor_per_level = {factor_per_level}
+        production_unit_factor_per_level = 0.2
+        "#
+        )
+    }
+
+    #[tokio::test]
+    async fn parse_builds_typed_zone_social_rules() {
+        let config = Config::parse_from_str(&with_social_rule(0.1))
+            .await
+            .expect("valid social-rule config can be parsed");
+        let zone = config.zones().next().unwrap();
+        let assignment = zone.social_rules().await.into_iter().next().unwrap();
+
+        assert_eq!(assignment.rule().key().to_string(), "rule-key");
+        assert_eq!(assignment.rule().name().to_string(), "Rule Name");
+        assert_eq!(assignment.level().value(), 1);
+        assert_eq!(zone.trust_production_factor().await.value(), 1.1);
+        assert_eq!(zone.production_unit_factor().await.value(), 1.2);
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_social_rule_ranges_that_can_make_production_negative() {
+        match Config::parse_from_str(&with_social_rule(1.0)).await {
+            Err(Error::ConfigValidation(error)) => assert_eq!(
+                error,
+                "zone zone_1 social rules can produce a negative trust production factor -1"
+            ),
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("social-rule ranges permitting negative production must fail"),
         }
     }
 }

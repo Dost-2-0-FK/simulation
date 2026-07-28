@@ -2,6 +2,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::services::credit_exchange_service::{Money, ResourceName, ResourceValue, Resources, Share};
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct ProductionFactor(f32);
+
+impl ProductionFactor {
+    pub(crate) fn new(value: f32) -> Option<Self> {
+        (value.is_finite() && value >= 0.0).then_some(Self(value))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn value(self) -> f32 {
+        self.0
+    }
+
+    pub(crate) fn combined_with(self, factor: Share) -> Self {
+        Self(self.0 * factor.value())
+    }
+}
+
 /// The mutable production output shared by resource-producing structures.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct Production {
@@ -33,8 +51,8 @@ impl Production {
         &self.producing
     }
 
-    pub(crate) fn with_factor(&self, factor: Share) -> Resources {
-        factor * self.producing.clone()
+    pub(crate) fn with_factor(&self, factor: ProductionFactor) -> Resources {
+        self.producing.clone() * factor.0
     }
 
     pub(crate) fn income(&self, produced: ResourceValue<'_>, existing_resource_units: f32) -> Money {

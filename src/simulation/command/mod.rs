@@ -80,7 +80,7 @@ use crate::{
     config::Config,
     domain::{
         BaseId, Bloc, BlocKey, Chance, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust,
-        ProductionUnit, ProductionUnitKey, TrustId, UnitId, Zone,
+        ProductionUnit, ProductionUnitKey, SocialRuleLevel, SocialRuleName, TrustId, UnitId, Zone, ZoneKey,
     },
     error::UserError,
     geometry::Point,
@@ -137,6 +137,11 @@ pub(crate) enum Command {
     },
     GetPlacements(Sender<Vec<Arc<Placement>>>),
     GetZones(Sender<Vec<Arc<Zone>>>),
+    PatchZone {
+        id: ZoneKey,
+        social_rules: Vec<(SocialRuleName, SocialRuleLevel)>,
+        response: Sender<core::result::Result<(), UserError>>,
+    },
     GetBlocs(Sender<Vec<Bloc>>),
     PatchBloc {
         id: BlocKey,
@@ -367,6 +372,13 @@ pub(crate) async fn run(
             Command::GetZones(resp) => {
                 zone::get(resp, config.zones());
             }
+            Command::PatchZone {
+                id,
+                social_rules,
+                response,
+            } => {
+                zone::patch(response, config.zones(), &id, &social_rules).await;
+            }
             Command::GetBlocs(resp) => {
                 bloc::get_all(resp, &blocs).await;
             }
@@ -394,6 +406,7 @@ pub(crate) async fn run(
                     &production_units,
                     &blocs,
                     &combats,
+                    config.zones(),
                 )
                 .await;
             }

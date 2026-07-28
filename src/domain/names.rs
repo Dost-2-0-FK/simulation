@@ -53,7 +53,6 @@ impl NameMappings {
         self.zone_names.get(key)
     }
 
-    #[expect(dead_code, reason = "reserved for frontend zone-name request parameters")]
     pub(crate) fn zone_key(&self, name: &ZoneName) -> Option<&ZoneKey> {
         self.zone_keys.get(name)
     }
