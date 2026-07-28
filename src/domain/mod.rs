@@ -3,6 +3,8 @@ mod combat;
 mod names;
 mod placement;
 mod politics;
+mod production;
+mod production_unit;
 mod trust;
 mod unit;
 
@@ -17,5 +19,7 @@ pub(crate) use names::NameMappings;
 pub(crate) use politics::{
     Bloc, BlocKey, BlocName, Chance, CharacterKey, CharacterName, Zone, ZoneKey, ZoneName,
 };
+pub(crate) use production::Production;
+pub(crate) use production_unit::{ProductionUnit, ProductionUnitKey};
 pub(crate) use trust::{Trust, TrustId};
 pub(crate) use unit::{AttackOutcome, MilitaryUnit, UnitId, UnitState};

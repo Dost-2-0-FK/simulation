@@ -3,7 +3,10 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 use crate::{
-    domain::{BaseId, Bloc, BlocKey, Combat, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId},
+    domain::{
+        BaseId, Bloc, BlocKey, Combat, MilitaryBase, MilitaryUnit, ProductionUnit, ProductionUnitKey, Trust, TrustId,
+        UnitId,
+    },
     geometry::Point,
     persistence::MongoPersistence,
 };
@@ -13,6 +16,7 @@ pub(crate) async fn persist_all(
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     trusts: &HashMap<TrustId, Arc<RwLock<Trust>>>,
+    production_units: &HashMap<ProductionUnitKey, Arc<RwLock<ProductionUnit>>>,
     blocs: &HashMap<BlocKey, Arc<RwLock<Bloc>>>,
     combats: &HashMap<Point, Arc<RwLock<Combat>>>,
 ) {
@@ -50,6 +54,21 @@ pub(crate) async fn persist_all(
     }
     if let Err(e) = persistence.delete_trusts_except(trust_ids).await {
         log::error!("Error deleting stale trusts: {e:#}");
+    }
+
+    let mut production_unit_keys = Vec::with_capacity(production_units.len());
+    for production_unit in production_units.values() {
+        let production_unit = production_unit.read().await;
+        production_unit_keys.push(production_unit.key().clone());
+        if let Err(e) = persistence.save_production_unit(&production_unit).await {
+            log::error!("Error persisting production unit: {e:#}");
+        }
+    }
+    if let Err(e) = persistence
+        .delete_production_units_except(production_unit_keys)
+        .await
+    {
+        log::error!("Error deleting stale production units: {e:#}");
     }
 
     for bloc in blocs.values() {

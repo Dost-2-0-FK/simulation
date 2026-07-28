@@ -20,10 +20,16 @@ pub(crate) use self::{
     share::Share,
 };
 use crate::{
-    domain::{BaseId, BlocKey, Loot, LootFactors, MilitaryBase, MilitaryUnit, Trust, TrustId, ZoneKey},
+    domain::{
+        BaseId, BlocKey, Loot, LootFactors, MilitaryBase, MilitaryUnit, ProductionUnit, ProductionUnitKey, Trust,
+        TrustId, ZoneKey,
+    },
     handlers::bases::Financing,
     services::credit_exchange_service::cost::Payers,
 };
+
+#[derive(Debug, Clone, derive_more::Display)]
+struct CreditUserId(String);
 
 #[derive(Debug, Clone, Copy)]
 enum UserType {
@@ -215,8 +221,7 @@ impl CreditExchangeService {
 
     pub(crate) async fn register_military_base(&self, base: &MilitaryBase, policy: Financiers) -> Result<()> {
         let producer = Self::base_credit_user_id(base.id());
-        self.ensure_unit_user(&producer).await?;
-        self.create_financed_subscriptions(&policy, &producer).await?;
+        self.register_producer(&producer, &policy).await?;
         Ok(())
     }
 
@@ -238,8 +243,7 @@ impl CreditExchangeService {
 
     pub(crate) async fn register_trust(&self, trust: &Trust, policy: &Financiers) -> Result<()> {
         let producer = Self::trust_credit_user_id(trust.id());
-        self.ensure_unit_user(&producer).await?;
-        self.create_financed_subscriptions(policy, &producer).await?;
+        self.register_producer(&producer, policy).await?;
         Ok(())
     }
 
@@ -247,6 +251,13 @@ impl CreditExchangeService {
     pub(crate) async fn register_prepaid_trust(&self, trust: &Trust) -> Result<()> {
         let policy = Financiers::new(trust.placement().zone().key().to_string(), trust.financing().to_vec())?;
         self.register_trust(trust, &policy).await
+    }
+
+    /// Register a configured production unit as the same producer type used by trusts.
+    pub(crate) async fn register_prepaid_production_unit(&self, unit: &ProductionUnit) -> Result<()> {
+        let policy = Financiers::new(unit.zone().key().to_string(), Vec::new())?;
+        let producer = Self::production_unit_credit_user_id(unit.key());
+        self.register_producer(&producer, &policy).await
     }
 
     pub(crate) async fn set_base_production(&self, base_id: BaseId, value: &Loot) -> Result<()> {
@@ -261,6 +272,25 @@ impl CreditExchangeService {
 
     pub(crate) async fn set_trust_production(&self, trust: &Trust, income: Money, producing: &Resources) -> Result<()> {
         let producer = Self::trust_credit_user_id(trust.id());
+        self.set_producer_production(&producer, income, producing).await
+    }
+
+    pub(crate) async fn set_production_unit_production(
+        &self,
+        unit: &ProductionUnit,
+        income: Money,
+        producing: &Resources,
+    ) -> Result<()> {
+        let producer = Self::production_unit_credit_user_id(unit.key());
+        self.set_producer_production(&producer, income, producing).await
+    }
+
+    async fn set_producer_production(
+        &self,
+        producer: &CreditUserId,
+        income: Money,
+        producing: &Resources,
+    ) -> Result<()> {
         self.set_credit_production(&producer, income).await?;
         for resource in producing {
             self.set_resource_production(&producer, resource.name(), resource.value())
@@ -324,7 +354,12 @@ impl CreditExchangeService {
         Ok((money, resources))
     }
 
-    async fn ensure_unit_user(&self, id: &str) -> Result<()> {
+    async fn register_producer(&self, producer: &CreditUserId, policy: &Financiers) -> Result<()> {
+        self.ensure_unit_user(producer).await?;
+        self.create_financed_subscriptions(policy, producer).await
+    }
+
+    async fn ensure_unit_user(&self, id: &CreditUserId) -> Result<()> {
         let url = self.endpoint("api/users")?;
         let response = self
             .client
@@ -390,7 +425,7 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    async fn create_financed_subscriptions(&self, policy: &Financiers, producer: &str) -> Result<()> {
+    async fn create_financed_subscriptions(&self, policy: &Financiers, producer: &CreditUserId) -> Result<()> {
         for subscription in financed_subscription_specs(policy, &self.resources) {
             self.create_subscription(
                 producer,
@@ -403,7 +438,13 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    async fn create_subscription(&self, producer: &str, receiver: &str, credit_type: &str, share: Share) -> Result<()> {
+    async fn create_subscription(
+        &self,
+        producer: &CreditUserId,
+        receiver: &str,
+        credit_type: &str,
+        share: Share,
+    ) -> Result<()> {
         let value = share.value() * 100.0;
         if value <= 0.0 {
             return Ok(());
@@ -431,7 +472,7 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    async fn delete_user_subscriptions(&self, user_id: &str) -> Result<()> {
+    async fn delete_user_subscriptions(&self, user_id: &CreditUserId) -> Result<()> {
         let url = self.endpoint(&format!("api/users/{user_id}/subscriptions"))?;
         let response = self
             .client
@@ -479,15 +520,20 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    async fn set_credit_production(&self, user_id: &str, value: Money) -> Result<()> {
+    async fn set_credit_production(&self, user_id: &CreditUserId, value: Money) -> Result<()> {
         self.set_production(user_id, "money", value.value()).await
     }
 
-    async fn set_resource_production(&self, user_id: &str, resource: &ResourceName, value: f32) -> Result<()> {
+    async fn set_resource_production(
+        &self,
+        user_id: &CreditUserId,
+        resource: &ResourceName,
+        value: f32,
+    ) -> Result<()> {
         self.set_production(user_id, resource.as_str(), value).await
     }
 
-    async fn set_production(&self, user_id: &str, credit_type: &str, value: f32) -> Result<()> {
+    async fn set_production(&self, user_id: &CreditUserId, credit_type: &str, value: f32) -> Result<()> {
         let url = self.endpoint(&format!("api/users/{user_id}"))?;
         let response = self
             .client
@@ -520,12 +566,16 @@ impl CreditExchangeService {
         Err(CreditExchangeResponseError::new(status, body).into())
     }
 
-    fn base_credit_user_id(id: BaseId) -> String {
-        format!("base-{}", id.0)
+    fn base_credit_user_id(id: BaseId) -> CreditUserId {
+        CreditUserId(format!("base-{}", id.0))
     }
 
-    fn trust_credit_user_id(id: TrustId) -> String {
-        format!("trust-{}", id.0)
+    fn trust_credit_user_id(id: TrustId) -> CreditUserId {
+        CreditUserId(format!("trust-{}", id.0))
+    }
+
+    fn production_unit_credit_user_id(key: &ProductionUnitKey) -> CreditUserId {
+        CreditUserId(format!("trust-{key}"))
     }
 }
 
@@ -614,6 +664,16 @@ mod tests {
                     share: Share::from(1.0),
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn production_units_use_trust_credit_user_ids() {
+        let key = serde_json::from_str::<ProductionUnitKey>(r#""humans-0-0-e""#).unwrap();
+
+        assert_eq!(
+            CreditExchangeService::production_unit_credit_user_id(&key).to_string(),
+            "trust-humans-0-0-e"
         );
     }
 

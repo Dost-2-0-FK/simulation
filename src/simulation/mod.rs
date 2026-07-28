@@ -34,6 +34,7 @@ impl Simulation {
             units,
             blocs,
             combats,
+            production_units,
         } = self.loaded_state;
 
         let live_blocs = self.config.blocs().collect::<Vec<_>>();
@@ -75,6 +76,7 @@ impl Simulation {
             units,
             bases,
             trusts,
+            production_units,
             blocs_by_key,
             combats,
         )
