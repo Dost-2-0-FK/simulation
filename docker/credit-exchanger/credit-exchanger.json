@@ -8380,6 +8380,15 @@
           "history": []
         }
       }
+    },
+    {
+      "id": "bank",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      }
     }
   ],
   "individuals": [
@@ -9561,15 +9570,6 @@
     },
     {
       "id": "zone-1-b-1-w-household",
-      "credit": {
-        "total": 0,
-        "last_day_average": 0,
-        "subscriptions": [],
-        "history": []
-      }
-    },
-    {
-      "id": "bank",
       "credit": {
         "total": 0,
         "last_day_average": 0,
