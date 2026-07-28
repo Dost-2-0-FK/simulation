@@ -153,6 +153,83 @@
           "history": []
         }
       }
+    },
+    {
+      "id": "neutral",
+      "credit": {
+        "total": 0,
+        "last_day_average": 0,
+        "subscriptions": [],
+        "history": []
+      },
+      "resources": {
+        "water": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        },
+        "thermal_oil": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        },
+        "silicon": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        },
+        "uxmal_gas": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        },
+        "uxmal_crystals": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        },
+        "lsc": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        },
+        "solar_energy": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        },
+        "oxygen": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        },
+        "iron": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        },
+        "steel": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        },
+        "humans": {
+          "total": 0,
+          "last_day_average": 0,
+          "subscriptions": [],
+          "history": []
+        }
+      }
     }
   ],
   "zones": [
