@@ -1,0 +1,367 @@
+name: Build, scan, and push container images
+description: "Builds a Docker container image from a specified Dockerfile, creates an SBOM, scans for vulnerabilities, and pushes the image to private registry."
+
+on:
+  workflow_call:
+    inputs:
+      dockerfile:
+        description: "Dockerfile to build."
+        type: string
+        required: true
+      build_context:
+        description: "Build context for the Dockerfile. Defaults to the directory where the Dockerfile is located."
+        type: string
+        required: false
+      artifacts_download_relative_path:
+        description: "Path relative to build_context where to download previously uploaded artifacts. Useful to share artifacts between jobs. The artifact to be downloaded should have been previously uploaded using actions/upload-artifact."
+        type: string
+        default: ""
+        required: false
+      artifacts_download_name:
+        description: "Name of the artifact to be downloaded. Has to be specified if artifacts_download_relative_path is set. The artifact to be downloaded should have been previously uploaded using actions/upload-artifact."
+        type: string
+        default: ""
+        required: false
+      artifact_registry_url:
+        description: "URL of the registry."
+        type: string
+        required: true
+      artifact_registry_project:
+        description: "Private registry project (e.g. awzmb)."
+        type: string
+        default: "awzmb"
+        required: true
+      artifact_registry_image_name:
+        description: "Name of the image in your private registry (without tags). Will be converted to lower-case."
+        type: string
+        required: true
+      artifact_registry_repository:
+        description: "The private Registry repsitory to push to (e.g. infra--container-repo/it4ipm-base)."
+        type: string
+        required: true
+      push:
+        description: "Push the Docker image to the private Registry."
+        type: boolean
+        default: true
+      create_issue:
+        description: "Create or update a GitHub issue with detected vulnerabilities."
+        type: boolean
+        default: true
+      create_summary:
+        description: "Create a workflow step summary with detected vulnerabilities."
+        type: boolean
+        default: true
+      tags:
+        description: "Comma-separated list of tags for the container image. Defaults to 'latest'."
+        type: string
+        default: "latest"
+
+jobs:
+  # Build, scan, submit dependencies, report vulnerabilities and push the
+  # container image in a single job. Keeping everything in one job means the
+  # SBOM, scan results and image tarball all live in the same workspace, so no
+  # internal artifact upload/download is needed to share them between jobs.
+  docker-build-scan-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Extract the image name and file name from the Dockerfile name.
+      - name: Process image name from input
+        id: get_image_name
+        run: |
+          if [ -n "${{ inputs.artifact_registry_image_name }}" ]; then
+            image_name=$(basename "${{ inputs.artifact_registry_image_name }}")
+          else
+            echo "private registry image name not provided. Using the Dockerfiles parent directory as name."
+            image_name=$(dirname "${{ inputs.dockerfile }}")
+          fi
+
+          image_name=$(echo "$image_name" | sed "s/_/-/g" | tr '[:upper:]' '[:lower:]')
+          echo "image_name=$image_name" >> $GITHUB_OUTPUT
+
+      # Set the build context for the Dockerfile. If the build_context input is set, use it.
+      # If not, generate the build context from the Dockerfile path.
+      - name: Set build context
+        id: set_build_context
+        run: |
+          if [[ -n "${{ inputs.build_context }}" ]]; then
+            echo "inputs.build_context=${{ inputs.build_context}} is non-empty."
+            build_context=${{ inputs.build_context }}
+          else
+            echo "inputs.build_context is empty. using the Dockerfile directory."
+            build_context=$(dirname ${{ inputs.dockerfile }})
+          fi
+          echo "build_context=$build_context"
+          echo "build_context=$build_context" >> $GITHUB_OUTPUT
+
+      # Set up the Docker buildx builder.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Authorize Docker buildx to push to the private Registry.
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ inputs.artifact_registry_url }}
+          username: ${{ secrets.PRIVATE_REGISTRY_USERNAME }}
+          password: ${{ secrets.PRIVATE_REGISTRY_PASSWORD }}
+
+      # Set the image base name from the Dockerfile name
+      # and the private Registry location.
+      - name: Set registry image name
+        id: set_image_name
+        run: |
+          echo "image_name=${{ inputs.artifact_registry_url }}/${{ inputs.artifact_registry_project }}/${{ inputs.artifact_registry_repository }}/${{ steps.get_image_name.outputs.image_name }}" >> $GITHUB_OUTPUT
+
+      # Generate tags for the metadata-action from the input
+      - name: Generate Docker tags from the input
+        id: prepare_tags
+        run: |
+          echo "Preparing tags from input: ${{ inputs.tags }}"
+          # Start with an empty list of tags
+          TAGS=""
+
+          # Split the comma-separated input and format the tags
+          # No newline allowed at the end of the string
+          IFS=',' read -ra TAG_ARRAY <<< "${{ inputs.tags }}"
+          length=${#TAG_ARRAY[@]}
+          for ((i=0; i<length; i++))
+          do
+            if [ $i -eq $((length-1)) ]; then
+              TAGS+="type=raw,value=${TAG_ARRAY[$i]}"
+            else
+              TAGS+="type=raw,value=${TAG_ARRAY[$i]}\n"
+            fi
+          done
+
+          # Print prepared tags for debugging
+          echo -e "$TAGS"
+
+          # Export formatted tags as output, ensuring no trailing newline
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')"
+
+      # Set the Docker image name and tags.
+      - name: Set Docker metadata (name and tags)
+        id: set_image_tags
+        uses: docker/metadata-action@v5
+        with:
+          #flavor: latest=auto
+          labels: |
+            org.opencontainers.image.authors="${{ github.actor }}"
+            org.opencontainers.image.created="${{ steps.date.outputs.date }}"
+            org.opencontainers.image.url="https://${{ github.repository }}"
+            org.opencontainers.image.version="${{ github.ref }}
+            org.opencontainers.image.revision="${{ github.sha }}
+          annotations: |
+            org.opencontainers.image.authors="${{ github.actor }}"
+            org.opencontainers.image.created="${{ steps.date.outputs.date }}"
+            org.opencontainers.image.url="https://${{ github.repository }}"
+            org.opencontainers.image.version="${{ github.ref }}
+            org.opencontainers.image.revision="${{ github.sha }}
+          # The image name is being used as prefix for the tags.
+          images: |
+            ${{ steps.set_image_name.outputs.image_name }}
+          tags: |
+            ${{ steps.prepare_tags.outputs.tags }}
+
+      # Create sbom, scan and image directories to store the generated files.
+      - name: Create sbom, scan and image directories
+        run: mkdir -p sbom scan image
+
+      - name: Download previously built artifacts from the specified path
+        if: ${{ inputs.artifacts_download_relative_path != '' }} && ${{ inputs.artifacts_download_name != '' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.artifacts_download_name }}
+          path: ${{ steps.set_build_context.outputs.build_context }}/${{ inputs.artifacts_download_relative_path }}
+
+      # Build the Docker image and save it as a tarball for
+      # further processing by the Anchore SBOM action.
+      # (Docker image is not pushed before checks have run)
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          # Use the git root as workspace, since all the necessary files
+          # are here (e.g., certificates, scripts, etc.).
+          context: ${{ steps.set_build_context.outputs.build_context }}
+          tags: ${{ steps.set_image_tags.outputs.tags }}
+          labels: ${{ steps.set_docker_labels.outputs.labels }}
+          annotations: ${{ steps.set_docker_annotations.outputs.annotations }}
+          # Use the Dockerfile from the matrix.
+          file: ${{ inputs.dockerfile }}
+          # This generates a tarball of the Docker image for
+          # further processing by the Anchore SBOM action.
+          # The image is not being pushed to the private Registry yet.
+          outputs: type=docker,dest=image/${{ steps.get_image_name.outputs.image_name }}.tar
+
+      # Create an SBOM for the Docker image.
+      - name: Create Container SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: image/${{ steps.get_image_name.outputs.image_name }}.tar
+          format: spdx-json
+          output-file: sbom/${{ steps.get_image_name.outputs.image_name }}-sbom.spdx.json
+          upload-artifact: false
+
+      # Scan the container SBOM for vulnerabilities.
+      # NOTE: the combination of continue-on-error: true and fail-build: true
+      # allows the workflow to continue even if the scan fails, but it the
+      # warning message will be displayed in the logs.
+      # TODO: continue-on-error: true should be removed once the images are stable
+      - name: Scan container SBOM
+        id: scan_container
+        uses: anchore/scan-action@v7
+        continue-on-error: true
+        with:
+          sbom: sbom/${{ steps.get_image_name.outputs.image_name }}-sbom.spdx.json
+          output-format: json
+          fail-build: true
+          severity-cutoff: high
+
+      # Collect the scan results.
+      - name: Collect results
+        run: |
+          mv "${{ steps.scan_container.outputs.json }}" scan/${{ steps.get_image_name.outputs.image_name }}-scan-results.json
+
+      # --- Vulnerability reports ----------------------------------------------
+      # Create or update a GitHub issue and/or a workflow summary with the
+      # vulnerabilities found in the scan results generated above.
+
+      # Check the CODEOWNERS file for possible assignees.
+      # TODO: make this more resilient and check if the assignee
+      # names are actually valid GitHub usernames. Else issue creation
+      # will fail.
+      - name: Check CODEOWNERS for assignees
+        if: ${{ inputs.create_issue || inputs.create_summary }}
+        id: check_codeowners_for_assignees
+        run: |
+          # Check if CODEOWNERS file exists
+          if [[ ! -f CODEOWNERS ]]; then
+            echo "CODEOWNERS file not found. Exiting."
+            exit 0
+          fi
+
+          # Read the CODEOWNERS file and extract the users for dockerfiles/Dockerfile_.*
+          assignees=$(cat CODEOWNERS | grep '${{ inputs.dockerfile }}' | grep -o '@[a-zA-Z0-9_]*' | sort | uniq | tr '\n' ',' | sed 's/,$//' | tr -d '\@')
+
+          # Check if any users were found
+          if [[ -z "$assignees" ]]; then
+            echo "No users found for ${{ inputs.dockerfile }} in CODEOWNERS file. Exiting."
+            exit 0
+          fi
+
+          echo "assignees=$assignees" >> $GITHUB_OUTPUT
+
+      # Read the vulnerabilities from the scan results.
+      # The command does the following:
+      # - Filter the vulnerabilities to only include critical and high severity.
+      # - Extract the vulnerabilities with jq and format them as a markdown table.
+      # - Make them unique by sorting and removing duplicates with sort and uniq
+      #   based on the second column (CVE Id).
+      - name: Read Vulnerabilities
+        if: ${{ inputs.create_issue || inputs.create_summary }}
+        id: read_vulnerabilities
+        run: |
+          cat scan/${{ steps.get_image_name.outputs.image_name }}-scan-results.json | jq '.matches[] | select(.vulnerability.severity == "Critical" or .vulnerability.severity == "High")' | jq -r '"| \(.vulnerability.id) | \(.vulnerability.severity) | \(.artifact.name // "N/A") | \(.artifact.type // "N/A") | \(.vulnerability.dataSource) |"' > vulnerabilities.md
+
+      # Create a workflow summary with the vulnerabilities.
+      - name: Create workflow summary
+        if: ${{ inputs.create_summary }}
+        id: create_summary
+        run: |
+          # If vulnerabilities.md is empty, delete the existing issue if it exists
+          if [ ! -s vulnerabilities.md ]; then
+            echo "No vulnerabilities found. Exiting."
+            exit 0
+          fi
+
+          summary_body=$(cat <<EOF
+
+          # Vulnerabilities Report
+          We have found vulnerabilities of severity High and Critical in the Docker image ${{ inputs.dockerfile }}.
+
+
+          | ID | Severity | private | Type | Data Source |
+          |---|---|---|---|---|
+          $(cat vulnerabilities.md)
+          EOF
+          )
+
+          # Create the workflow summary
+          echo "$summary_body" >> $GITHUB_STEP_SUMMARY
+
+      # Create or update the GitHub issue with the vulnerabilities.
+      - name: Create or Update Issue
+        if: ${{ inputs.create_issue }}
+        id: create_update_issue
+        run: |
+          issue_title="Vulnerability Report - ${{ steps.get_image_name.outputs.image_name }}"
+
+          # If vulnerabilities.md is empty, delete the existing issue if it exists
+          if [ ! -s vulnerabilities.md ]; then
+            echo "No vulnerabilities found. Exiting."
+            existing_issue=$(gh issue list --search "$issue_title" --json number --jq '.[0].number')
+            if [ -n "$existing_issue" ]; then
+              gh issue edit "$existing_issue" --title "Closed: ${issue_title}"
+              gh issue close "$existing_issue"
+            fi
+            exit 0
+          fi
+
+          issue_body=$(cat <<EOF
+
+          # Vulnerabilities Report
+          We have found vulnerabilities of severity High and Critical in the Docker image [${{ inputs.dockerfile }}](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/${{ inputs.dockerfile }}).
+          Workflow summary with details: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+
+          | ID | Severity | private | Type | Data Source |
+          |---|---|---|---|---|
+          $(cat vulnerabilities.md)
+          EOF
+          )
+
+          existing_issue=$(gh issue list --search "$issue_title" --json number --jq '.[0].number')
+
+          if [ -z "$existing_issue" ]; then
+            gh issue create --title "$issue_title" --body "$issue_body" --label "bug" --assignee "${{ steps.check_codeowners_for_assignees.outputs.assignees }}"
+          else
+            gh issue edit "$existing_issue" --body "$issue_body" --add-label "bug" --add-assignee "${{ steps.check_codeowners_for_assignees.outputs.assignees }}"
+          fi
+
+      # --- Push to registry ---------------------------------------------------
+      # Push the previously built image tarball to the private Registry.
+
+      # Load the Docker image from the tarball while retaining the tags.
+      - name: Load Docker image
+        if: ${{ inputs.push && inputs.tags != '' }}
+        run: docker load -i image/${{ steps.get_image_name.outputs.image_name }}.tar
+
+      # Push the Docker image to the private Registry.
+      - name: Push Docker image to Private Registry
+        if: ${{ inputs.push && inputs.tags != '' }}
+        run: |
+          tags_array=($(echo "${{ inputs.tags }}" | tr ',' '\n'))
+          # Loop through each tag and push the image
+          for tag in "${tags_array[@]}"; do
+            echo "Pushing tag: $tag"
+            docker push ${{ steps.set_image_name.outputs.image_name }}:$tag
+          done
