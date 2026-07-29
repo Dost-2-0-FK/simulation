@@ -1,0 +1,19 @@
+name: Build and push container image on release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  docker-build-scan-push:
+    secrets: inherit
+    uses: ./.github/workflows/docker-build-scan-push.yaml
+    with:
+      dockerfile: Dockerfile
+      artifact_registry_url: "exo.container-registry.com"
+      artifact_registry_project: "awzmb"
+      artifact_registry_image_name: "simulation"
+      artifact_registry_repository: "infrastructure"
+      # Manual runs (workflow_dispatch) have no release tag, so push just `latest`.
+      tags: ${{ github.event_name == 'release' && format('latest,{0}', github.event.release.tag_name) || 'latest' }}
