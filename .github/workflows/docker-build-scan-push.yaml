@@ -64,9 +64,7 @@ jobs:
   docker-build-scan-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      id-token: write
-      issues: write
+      contents: read
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
