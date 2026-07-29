@@ -18,6 +18,8 @@ pub enum UserError {
     Conflict(#[error(not(source))] &'static str),
     #[display("Bad request: {_0}")]
     BadRequest(#[error(not(source))] &'static str),
+    #[display("Bad request: target belongs to the same bloc as the base")]
+    InvalidBaseTarget,
     #[display("Unauthorized.")]
     Unauthorized,
     #[display("Forbidden.")]
@@ -50,6 +52,7 @@ impl error::ResponseError for UserError {
             UserError::NotFound(_) => StatusCode::NOT_FOUND,
             UserError::Conflict(_) => StatusCode::CONFLICT,
             UserError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            UserError::InvalidBaseTarget => StatusCode::BAD_REQUEST,
             UserError::Unauthorized => StatusCode::UNAUTHORIZED,
             UserError::Forbidden => StatusCode::FORBIDDEN,
             UserError::PaymentRequired(_) => StatusCode::PAYMENT_REQUIRED,
@@ -88,6 +91,17 @@ mod tests {
         assert_eq!(
             to_bytes(response.into_body()).await.unwrap(),
             "Failed to query credit service."
+        );
+    }
+
+    #[actix_web::test]
+    async fn invalid_base_target_returns_400() {
+        let response = UserError::InvalidBaseTarget.error_response();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            to_bytes(response.into_body()).await.unwrap(),
+            "Bad request: target belongs to the same bloc as the base"
         );
     }
 

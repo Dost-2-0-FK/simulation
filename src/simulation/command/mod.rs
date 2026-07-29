@@ -248,11 +248,14 @@ pub(crate) async fn run(
                 response,
             } => {
                 let result = async {
+                    let lock = bases.get(&id).ok_or(UserError::NotFound("Base"))?;
+                    let base_bloc = lock.read().await.bloc_key().clone();
                     let resolved_target = match target {
                         None => None,
                         Some(TargetBody::None) => Some(Target::None),
                         Some(TargetBody::Base { id: base_id }) => {
                             let arc = bases.get(&base_id).ok_or(UserError::NotFound("Base"))?;
+                            base::validate_target_bloc(&base_bloc, arc.read().await.bloc_key())?;
                             Some(Target::Base {
                                 id: base_id,
                                 base: arc.clone(),
@@ -260,13 +263,13 @@ pub(crate) async fn run(
                         }
                         Some(TargetBody::Trust { id: trust_id }) => {
                             let arc = trusts.get(&trust_id).ok_or(UserError::NotFound("Trust"))?;
+                            base::validate_target_bloc(&base_bloc, arc.read().await.placement().zone().bloc_key())?;
                             Some(Target::Trust {
                                 id: trust_id,
                                 trust: arc.clone(),
                             })
                         }
                     };
-                    let lock = bases.get(&id).ok_or(UserError::NotFound("Base"))?;
                     let patched = base::patch(lock.read().await.clone(), enabled, prioritized, resolved_target);
                     *lock.write().await = patched;
                     Ok(())

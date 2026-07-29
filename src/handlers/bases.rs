@@ -232,6 +232,7 @@ pub(crate) async fn post(
             UserError::NotFound(err) => log::info!("not found: {err}"),
             UserError::Conflict(err) => log::info!("conflict: {err}"),
             UserError::BadRequest(err) => log::info!("bad request: {err}"),
+            UserError::InvalidBaseTarget => log::info!("invalid base target"),
             UserError::Unauthorized => log::info!("unauthorized while creating base"),
             UserError::Forbidden => log::info!("forbidden while creating base"),
             UserError::PaymentRequired(body) => log::info!("base payment required: {body}"),
@@ -403,6 +404,7 @@ pub(crate) async fn delete(
     tag = BASES,
     responses(
         (status = 200, description = "Base updated successfully"),
+        (status = 400, description = "Target belongs to the same bloc as the base", body = String, content_type = "text/html"),
         (status = 401, description = "Not authenticated", body = String, content_type = "text/html"),
         (status = 403, description = "No write permission for the bloc", body = String, content_type = "text/html"),
         (status = 404, description = "Base or target not found", body = String, content_type = "text/html"),

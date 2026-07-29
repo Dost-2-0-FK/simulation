@@ -4,10 +4,35 @@ use tokio::sync::{RwLock, oneshot::Sender};
 
 use super::CommandError;
 use crate::{
-    domain::{BaseId, MilitaryBase, Placement, PlacementId, Target},
+    domain::{BaseId, BlocKey, MilitaryBase, Placement, PlacementId, Target},
+    error::UserError,
     handlers::bases::Financing,
     services::credit_exchange_service::CreditExchangeService,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BaseTargetValidationError {
+    SameBloc,
+}
+
+impl From<BaseTargetValidationError> for UserError {
+    fn from(error: BaseTargetValidationError) -> Self {
+        match error {
+            BaseTargetValidationError::SameBloc => Self::InvalidBaseTarget,
+        }
+    }
+}
+
+pub(crate) fn validate_target_bloc(
+    base_bloc: &BlocKey,
+    target_bloc: &BlocKey,
+) -> Result<(), BaseTargetValidationError> {
+    if base_bloc == target_bloc {
+        Err(BaseTargetValidationError::SameBloc)
+    } else {
+        Ok(())
+    }
+}
 
 pub(crate) async fn get_all(resp: Sender<Vec<MilitaryBase>>, bases: &HashMap<BaseId, Arc<RwLock<MilitaryBase>>>) {
     let mut out = Vec::with_capacity(bases.len());
@@ -91,4 +116,28 @@ pub(crate) async fn publish_production(
         base_arc.write().await.clear_production_count();
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{BaseTargetValidationError, validate_target_bloc};
+    use crate::domain::BlocKey;
+
+    #[test]
+    fn rejects_target_in_same_bloc() {
+        let bloc = BlocKey::from("bloc".to_owned());
+
+        assert_eq!(
+            validate_target_bloc(&bloc, &bloc),
+            Err(BaseTargetValidationError::SameBloc)
+        );
+    }
+
+    #[test]
+    fn accepts_target_in_different_bloc() {
+        let base_bloc = BlocKey::from("base-bloc".to_owned());
+        let target_bloc = BlocKey::from("target-bloc".to_owned());
+
+        assert_eq!(validate_target_bloc(&base_bloc, &target_bloc), Ok(()));
+    }
 }
