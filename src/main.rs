@@ -32,6 +32,7 @@ async fn main() -> std::io::Result<()> {
         })?;
     let auth_cookie_key = config.auth_cookie_key();
     let auth_service = config.auth_service().clone();
+    let credit_exchange_service = config.credit_exchange_service().clone();
     let name_mappings = config.name_mappings();
     let coordination_api_key = std::env::var("COORDINATION_API_KEY")
         .context("COORDINATION_API_KEY must be set")
@@ -63,6 +64,7 @@ async fn main() -> std::io::Result<()> {
             .map(|app| app.wrap(IdentityMiddleware::default()).wrap(session).wrap(logger))
             .app_data(web::Data::new(tx.clone()))
             .app_data(web::Data::new(auth_service.clone()))
+            .app_data(web::Data::new(credit_exchange_service.clone()))
             .app_data(web::Data::from(name_mappings.clone()))
             .app_data(web::Data::new(coordination_service.clone()))
             .app_data(web::Data::new(resources.clone()))

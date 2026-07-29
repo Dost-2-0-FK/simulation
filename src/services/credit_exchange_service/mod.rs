@@ -21,15 +21,132 @@ pub(crate) use self::{
 };
 use crate::{
     domain::{
-        BaseId, BlocKey, Loot, LootFactors, MilitaryBase, MilitaryUnit, ProductionUnit, ProductionUnitKey, Trust,
-        TrustId, ZoneKey,
+        BaseId, BlocKey, BlocName, CharacterKey, CharacterName, Loot, LootFactors, MilitaryBase, MilitaryUnit,
+        NameMappings, ProductionUnit, ProductionUnitKey, Trust, TrustId, ZoneKey, ZoneName,
     },
     handlers::bases::Financing,
     services::credit_exchange_service::cost::Payers,
 };
 
-#[derive(Debug, Clone, derive_more::Display)]
-struct CreditUserId(String);
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, derive_more::Display, utoipa::ToSchema)]
+pub(crate) struct CreditUserId(String);
+
+impl CreditUserId {
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<&BlocKey> for CreditUserId {
+    fn from(value: &BlocKey) -> Self {
+        Self(value.as_str().to_string())
+    }
+}
+
+impl From<&ZoneKey> for CreditUserId {
+    fn from(value: &ZoneKey) -> Self {
+        Self(value.as_str().to_string())
+    }
+}
+
+impl From<&CharacterKey> for CreditUserId {
+    fn from(value: &CharacterKey) -> Self {
+        Self(value.as_str().to_string())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct SubscriptionId(String);
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct CreditType(String);
+
+impl CreditType {
+    fn is_money(&self) -> bool {
+        self.0 == "money"
+    }
+
+    fn into_resource_name(self) -> ResourceName {
+        ResourceName::new(self.0)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum SubscriptionType {
+    Sr,
+    Contract,
+}
+
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct Subscription {
+    id: SubscriptionId,
+    sender: CreditUserName,
+    receiver: CreditUserName,
+    value: f32,
+    subscription_type: SubscriptionType,
+    priority: u32,
+    credit_type: CreditType,
+}
+
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub(crate) enum CreditUserName {
+    Character { name: CharacterName },
+    Bloc { name: BlocName },
+    Zone { name: ZoneName },
+    Other { id: CreditUserId },
+}
+
+impl CreditUserName {
+    fn resolve(id: CreditUserId, name_mappings: &NameMappings) -> Result<Self> {
+        let character = name_mappings
+            .character_name(&CharacterKey::from(id.as_str().to_string()))
+            .map(|name| Self::Character { name: name.clone() });
+        let bloc = name_mappings
+            .bloc_name(&BlocKey::from(id.as_str().to_string()))
+            .map(|name| Self::Bloc { name: name.clone() });
+        let zone = name_mappings
+            .zone_name(&ZoneKey::from(id.as_str().to_string()))
+            .map(|name| Self::Zone { name: name.clone() });
+        let mut matches = [character, bloc, zone].into_iter().flatten();
+
+        let Some(name) = matches.next() else {
+            return Ok(Self::Other { id });
+        };
+        if matches.next().is_some() {
+            anyhow::bail!("credit user ID {id} matches multiple configured names");
+        }
+        Ok(name)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CreditAccount {
+    money: MoneyBalance,
+    resources: HashMap<ResourceName, ResourceBalance>,
+    subscriptions: AccountSubscriptions,
+}
+
+#[derive(Debug, Clone, Default, Serialize, utoipa::ToSchema)]
+pub(crate) struct MoneyBalance {
+    balance: Money,
+    hourly: Money,
+}
+
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+pub(crate) struct ResourceBalance {
+    balance: f32,
+    hourly: f32,
+}
+
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
+pub(crate) struct AccountSubscriptions {
+    outgoing: Vec<Subscription>,
+    incoming: Vec<Subscription>,
+}
 
 #[derive(Debug, Clone, Copy)]
 enum UserType {
@@ -94,7 +211,8 @@ struct ListCreditsResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreditBalanceResponse {
-    credit_type: String,
+    credit_type: CreditType,
+    balance: f32,
     hourly: f32,
 }
 
@@ -116,12 +234,20 @@ struct ListSubscriptionsResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SubscriptionResponse {
-    id: String,
+    id: SubscriptionId,
+    sender: CreditUserId,
+    receiver: CreditUserId,
+    value: f32,
+    subscription_type: SubscriptionType,
+    priority: u32,
+    credit_type: CreditType,
 }
 
 /// Constructed when loading the config. It owns the local simulation costs and provides the
 /// small subset of credit-exchanger API calls used by this simulation.
+#[derive(Clone)]
 pub(crate) struct CreditExchangeService {
     client: reqwest::Client,
     url: Url,
@@ -328,30 +454,129 @@ impl CreditExchangeService {
     }
 
     pub(crate) async fn credit_hourly_income(&self, user_id: &str) -> Result<(Money, Resources)> {
-        let url = self.endpoint(&format!("api/users/{user_id}/credits"))?;
+        let response = self.list_credits(&CreditUserId(user_id.to_string())).await?;
+
+        let mut money = Money::default();
+        let mut resources = Resources::default();
+        for credit in response.credits {
+            if credit.credit_type.is_money() {
+                money = Money::from(credit.hourly);
+            } else {
+                resources.insert(credit.credit_type.into_resource_name(), credit.hourly);
+            }
+        }
+
+        Ok((money, resources))
+    }
+
+    pub(crate) async fn money_balance(&self, user_id: &CreditUserId) -> Result<MoneyBalance> {
+        let response = self.list_credits(user_id).await?;
+        Ok(response
+            .credits
+            .into_iter()
+            .find(|credit| credit.credit_type.is_money())
+            .map_or_else(MoneyBalance::default, |credit| MoneyBalance {
+                balance: Money::from(credit.balance),
+                hourly: Money::from(credit.hourly),
+            }))
+    }
+
+    pub(crate) async fn subscriptions(
+        &self,
+        user_id: &CreditUserId,
+        name_mappings: &NameMappings,
+    ) -> Result<AccountSubscriptions> {
+        let response = self.list_subscriptions(user_id).await?;
+        let mut outgoing = Vec::new();
+        let mut incoming = Vec::new();
+        for subscription in response.subscriptions {
+            let is_outgoing = subscription.sender == *user_id;
+            let is_incoming = subscription.receiver == *user_id;
+            let subscription = Subscription {
+                id: subscription.id,
+                sender: CreditUserName::resolve(subscription.sender, name_mappings)?,
+                receiver: CreditUserName::resolve(subscription.receiver, name_mappings)?,
+                value: subscription.value,
+                subscription_type: subscription.subscription_type,
+                priority: subscription.priority,
+                credit_type: subscription.credit_type,
+            };
+            if is_outgoing {
+                outgoing.push(subscription.clone());
+            }
+            if is_incoming {
+                incoming.push(subscription);
+            }
+        }
+
+        Ok(AccountSubscriptions { outgoing, incoming })
+    }
+
+    pub(crate) async fn account(&self, user_id: &CreditUserId, name_mappings: &NameMappings) -> Result<CreditAccount> {
+        let (credits, subscriptions) =
+            tokio::try_join!(self.list_credits(user_id), self.subscriptions(user_id, name_mappings))?;
+        let mut money = MoneyBalance::default();
+        let mut resources = HashMap::new();
+        for credit in credits.credits {
+            if credit.credit_type.is_money() {
+                money = MoneyBalance {
+                    balance: Money::from(credit.balance),
+                    hourly: Money::from(credit.hourly),
+                };
+            } else {
+                resources.insert(
+                    credit.credit_type.into_resource_name(),
+                    ResourceBalance {
+                        balance: credit.balance,
+                        hourly: credit.hourly,
+                    },
+                );
+            }
+        }
+
+        Ok(CreditAccount {
+            money,
+            resources,
+            subscriptions,
+        })
+    }
+
+    async fn list_credits(&self, user_id: &CreditUserId) -> Result<ListCreditsResponse> {
+        let url = self.endpoint(&format!("api/users/{}/credits", user_id.as_str()))?;
         let response = self
             .client
             .get(url)
             .send()
             .await
-            .context("requesting hourly credit income")?;
-        let response = Self::error_for_status(response, "requesting hourly credit income").await?;
-        let response = response
-            .json::<ListCreditsResponse>()
+            .with_context(|| format!("requesting credits for credit-exchanger user {user_id}"))?;
+        let response = Self::error_for_status(
+            response,
+            &format!("requesting credits for credit-exchanger user {user_id}"),
+        )
+        .await?;
+        response
+            .json()
             .await
-            .context("decoding hourly credit income")?;
+            .with_context(|| format!("decoding credits for credit-exchanger user {user_id}"))
+    }
 
-        let mut money = Money::default();
-        let mut resources = Resources::default();
-        for credit in response.credits {
-            if credit.credit_type == "money" {
-                money = Money::from(credit.hourly);
-            } else {
-                resources.insert(ResourceName::new(credit.credit_type), credit.hourly);
-            }
-        }
-
-        Ok((money, resources))
+    async fn list_subscriptions(&self, user_id: &CreditUserId) -> Result<ListSubscriptionsResponse> {
+        let url = self.endpoint(&format!("api/users/{}/subscriptions", user_id.as_str()))?;
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .with_context(|| format!("listing subscriptions for credit-exchanger user {user_id}"))?;
+        let response = Self::error_for_status(
+            response,
+            &format!("listing subscriptions for credit-exchanger user {user_id}"),
+        )
+        .await?;
+        response
+            .json()
+            .await
+            .with_context(|| format!("decoding subscriptions for credit-exchanger user {user_id}"))
     }
 
     async fn register_producer(&self, producer: &CreditUserId, policy: &Financiers) -> Result<()> {
@@ -473,35 +698,27 @@ impl CreditExchangeService {
     }
 
     async fn delete_user_subscriptions(&self, user_id: &CreditUserId) -> Result<()> {
-        let url = self.endpoint(&format!("api/users/{user_id}/subscriptions"))?;
-        let response = self
-            .client
-            .get(url)
-            .send()
-            .await
-            .with_context(|| format!("listing subscriptions for credit-exchanger user {user_id}"))?;
-        if response.status() == StatusCode::NOT_FOUND {
-            return Ok(());
-        }
-        let response = Self::error_for_status(
-            response,
-            &format!("listing subscriptions for credit-exchanger user {user_id}"),
-        )
-        .await?;
-        let subscriptions = response
-            .json::<ListSubscriptionsResponse>()
-            .await
-            .with_context(|| format!("decoding subscriptions for credit-exchanger user {user_id}"))?;
+        let subscriptions = match self.list_subscriptions(user_id).await {
+            Ok(subscriptions) => subscriptions,
+            Err(error)
+                if error
+                    .downcast_ref::<CreditExchangeResponseError>()
+                    .is_some_and(|response| response.status() == StatusCode::NOT_FOUND) =>
+            {
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        };
 
         for subscription in subscriptions.subscriptions {
             let url = self.endpoint(&format!(
                 "api/users/{user_id}/subscriptions/{subscription_id}",
-                subscription_id = subscription.id,
+                subscription_id = subscription.id.0,
             ))?;
             let response = self.client.delete(url).send().await.with_context(|| {
                 format!(
                     "deleting subscription {subscription_id} for credit-exchanger user {user_id}",
-                    subscription_id = subscription.id,
+                    subscription_id = subscription.id.0,
                 )
             })?;
             if response.status() == StatusCode::NOT_FOUND {
@@ -511,7 +728,7 @@ impl CreditExchangeService {
                 response,
                 &format!(
                     "deleting subscription {subscription_id} for credit-exchanger user {user_id}",
-                    subscription_id = subscription.id,
+                    subscription_id = subscription.id.0,
                 ),
             )
             .await?;
@@ -524,12 +741,7 @@ impl CreditExchangeService {
         self.set_production(user_id, "money", value.value()).await
     }
 
-    async fn set_resource_production(
-        &self,
-        user_id: &CreditUserId,
-        resource: &ResourceName,
-        value: f32,
-    ) -> Result<()> {
+    async fn set_resource_production(&self, user_id: &CreditUserId, resource: &ResourceName, value: f32) -> Result<()> {
         self.set_production(user_id, resource.as_str(), value).await
     }
 
@@ -629,6 +841,62 @@ mod tests {
     }
 
     #[test]
+    fn credit_user_names_resolve_from_configured_mappings() {
+        let mappings = NameMappings::new(
+            HashMap::from([(
+                BlocKey::from("bloc-key".to_string()),
+                BlocName::from("Bloc Name".to_string()),
+            )]),
+            HashMap::from([(
+                ZoneKey::from("zone-key".to_string()),
+                ZoneName::from("Zone Name".to_string()),
+            )]),
+            HashMap::from([(
+                CharacterKey::from("character-key".to_string()),
+                CharacterName::from("Character Name".to_string()),
+            )]),
+        );
+
+        for (id, expected) in [
+            (
+                "character-key",
+                serde_json::json!({ "type": "character", "name": "Character Name" }),
+            ),
+            ("bloc-key", serde_json::json!({ "type": "bloc", "name": "Bloc Name" })),
+            ("zone-key", serde_json::json!({ "type": "zone", "name": "Zone Name" })),
+            (
+                "unknown-key",
+                serde_json::json!({ "type": "other", "id": "unknown-key" }),
+            ),
+        ] {
+            let name = CreditUserName::resolve(CreditUserId(id.to_string()), &mappings).unwrap();
+            assert_eq!(serde_json::to_value(name).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn ambiguous_credit_user_id_is_rejected() {
+        let mappings = NameMappings::new(
+            HashMap::from([(
+                BlocKey::from("shared-key".to_string()),
+                BlocName::from("Bloc Name".to_string()),
+            )]),
+            HashMap::new(),
+            HashMap::from([(
+                CharacterKey::from("shared-key".to_string()),
+                CharacterName::from("Character Name".to_string()),
+            )]),
+        );
+
+        let error = CreditUserName::resolve(CreditUserId("shared-key".to_string()), &mappings).unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "credit user ID shared-key matches multiple configured names"
+        );
+    }
+
+    #[test]
     fn financed_subscriptions_split_only_money() {
         let policy = Financiers::new(
             "primary".to_string(),
@@ -722,7 +990,26 @@ mod tests {
                     "/api/users/base-7/subscriptions",
                     web::get().to(|| async {
                         HttpResponse::Ok().json(serde_json::json!({
-                            "subscriptions": [{ "id": "first" }, { "id": "second" }]
+                            "subscriptions": [
+                                {
+                                    "id": "first",
+                                    "sender": "base-7",
+                                    "receiver": "receiver",
+                                    "value": 1.0,
+                                    "subscriptionType": "contract",
+                                    "priority": 0,
+                                    "creditType": "money"
+                                },
+                                {
+                                    "id": "second",
+                                    "sender": "base-7",
+                                    "receiver": "receiver",
+                                    "value": 2.0,
+                                    "subscriptionType": "sr",
+                                    "priority": 1,
+                                    "creditType": "iron"
+                                }
+                            ]
                         }))
                     }),
                 )

@@ -128,6 +128,18 @@ impl AuthenticatedUser {
     pub(crate) fn can_write_zone(&self, zone: &ZoneName) -> bool {
         self.zone_permissions.get(zone) == Some(&AccessLevel::Write)
     }
+
+    pub(crate) fn writable_blocs(&self) -> impl Iterator<Item = &BlocName> {
+        self.bloc_permissions
+            .iter()
+            .filter_map(|(bloc, access)| (*access == AccessLevel::Write).then_some(bloc))
+    }
+
+    pub(crate) fn writable_zones(&self) -> impl Iterator<Item = &ZoneName> {
+        self.zone_permissions
+            .iter()
+            .filter_map(|(zone, access)| (*access == AccessLevel::Write).then_some(zone))
+    }
 }
 
 impl AuthService {

@@ -30,7 +30,7 @@ impl<'de> Deserialize<'de> for ResourceName {
     }
 }
 
-#[derive(Debug, derive_more::Deref, Deserialize)]
+#[derive(Debug, Clone, derive_more::Deref, Deserialize)]
 pub(crate) struct VecResourceName(Vec<ResourceName>);
 
 impl std::fmt::Display for VecResourceName {

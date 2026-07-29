@@ -10,7 +10,7 @@ use crate::{
     services::credit_exchange_service::{CreditExchangeService, Money, ResourceValue, Resources, Share},
 };
 
-#[derive(Debug, Deserialize, Display)]
+#[derive(Debug, Clone, Deserialize, Display)]
 #[display("{}: {} ({})", type_name::<T>(), money, resources)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Cost<T> {
