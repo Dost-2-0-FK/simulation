@@ -291,9 +291,9 @@ impl CreditExchangeService {
         income: Money,
         producing: &Resources,
     ) -> Result<()> {
-        self.set_credit_production(&producer, income).await?;
+        self.set_credit_production(producer, income).await?;
         for resource in producing {
-            self.set_resource_production(&producer, resource.name(), resource.value())
+            self.set_resource_production(producer, resource.name(), resource.value())
                 .await?;
         }
         Ok(())
