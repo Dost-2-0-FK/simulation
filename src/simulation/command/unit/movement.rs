@@ -185,3 +185,124 @@ pub(super) async fn select_move_target(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use mongodb::bson::Uuid;
+    use ordered_float::NotNan;
+
+    use super::*;
+    use crate::{
+        domain::{
+            Bloc, BlocName, Chance, Loot, MilitaryBase, Placement, PlacementId, UnitState, Zone, ZoneKey, ZoneName,
+        },
+        services::credit_exchange_service::{Cost, Share},
+        simulation::command::combat,
+    };
+
+    fn point(x: f64, y: f64) -> Point {
+        Point::new(NotNan::new(x).unwrap(), NotNan::new(y).unwrap())
+    }
+
+    fn distance(value: f64) -> Distance {
+        serde_json::from_value(serde_json::json!(value)).unwrap()
+    }
+
+    fn world_bounds() -> WorldBounds {
+        serde_json::from_value(serde_json::json!({
+            "min_x": 0.0,
+            "max_x": 30.0,
+            "min_y": 0.0,
+            "max_y": 30.0
+        }))
+        .unwrap()
+    }
+
+    fn base(bloc: &str, position: Point) -> Arc<RwLock<MilitaryBase>> {
+        let bloc_key = BlocKey::from(bloc.to_string());
+        let bloc_name = BlocName::from(bloc.to_string());
+        let bloc_state = Arc::new(RwLock::new(Bloc::new(
+            bloc_key.clone(),
+            bloc_name.clone(),
+            Chance::new(1),
+            Share::default(),
+        )));
+        let zone = Arc::new(Zone::new_with_social_rules(
+            ZoneKey::from(format!("{bloc}-zone")),
+            ZoneName::from(format!("{bloc} zone")),
+            bloc_key,
+            bloc_name,
+            bloc_state,
+            Vec::new(),
+        ));
+        let placement = Arc::new(Placement::new(
+            serde_json::from_value::<PlacementId>(serde_json::json!(format!("{bloc}-placement"))).unwrap(),
+            zone,
+            position,
+        ));
+        let cost: Cost<MilitaryBase> = serde_json::from_value(serde_json::json!({
+            "money": 0.0,
+            "resources": {}
+        }))
+        .unwrap();
+
+        Arc::new(RwLock::new(MilitaryBase::new_prepaid(
+            Vec::new(),
+            &cost,
+            &Default::default(),
+            placement,
+        )))
+    }
+
+    fn unit(base: Arc<RwLock<MilitaryBase>>, position: Point) -> Arc<RwLock<MilitaryUnit>> {
+        Arc::new(RwLock::new(MilitaryUnit::from_persisted(
+            Uuid::new(),
+            base,
+            position,
+            UnitState::Alive,
+            Loot::default(),
+        )))
+    }
+
+    #[tokio::test]
+    async fn movement_after_mutual_kill_does_not_target_dead_units_or_create_combat() {
+        let combat_position = point(10.0, 10.0);
+        let surviving_position = point(20.0, 20.0);
+        let bloc_a = BlocKey::from("a".to_string());
+        let bloc_b = BlocKey::from("b".to_string());
+        let base_a = base("a", combat_position);
+        let unit_a = unit(base_a.clone(), combat_position);
+        let unit_b = unit(base("b", combat_position), combat_position);
+        let surviving_unit = unit(base_a, surviving_position);
+        let unit_a_id = unit_a.read().await.id();
+        let unit_b_id = unit_b.read().await.id();
+        let surviving_unit_id = surviving_unit.read().await.id();
+
+        let mut units = HashMap::from([
+            (unit_a_id, unit_a.clone()),
+            (unit_b_id, unit_b.clone()),
+            (surviving_unit_id, surviving_unit.clone()),
+        ]);
+        let combat = Combat::new(CombatParameters::Units(HashMap::from([
+            (bloc_a, HashMap::from([(unit_a_id, unit_a)])),
+            (bloc_b, HashMap::from([(unit_b_id, unit_b)])),
+        ])))
+        .await;
+        let mut combats = HashMap::from([(combat_position, Arc::new(RwLock::new(combat)))]);
+
+        let events = combat::tick(&mut combats).await;
+
+        assert!(matches!(
+            events.as_slice(),
+            [crate::domain::CombatEvent::UnitsKilled { units }] if units.len() == 2
+        ));
+        combat::clear_dead_units(&mut units).await;
+        assert_eq!(units.len(), 1);
+        assert!(units.contains_key(&surviving_unit_id));
+
+        move_units(&mut units, &mut combats, distance(1.0), world_bounds(), 1, 1).await;
+
+        assert!(combats.is_empty());
+        assert_eq!(surviving_unit.read().await.position(), surviving_position);
+    }
+}
