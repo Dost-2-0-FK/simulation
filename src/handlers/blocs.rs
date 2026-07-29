@@ -148,10 +148,7 @@ pub(crate) async fn patch(
     mappings: web::Data<NameMappings>,
 ) -> Result<impl Responder> {
     let name = path.into_inner();
-    let id = mappings
-        .bloc_key(&name)
-        .cloned()
-        .ok_or(UserError::NotFound("Bloc"))?;
+    let id = mappings.bloc_key(&name).cloned().ok_or(UserError::NotFound("Bloc"))?;
     match body.required_authorization()? {
         PatchBlocAuthorization::BlocWrite => require_bloc_write(&session, &name)?,
         PatchBlocAuthorization::CoordinationService => {

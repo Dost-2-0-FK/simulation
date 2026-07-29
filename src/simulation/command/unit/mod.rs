@@ -34,10 +34,8 @@ pub(crate) async fn get(
                 config.world_bounds(),
             )
             .await;
-            let base_response = crate::handlers::bases::BaseResponse::new(
-                &base_guard,
-                config.name_mappings().as_ref(),
-            )?;
+            let base_response =
+                crate::handlers::bases::BaseResponse::new(&base_guard, config.name_mappings().as_ref())?;
             Ok(UnitResponse::new(&unit_guard, Some(base_response), target))
         })
         .collect::<Vec<core::result::Result<_, UserError>>>()

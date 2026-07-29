@@ -59,8 +59,7 @@ impl ProductionUnit {
     }
 
     pub(crate) async fn production_without_inhibition(&self) -> Resources {
-        self.production
-            .with_factor(self.zone.production_unit_factor().await)
+        self.production.with_factor(self.zone.production_unit_factor().await)
     }
 
     pub(crate) fn income(&self, produced: ResourceValue<'_>, existing_resource_units: f32) -> Money {

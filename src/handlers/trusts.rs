@@ -39,7 +39,8 @@ pub(crate) struct TrustResponse {
     position: Point,
     /// The resource produced by this trust. Visible regardless of zone permissions.
     resource: ResourceName,
-    /// The inhibition radius applied after capping the configured radius by half the distance to the nearest placement.
+    /// The inhibition radius applied after capping the configured radius by half the distance to the nearest
+    /// placement.
     inhibition_radius: Distance,
     /// The current monetary income after applying the resource-supply discount. Omitted without read access to the
     /// zone.

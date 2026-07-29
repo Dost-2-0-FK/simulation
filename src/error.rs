@@ -32,10 +32,7 @@ pub enum UserError {
 
 impl error::ResponseError for UserError {
     fn error_response(&self) -> HttpResponse {
-        if let Self::PaymentRequired(body)
-        | Self::CreditExchange { body, .. }
-        | Self::AuthService { body, .. } = self
-        {
+        if let Self::PaymentRequired(body) | Self::CreditExchange { body, .. } | Self::AuthService { body, .. } = self {
             return HttpResponse::build(self.status_code())
                 .insert_header(ContentType::plaintext())
                 .body(body.clone());

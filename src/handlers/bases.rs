@@ -41,10 +41,7 @@ pub(crate) struct FinancingResponse {
     share: Share,
 }
 
-pub(crate) fn resolve_financing(
-    requests: Vec<FinancingRequest>,
-    mappings: &NameMappings,
-) -> Result<Vec<Financing>> {
+pub(crate) fn resolve_financing(requests: Vec<FinancingRequest>, mappings: &NameMappings) -> Result<Vec<Financing>> {
     requests
         .into_iter()
         .map(|request| {
@@ -67,13 +64,10 @@ pub(crate) fn financing_response(
     financing
         .iter()
         .map(|financing| {
-            let financier = mappings
-                .character_name(&financing.financier)
-                .cloned()
-                .ok_or_else(|| {
-                    log::error!("Unknown configured character key {}", financing.financier);
-                    UserError::InternalError
-                })?;
+            let financier = mappings.character_name(&financing.financier).cloned().ok_or_else(|| {
+                log::error!("Unknown configured character key {}", financing.financier);
+                UserError::InternalError
+            })?;
             Ok(FinancingResponse {
                 financier,
                 share: financing.share,
@@ -469,13 +463,9 @@ mod tests {
 
     use ordered_float::NotNan;
 
-    use super::{
-        BaseResponse, BaseTargetResponse, Financing, FinancingRequest, financing_response, resolve_financing,
-    };
+    use super::{BaseResponse, BaseTargetResponse, Financing, FinancingRequest, financing_response, resolve_financing};
     use crate::{
-        domain::{
-            BaseId, BlocName, CharacterKey, CharacterName, Loot, NameMappings, PlacementId, ZoneName,
-        },
+        domain::{BaseId, BlocName, CharacterKey, CharacterName, Loot, NameMappings, PlacementId, ZoneName},
         geometry::Point,
     };
 

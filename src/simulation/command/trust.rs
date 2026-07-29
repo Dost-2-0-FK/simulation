@@ -541,16 +541,10 @@ mod tests {
             Some(serde_json::from_value::<SocialRuleFactorPerLevel>(serde_json::json!(0.1)).unwrap()),
             None,
         );
-        let trust = trust_with_social_rules(
-            point(10.0, 10.0),
-            vec![ZoneSocialRule::new(rule, level)],
-        );
+        let trust = trust_with_social_rules(point(10.0, 10.0), vec![ZoneSocialRule::new(rule, level)]);
 
         let produced = trust.production_with_inhibition(Share::from(0.25)).await;
 
-        assert_eq!(
-            produced.get(&ResourceName::new("iron".to_string())),
-            Some(2.4)
-        );
+        assert_eq!(produced.get(&ResourceName::new("iron".to_string())), Some(2.4));
     }
 }

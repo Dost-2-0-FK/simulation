@@ -79,8 +79,8 @@ use tokio::sync::{Mutex, RwLock, mpsc::Receiver, oneshot::Sender};
 use crate::{
     config::Config,
     domain::{
-        BaseId, Bloc, BlocKey, Chance, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, Target, Trust,
-        ProductionUnit, ProductionUnitKey, SocialRuleLevel, SocialRuleName, TrustId, UnitId, Zone, ZoneKey,
+        BaseId, Bloc, BlocKey, Chance, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, ProductionUnit,
+        ProductionUnitKey, SocialRuleLevel, SocialRuleName, Target, Trust, TrustId, UnitId, Zone, ZoneKey,
     },
     error::UserError,
     geometry::Point,
@@ -347,13 +347,7 @@ pub(crate) async fn run(
                 production_unit::get_all(response, &production_units, config.credit_exchange_service()).await;
             }
             Command::GetProductionUnit(key, response) => {
-                production_unit::get(
-                    &key,
-                    response,
-                    &production_units,
-                    config.credit_exchange_service(),
-                )
-                .await;
+                production_unit::get(&key, response, &production_units, config.credit_exchange_service()).await;
             }
             Command::DeleteTrust { id, response } => {
                 let result = deletion::delete_trust(
@@ -377,14 +371,7 @@ pub(crate) async fn run(
                 social_rules,
                 response,
             } => {
-                zone::patch(
-                    response,
-                    config.zones(),
-                    config.auth_service(),
-                    &id,
-                    &social_rules,
-                )
-                .await;
+                zone::patch(response, config.zones(), config.auth_service(), &id, &social_rules).await;
             }
             Command::GetBlocs(resp) => {
                 bloc::get_all(resp, &blocs).await;

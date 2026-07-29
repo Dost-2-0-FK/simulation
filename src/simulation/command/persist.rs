@@ -5,14 +5,16 @@ use tokio::sync::RwLock;
 use crate::{
     domain::{
         BaseId, Bloc, BlocKey, Combat, MilitaryBase, MilitaryUnit, ProductionUnit, ProductionUnitKey, Trust, TrustId,
-        UnitId,
-        Zone,
+        UnitId, Zone,
     },
     geometry::Point,
     persistence::MongoPersistence,
 };
 
-#[expect(clippy::too_many_arguments, reason = "persists each top-level simulation state collection")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "persists each top-level simulation state collection"
+)]
 pub(crate) async fn persist_all(
     persistence: &MongoPersistence,
     units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
@@ -67,10 +69,7 @@ pub(crate) async fn persist_all(
             log::error!("Error persisting production unit: {e:#}");
         }
     }
-    if let Err(e) = persistence
-        .delete_production_units_except(production_unit_keys)
-        .await
-    {
+    if let Err(e) = persistence.delete_production_units_except(production_unit_keys).await {
         log::error!("Error deleting stale production units: {e:#}");
     }
 

@@ -1,11 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Context, Result, anyhow};
+use derive_more::{Display, Error};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use url::Url;
-
-use derive_more::{Display, Error};
 
 use crate::{
     domain::{
@@ -317,11 +316,9 @@ mod tests {
         AccessLevel, AuthenticatedUser, AuthenticationResponse, FinancedObject, FinancingVerificationRequest,
         LoginCredentials, SocialRuleUpdateRequest,
     };
-    use crate::{
-        domain::{
-            BlocKey, BlocName, CharacterKey, CharacterName, NameMappings, PlacementId, SocialRuleKey,
-            SocialRuleLevel, ZoneKey, ZoneName,
-        },
+    use crate::domain::{
+        BlocKey, BlocName, CharacterKey, CharacterName, NameMappings, PlacementId, SocialRuleKey, SocialRuleLevel,
+        ZoneKey, ZoneName,
     };
 
     #[test]

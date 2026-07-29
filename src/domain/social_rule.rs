@@ -55,9 +55,7 @@ impl<'de> Deserialize<'de> for SocialRuleFactorPerLevel {
         if value.is_finite() {
             Ok(Self(value))
         } else {
-            Err(serde::de::Error::custom(
-                "social-rule factor per level must be finite",
-            ))
+            Err(serde::de::Error::custom("social-rule factor per level must be finite"))
         }
     }
 }
@@ -191,8 +189,7 @@ pub(crate) fn production_factor(
     let contribution = social_rules
         .iter()
         .filter_map(|assignment| {
-            factor_per_level(assignment.rule())
-                .map(|factor| assignment.level().value() as f32 * factor.value())
+            factor_per_level(assignment.rule()).map(|factor| assignment.level().value() as f32 * factor.value())
         })
         .sum::<f32>();
     ProductionFactor::new(1.0 + contribution)

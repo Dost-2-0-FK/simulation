@@ -15,8 +15,8 @@ pub(crate) use combat::{
     LootTransfer, UnitKilled,
     loot::{Loot, LootFactors},
 };
-pub(crate) use placement::{Placement, PlacementId};
 pub(crate) use names::NameMappings;
+pub(crate) use placement::{Placement, PlacementId};
 pub(crate) use politics::{
     Bloc, BlocKey, BlocName, Chance, CharacterKey, CharacterName, PersistedSocialRuleError, SocialRulePatchError, Zone,
     ZoneKey, ZoneName,

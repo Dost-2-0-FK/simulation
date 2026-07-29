@@ -1,7 +1,4 @@
-use std::{
-    collections::HashSet,
-    sync::Arc,
-};
+use std::{collections::HashSet, sync::Arc};
 
 use derive_more::Display;
 use rand::RngExt as _;
@@ -44,7 +41,6 @@ macro_rules! string_identifier {
                 value.0
             }
         }
-
     };
 }
 
@@ -127,17 +123,15 @@ impl Zone {
     }
 
     pub(crate) async fn trust_production_factor(&self) -> ProductionFactor {
-        production_factor(
-            &self.social_rules.read().await,
-            |rule| rule.trust_production_factor_per_level(),
-        )
+        production_factor(&self.social_rules.read().await, |rule| {
+            rule.trust_production_factor_per_level()
+        })
     }
 
     pub(crate) async fn production_unit_factor(&self) -> ProductionFactor {
-        production_factor(
-            &self.social_rules.read().await,
-            |rule| rule.production_unit_factor_per_level(),
-        )
+        production_factor(&self.social_rules.read().await, |rule| {
+            rule.production_unit_factor_per_level()
+        })
     }
 
     pub(crate) async fn patch_social_rule_levels(
@@ -248,10 +242,7 @@ pub(crate) enum SocialRulePatchError {
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum PersistedSocialRuleError {
     UnassignedRule,
-    LevelOutOfRange {
-        min: SocialRuleLevel,
-        max: SocialRuleLevel,
-    },
+    LevelOutOfRange { min: SocialRuleLevel, max: SocialRuleLevel },
 }
 
 /// Every unit belongs to a [Zone], which belongs to a [Bloc], which implies a [Chance].
@@ -383,11 +374,12 @@ mod tests {
     #[tokio::test]
     async fn social_rule_patch_is_atomic() {
         let zone = zone();
-        let result = zone.patch_social_rule_levels(&[
-            (SocialRuleName::from("One".to_string()), level(0)),
-            (SocialRuleName::from("Two".to_string()), level(3)),
-        ])
-        .await;
+        let result = zone
+            .patch_social_rule_levels(&[
+                (SocialRuleName::from("One".to_string()), level(0)),
+                (SocialRuleName::from("Two".to_string()), level(3)),
+            ])
+            .await;
 
         assert!(matches!(result, Err(SocialRulePatchError::LevelOutOfRange { .. })));
         assert_eq!(

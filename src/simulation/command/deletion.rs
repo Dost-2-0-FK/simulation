@@ -5,14 +5,13 @@ use std::{
 
 use tokio::sync::RwLock;
 
+use super::combat;
 use crate::{
     domain::{BaseId, Combat, CombatStructureSnapshot, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId},
     error::UserError,
     geometry::Point,
     services::credit_exchange_service::CreditExchangeService,
 };
-
-use super::combat;
 
 pub(crate) async fn delete_base(
     id: BaseId,

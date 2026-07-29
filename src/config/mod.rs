@@ -293,10 +293,7 @@ struct CharacterConfig {
     name: CharacterName,
 }
 
-fn validate_unique<'a, T>(
-    kind: &str,
-    values: impl Iterator<Item = &'a T>,
-) -> Result<()>
+fn validate_unique<'a, T>(kind: &str, values: impl Iterator<Item = &'a T>) -> Result<()>
 where
     T: Eq + Hash + fmt::Display + 'a,
 {
@@ -467,8 +464,13 @@ impl Config {
                 let base_income = self
                     .trust_base_income(&seed.resource)
                     .expect("seed production unit money was validated while parsing config");
-                let production_unit =
-                    ProductionUnit::new(seed.key.clone(), zone, seed.resource.clone(), resource_amount, base_income);
+                let production_unit = ProductionUnit::new(
+                    seed.key.clone(),
+                    zone,
+                    seed.resource.clone(),
+                    resource_amount,
+                    base_income,
+                );
                 (seed.key.clone(), Arc::new(RwLock::new(production_unit)))
             })
             .collect();
@@ -483,30 +485,12 @@ impl Config {
     async fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
 
-        validate_unique(
-            "bloc key",
-            config.blocs.iter().map(|bloc| &bloc.key),
-        )?;
-        validate_unique(
-            "bloc name",
-            config.blocs.iter().map(|bloc| &bloc.name),
-        )?;
-        validate_unique(
-            "zone key",
-            config.zones.iter().map(|zone| &zone.key),
-        )?;
-        validate_unique(
-            "zone name",
-            config.zones.iter().map(|zone| &zone.name),
-        )?;
-        validate_unique(
-            "social rule key",
-            config.social_rules.iter().map(|rule| &rule.key),
-        )?;
-        validate_unique(
-            "social rule name",
-            config.social_rules.iter().map(|rule| &rule.name),
-        )?;
+        validate_unique("bloc key", config.blocs.iter().map(|bloc| &bloc.key))?;
+        validate_unique("bloc name", config.blocs.iter().map(|bloc| &bloc.name))?;
+        validate_unique("zone key", config.zones.iter().map(|zone| &zone.key))?;
+        validate_unique("zone name", config.zones.iter().map(|zone| &zone.name))?;
+        validate_unique("social rule key", config.social_rules.iter().map(|rule| &rule.key))?;
+        validate_unique("social rule name", config.social_rules.iter().map(|rule| &rule.name))?;
         validate_unique(
             "character key",
             config.characters.iter().map(|character| &character.key),
