@@ -26,11 +26,16 @@ pub enum UserError {
     PaymentRequired(#[error(not(source))] String),
     #[display("{body}")]
     CreditExchange { status: u16, body: String },
+    #[display("{body}")]
+    AuthService { status: u16, body: String },
 }
 
 impl error::ResponseError for UserError {
     fn error_response(&self) -> HttpResponse {
-        if let Self::PaymentRequired(body) | Self::CreditExchange { body, .. } = self {
+        if let Self::PaymentRequired(body)
+        | Self::CreditExchange { body, .. }
+        | Self::AuthService { body, .. } = self
+        {
             return HttpResponse::build(self.status_code())
                 .insert_header(ContentType::plaintext())
                 .body(body.clone());
@@ -52,6 +57,7 @@ impl error::ResponseError for UserError {
             UserError::Forbidden => StatusCode::FORBIDDEN,
             UserError::PaymentRequired(_) => StatusCode::PAYMENT_REQUIRED,
             UserError::CreditExchange { status, .. } => StatusCode::from_u16(status).unwrap_or(StatusCode::BAD_GATEWAY),
+            UserError::AuthService { status, .. } => StatusCode::from_u16(status).unwrap_or(StatusCode::BAD_GATEWAY),
         }
     }
 }
@@ -85,6 +91,25 @@ mod tests {
         assert_eq!(
             to_bytes(response.into_body()).await.unwrap(),
             "Failed to query credit service."
+        );
+    }
+
+    #[actix_web::test]
+    async fn auth_service_response_is_forwarded() {
+        let response = UserError::AuthService {
+            status: StatusCode::UNPROCESSABLE_ENTITY.as_u16(),
+            body: "Invalid social-rule update".to_string(),
+        }
+        .error_response();
+
+        assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        assert_eq!(
+            response.headers().get("content-type").unwrap(),
+            "text/plain; charset=utf-8"
+        );
+        assert_eq!(
+            to_bytes(response.into_body()).await.unwrap(),
+            "Invalid social-rule update"
         );
     }
 }

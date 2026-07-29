@@ -24,7 +24,8 @@ pub(crate) use politics::{
 pub(crate) use production::{Production, ProductionFactor};
 pub(crate) use production_unit::{ProductionUnit, ProductionUnitKey};
 pub(crate) use social_rule::{
-    SocialRule, SocialRuleFactorPerLevel, SocialRuleKey, SocialRuleLevel, SocialRuleName, ZoneSocialRule,
+    SocialRule, SocialRuleFactorPerLevel, SocialRuleKey, SocialRuleLevel, SocialRuleLevelChange, SocialRuleName,
+    ZoneSocialRule,
 };
 pub(crate) use trust::{Trust, TrustId};
 pub(crate) use unit::{AttackOutcome, MilitaryUnit, UnitId, UnitState};

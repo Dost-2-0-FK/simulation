@@ -244,6 +244,9 @@ pub(crate) async fn post(
             UserError::CreditExchange { status, body } => {
                 log::info!("credit exchange rejected base creation with {status}: {body}")
             }
+            UserError::AuthService { status, body } => {
+                log::info!("auth service rejected base creation with {status}: {body}")
+            }
         }
     }
 

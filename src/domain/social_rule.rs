@@ -11,6 +11,12 @@ impl From<String> for SocialRuleKey {
     }
 }
 
+impl SocialRuleKey {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
 pub(crate) struct SocialRuleName(String);
 
@@ -135,6 +141,46 @@ impl ZoneSocialRule {
 
     pub(crate) fn set_level(&mut self, level: SocialRuleLevel) {
         self.level = level;
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SocialRuleLevelChange {
+    key: SocialRuleKey,
+    name: SocialRuleName,
+    old_level: SocialRuleLevel,
+    level: SocialRuleLevel,
+}
+
+impl SocialRuleLevelChange {
+    pub(crate) fn new(
+        key: SocialRuleKey,
+        name: SocialRuleName,
+        old_level: SocialRuleLevel,
+        level: SocialRuleLevel,
+    ) -> Self {
+        Self {
+            key,
+            name,
+            old_level,
+            level,
+        }
+    }
+
+    pub(crate) fn key(&self) -> &SocialRuleKey {
+        &self.key
+    }
+
+    pub(crate) fn name(&self) -> &SocialRuleName {
+        &self.name
+    }
+
+    pub(crate) fn old_level(&self) -> SocialRuleLevel {
+        self.old_level
+    }
+
+    pub(crate) fn level(&self) -> SocialRuleLevel {
+        self.level
     }
 }
 

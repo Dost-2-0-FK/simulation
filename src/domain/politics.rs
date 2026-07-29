@@ -10,7 +10,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::{
     domain::{
-        ProductionFactor, SocialRuleKey, SocialRuleLevel, SocialRuleName, ZoneSocialRule,
+        ProductionFactor, SocialRuleKey, SocialRuleLevel, SocialRuleLevelChange, SocialRuleName, ZoneSocialRule,
         social_rule::production_factor,
     },
     services::credit_exchange_service::Share,
@@ -144,28 +144,8 @@ impl Zone {
         &self,
         patches: &[(SocialRuleName, SocialRuleLevel)],
     ) -> core::result::Result<(), SocialRulePatchError> {
-        let mut names = HashSet::with_capacity(patches.len());
-        for (name, _) in patches {
-            if !names.insert(name) {
-                return Err(SocialRulePatchError::DuplicateRule(name.clone()));
-            }
-        }
-
         let mut social_rules = self.social_rules.write().await;
-        for (name, level) in patches {
-            let assignment = social_rules
-                .iter()
-                .find(|assignment| assignment.rule().name() == name)
-                .ok_or_else(|| SocialRulePatchError::UnassignedRule(name.clone()))?;
-            if !assignment.rule().accepts(*level) {
-                return Err(SocialRulePatchError::LevelOutOfRange {
-                    name: name.clone(),
-                    level: *level,
-                    min: assignment.rule().min_level(),
-                    max: assignment.rule().max_level(),
-                });
-            }
-        }
+        validate_social_rule_level_patch(&social_rules, patches)?;
 
         for (name, level) in patches {
             social_rules
@@ -175,6 +155,32 @@ impl Zone {
                 .set_level(*level);
         }
         Ok(())
+    }
+
+    pub(crate) async fn social_rule_level_changes(
+        &self,
+        patches: &[(SocialRuleName, SocialRuleLevel)],
+    ) -> core::result::Result<Vec<SocialRuleLevelChange>, SocialRulePatchError> {
+        let social_rules = self.social_rules.read().await;
+        validate_social_rule_level_patch(&social_rules, patches)?;
+
+        Ok(patches
+            .iter()
+            .filter_map(|(name, level)| {
+                let assignment = social_rules
+                    .iter()
+                    .find(|assignment| assignment.rule().name() == name)
+                    .expect("social-rule patches were validated above");
+                (assignment.level() != *level).then(|| {
+                    SocialRuleLevelChange::new(
+                        assignment.rule().key().clone(),
+                        name.clone(),
+                        assignment.level(),
+                        *level,
+                    )
+                })
+            })
+            .collect())
     }
 
     pub(crate) async fn apply_persisted_social_rule_level(
@@ -196,6 +202,35 @@ impl Zone {
         assignment.set_level(level);
         Ok(())
     }
+}
+
+fn validate_social_rule_level_patch(
+    social_rules: &[ZoneSocialRule],
+    patches: &[(SocialRuleName, SocialRuleLevel)],
+) -> core::result::Result<(), SocialRulePatchError> {
+    let mut names = HashSet::with_capacity(patches.len());
+    for (name, _) in patches {
+        if !names.insert(name) {
+            return Err(SocialRulePatchError::DuplicateRule(name.clone()));
+        }
+    }
+
+    for (name, level) in patches {
+        let assignment = social_rules
+            .iter()
+            .find(|assignment| assignment.rule().name() == name)
+            .ok_or_else(|| SocialRulePatchError::UnassignedRule(name.clone()))?;
+        if !assignment.rule().accepts(*level) {
+            return Err(SocialRulePatchError::LevelOutOfRange {
+                name: name.clone(),
+                level: *level,
+                min: assignment.rule().min_level(),
+                max: assignment.rule().max_level(),
+            });
+        }
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -380,5 +415,24 @@ mod tests {
             zone.patch_social_rule_levels(&[(missing.clone(), level(0))]).await,
             Err(SocialRulePatchError::UnassignedRule(missing))
         );
+    }
+
+    #[tokio::test]
+    async fn social_rule_level_changes_contain_only_genuine_changes_in_patch_order() {
+        let zone = zone();
+
+        let changes = zone
+            .social_rule_level_changes(&[
+                (SocialRuleName::from("Two".to_string()), level(0)),
+                (SocialRuleName::from("One".to_string()), level(2)),
+            ])
+            .await
+            .unwrap();
+
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].key(), &SocialRuleKey::from("two".to_string()));
+        assert_eq!(changes[0].name(), &SocialRuleName::from("Two".to_string()));
+        assert_eq!(changes[0].old_level(), level(-1));
+        assert_eq!(changes[0].level(), level(0));
     }
 }

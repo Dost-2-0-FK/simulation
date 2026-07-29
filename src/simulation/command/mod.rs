@@ -377,7 +377,14 @@ pub(crate) async fn run(
                 social_rules,
                 response,
             } => {
-                zone::patch(response, config.zones(), &id, &social_rules).await;
+                zone::patch(
+                    response,
+                    config.zones(),
+                    config.auth_service(),
+                    &id,
+                    &social_rules,
+                )
+                .await;
             }
             Command::GetBlocs(resp) => {
                 bloc::get_all(resp, &blocs).await;

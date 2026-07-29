@@ -5,9 +5,12 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+use derive_more::{Display, Error};
+
 use crate::{
     domain::{
-        BlocKey, BlocName, CharacterKey, CharacterName, NameMappings, PlacementId, ZoneKey, ZoneName,
+        BlocKey, BlocName, CharacterKey, CharacterName, NameMappings, PlacementId, SocialRuleKey, SocialRuleLevel,
+        ZoneKey, ZoneName,
     },
     handlers::bases::Financing,
     services::credit_exchange_service::ResourceName,
@@ -36,6 +39,36 @@ struct FinancingVerificationRequest<'a> {
     placement_id: &'a PlacementId,
     object_type: FinancedObject,
     trust_type: &'a str,
+}
+
+#[derive(Debug, Serialize)]
+struct SocialRuleUpdateRequest<'a> {
+    name: &'a SocialRuleKey,
+    level: SocialRuleLevel,
+    #[serde(rename = "levelOld")]
+    old_level: SocialRuleLevel,
+    zone: &'a ZoneKey,
+}
+
+#[derive(Debug, Display, Error)]
+#[display("auth service returned {status}: {body}")]
+pub(crate) struct AuthServiceResponseError {
+    status: StatusCode,
+    body: String,
+}
+
+impl AuthServiceResponseError {
+    fn new(status: StatusCode, body: String) -> Self {
+        Self { status, body }
+    }
+
+    pub(crate) fn status(&self) -> StatusCode {
+        self.status
+    }
+
+    pub(crate) fn body(&self) -> &str {
+        &self.body
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
@@ -219,6 +252,49 @@ impl AuthService {
 
         Ok(true)
     }
+
+    pub(crate) async fn publish_social_rule_update(
+        &self,
+        rule: &SocialRuleKey,
+        level: SocialRuleLevel,
+        old_level: SocialRuleLevel,
+        zone: &ZoneKey,
+    ) -> Result<()> {
+        let endpoint = self.social_rule_update_endpoint(rule)?;
+        let response = self
+            .client
+            .post(endpoint)
+            .json(&SocialRuleUpdateRequest {
+                name: rule,
+                level,
+                old_level,
+                zone,
+            })
+            .send()
+            .await
+            .context("publishing social-rule update")?;
+
+        if response.status().is_success() {
+            return Ok(());
+        }
+
+        let status = response.status();
+        let body = response.text().await.unwrap_or_else(|err| err.to_string());
+        Err(AuthServiceResponseError::new(status, body).into())
+    }
+
+    fn social_rule_update_endpoint(&self, rule: &SocialRuleKey) -> Result<Url> {
+        let mut endpoint = self
+            .url
+            .join("api/events/social/")
+            .context("building auth-service social-rule update endpoint")?;
+        endpoint
+            .path_segments_mut()
+            .map_err(|()| anyhow!("auth-service URL cannot contain path segments"))?
+            .pop_if_empty()
+            .push(rule.as_str());
+        Ok(endpoint)
+    }
 }
 
 #[cfg(test)]
@@ -227,11 +303,12 @@ mod tests {
 
     use super::{
         AccessLevel, AuthenticatedUser, AuthenticationResponse, FinancedObject, FinancingVerificationRequest,
-        LoginCredentials,
+        LoginCredentials, SocialRuleUpdateRequest,
     };
     use crate::{
         domain::{
-            BlocKey, BlocName, CharacterKey, CharacterName, NameMappings, PlacementId, ZoneKey, ZoneName,
+            BlocKey, BlocName, CharacterKey, CharacterName, NameMappings, PlacementId, SocialRuleKey,
+            SocialRuleLevel, ZoneKey, ZoneName,
         },
     };
 
@@ -348,6 +425,44 @@ mod tests {
                 "objectType": "base",
                 "trustType": ""
             })
+        );
+    }
+
+    #[test]
+    fn social_rule_update_request_matches_the_auth_service_contract() {
+        let rule = SocialRuleKey::from("social-rule".to_string());
+        let level = serde_json::from_value::<SocialRuleLevel>(serde_json::json!(2)).unwrap();
+        let zone = ZoneKey::from("zone".to_string());
+
+        assert_eq!(
+            serde_json::to_value(SocialRuleUpdateRequest {
+                name: &rule,
+                level,
+                old_level: serde_json::from_value::<SocialRuleLevel>(serde_json::json!(0)).unwrap(),
+                zone: &zone,
+            })
+            .unwrap(),
+            serde_json::json!({
+                "name": "social-rule",
+                "level": 2,
+                "levelOld": 0,
+                "zone": "zone"
+            })
+        );
+    }
+
+    #[test]
+    fn social_rule_key_is_one_encoded_endpoint_segment() {
+        let mappings = NameMappings::new(HashMap::new(), HashMap::new(), HashMap::new());
+        let service = super::AuthService::new("http://localhost/".parse().unwrap(), Arc::new(mappings));
+
+        let endpoint = service
+            .social_rule_update_endpoint(&SocialRuleKey::from("rule/with space".to_string()))
+            .unwrap();
+
+        assert_eq!(
+            endpoint.as_str(),
+            "http://localhost/api/events/social/rule%2Fwith%20space"
         );
     }
 }
