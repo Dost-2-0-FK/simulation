@@ -23,7 +23,38 @@ wait_for_tcp() {
   return 1
 }
 
-wait_for_tcp "${MONGODB_HOST:-mongodb}" "${MONGODB_PORT:-27017}" "MongoDB"
-wait_for_tcp "${CREDIT_EXCHANGER_HOST:-credit-exchanger}" "${CREDIT_EXCHANGER_PORT:-18080}" "credit-exchanger"
+wait_for_uri() {
+  local uri="$1"
+  local default_port="$2"
+  local name="$3"
+  local authority host port
 
-exec simulation
+  authority="${uri#*://}"
+  authority="${authority%%[/?#]*}"
+  authority="${authority##*@}"
+  authority="${authority%%,*}"
+
+  if [[ "$authority" =~ ^\[([^]]+)\](:([0-9]+))?$ ]]; then
+    host="${BASH_REMATCH[1]}"
+    port="${BASH_REMATCH[3]:-$default_port}"
+  elif [[ "$authority" =~ ^([^:]+)(:([0-9]+))?$ ]]; then
+    host="${BASH_REMATCH[1]}"
+    port="${BASH_REMATCH[3]:-$default_port}"
+  else
+    echo "Unable to determine the $name endpoint from $uri" >&2
+    return 1
+  fi
+
+  wait_for_tcp "$host" "$port" "$name"
+}
+
+wait_for_uri "${MONGODB_URI:-mongodb://mongodb:27017}" 27017 "MongoDB"
+
+credit_exchange_url="${CREDIT_EXCHANGE_URL:-http://credit-exchanger:18080}"
+case "$credit_exchange_url" in
+  https://*) credit_exchange_default_port=443 ;;
+  *) credit_exchange_default_port=80 ;;
+esac
+wait_for_uri "$credit_exchange_url" "$credit_exchange_default_port" "credit-exchanger"
+
+exec simulation "$@"
