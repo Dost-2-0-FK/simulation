@@ -561,6 +561,7 @@ impl Config {
         }
     }
 
+    #[cfg(test)]
     async fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
         Self::parse_toml_config(config).await
