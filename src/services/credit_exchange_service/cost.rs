@@ -1,14 +1,16 @@
-use std::{any::type_name, marker::PhantomData};
+use std::{any::type_name, collections::HashMap, marker::PhantomData};
 
 use anyhow::{Result, bail};
 use derive_more::Display;
 use serde::Deserialize;
 
 use crate::{
-    domain::{BlocKey, MilitaryUnit},
+    domain::{BlocKey, MilitaryUnit, Trust},
     handlers::bases::Financing,
     services::credit_exchange_service::{CreditExchangeService, Money, ResourceValue, Resources, Share},
 };
+
+use super::ResourceName;
 
 #[derive(Debug, Clone, Deserialize, Display)]
 #[display("{}: {} ({})", type_name::<T>(), money, resources)]
@@ -31,6 +33,20 @@ impl<T> Cost<T> {
 
     pub(crate) fn resources_owned(&self) -> Resources {
         self.resources.clone()
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(transparent)]
+pub(crate) struct TrustCosts(HashMap<ResourceName, Cost<Trust>>);
+
+impl TrustCosts {
+    pub(crate) fn get(&self, resource: &ResourceName) -> Option<&Cost<Trust>> {
+        self.0.get(resource)
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (&ResourceName, &Cost<Trust>)> {
+        self.0.iter()
     }
 }
 

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 pub(crate) use self::{
-    cost::{Cost, Financiers, Payment, SinglePayer},
+    cost::{Cost, Financiers, Payment, SinglePayer, TrustCosts},
     money::Money,
     resources::{MoneyPerResource, ResourceName, ResourceValue, Resources, ResourcesFactors, VecResourceName},
     share::Share,
@@ -254,7 +254,7 @@ pub(crate) struct CreditExchangeService {
     bank_user_id: String,
     resources: VecResourceName,
     pub(crate) military_unit: Cost<MilitaryUnit>,
-    pub(crate) trust: Cost<Trust>,
+    trust: TrustCosts,
     pub(crate) military_base: Cost<MilitaryBase>,
     loot_factors: LootFactors,
 }
@@ -294,7 +294,7 @@ impl CreditExchangeService {
         bank_user_id: String,
         military_unit_cost: Cost<MilitaryUnit>,
         military_base_cost: Cost<MilitaryBase>,
-        trust_cost: Cost<Trust>,
+        trust_costs: TrustCosts,
         resources: VecResourceName,
         loot_factors: LootFactors,
     ) -> Self {
@@ -303,7 +303,7 @@ impl CreditExchangeService {
             url,
             bank_user_id,
             military_unit: military_unit_cost,
-            trust: trust_cost,
+            trust: trust_costs,
             military_base: military_base_cost,
             loot_factors,
             resources,
@@ -316,6 +316,10 @@ impl CreditExchangeService {
 
     pub(crate) fn resources(&self) -> &[ResourceName] {
         &self.resources
+    }
+
+    pub(crate) fn trust_cost(&self, resource: &ResourceName) -> Option<&Cost<Trust>> {
+        self.trust.get(resource)
     }
 
     #[inline]
@@ -361,10 +365,14 @@ impl CreditExchangeService {
         &self,
         primary_payer_id: &ZoneKey,
         financiers: Vec<Financing>,
+        resource: &ResourceName,
     ) -> Result<Payment<'_, Trust, Financiers>> {
-        self.log_payment(&self.trust);
+        let cost = self
+            .trust_cost(resource)
+            .expect("trust costs cover all configured trust production resources");
+        self.log_payment(cost);
         let policy = Financiers::new(primary_payer_id.to_string(), financiers)?;
-        self.book_cost(policy, &self.trust).await
+        self.book_cost(policy, cost).await
     }
 
     pub(crate) async fn register_trust(&self, trust: &Trust, policy: &Financiers) -> Result<()> {
@@ -834,7 +842,7 @@ mod tests {
             "bank".to_string(),
             serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
             serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
-            serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
+            serde_json::from_value(serde_json::json!({})).unwrap(),
             serde_json::from_value(serde_json::json!([])).unwrap(),
             LootFactors::default(),
         )

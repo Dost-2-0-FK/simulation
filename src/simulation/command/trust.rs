@@ -217,7 +217,7 @@ pub(crate) async fn create(
         return Err(CommandError::NotFound("Placement"));
     };
     let payment = credit_exchange_service
-        .pay_for_trust(placement.zone().key(), financing)
+        .pay_for_trust(placement.zone().key(), financing, &resource)
         .await
         .map_err(CommandError::CreditExchange)?;
     let payment_policy = payment.policy().clone();

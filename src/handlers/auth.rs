@@ -275,7 +275,7 @@ mod tests {
             "bank".to_string(),
             serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
             serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
-            serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
+            serde_json::from_value(serde_json::json!({})).unwrap(),
             serde_json::from_value::<VecResourceName>(serde_json::json!([])).unwrap(),
             LootFactors::default(),
         )

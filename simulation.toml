@@ -1,7 +1,47 @@
 bank_user_id = "bank"
 resources = ["water", "thermal_oil", "silicon", "uxmal_gas", "uxmal_crystals", "lsc", "solar_energy", "oxygen", "iron", "steel", "humans"]
 
-[costs.trust]
+[costs.trust.water]
+money = 600
+resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
+
+[costs.trust.thermal_oil]
+money = 600
+resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
+
+[costs.trust.silicon]
+money = 600
+resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
+
+[costs.trust.uxmal_gas]
+money = 600
+resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
+
+[costs.trust.uxmal_crystals]
+money = 600
+resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
+
+[costs.trust.lsc]
+money = 600
+resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
+
+[costs.trust.solar_energy]
+money = 600
+resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
+
+[costs.trust.oxygen]
+money = 600
+resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
+
+[costs.trust.iron]
+money = 600
+resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
+
+[costs.trust.steel]
+money = 600
+resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
+
+[costs.trust.humans]
 money = 600
 resources = { water = 20, thermal_oil = 10, solar_energy = 15 }
 

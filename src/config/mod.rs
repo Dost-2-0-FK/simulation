@@ -26,7 +26,8 @@ use crate::{
     services::{
         auth_service::AuthService,
         credit_exchange_service::{
-            Cost, CreditExchangeService, Money, MoneyPerResource, ResourceName, Resources, Share, VecResourceName,
+            Cost, CreditExchangeService, Money, MoneyPerResource, ResourceName, Resources, Share, TrustCosts,
+            VecResourceName,
         },
     },
 };
@@ -386,7 +387,7 @@ where
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CostsConfig {
-    trust: Cost<Trust>,
+    trust: TrustCosts,
     base: Cost<MilitaryBase>,
     unit: Cost<MilitaryUnit>,
 }
@@ -518,7 +519,9 @@ impl Config {
                     .expect("seed trust money was validated while parsing config");
                 let trust = Trust::new_prepaid(
                     seed.payment.clone(),
-                    &self.credit_exchange_service.trust,
+                    self.credit_exchange_service
+                        .trust_cost(&seed.resource)
+                        .expect("trust costs were validated while parsing config"),
                     self.credit_exchange_service.loot_factors(),
                     placement,
                     seed.resource.clone(),
@@ -613,7 +616,8 @@ impl Config {
         let resources_in_costs = config
             .costs
             .trust
-            .resources()
+            .iter()
+            .flat_map(|(_, cost)| cost.resources())
             .chain(config.costs.base.resources())
             .chain(config.costs.unit.resources());
 
@@ -661,6 +665,23 @@ impl Config {
                     "resource {resource} has configured trust money production but is not listed in resources {resources}",
                     resource = money_value.name(),
                     resources = &config.resources,
+                )));
+            }
+        }
+
+        for (resource, _) in config.costs.trust.iter() {
+            if config.trust_production.resources.get(resource).is_none() {
+                return Err(Error::ConfigValidation(format!(
+                    "resource {resource} has a configured trust cost but no configured trust production"
+                )));
+            }
+        }
+
+        for resource_value in &config.trust_production.resources {
+            if config.costs.trust.get(resource_value.name()).is_none() {
+                return Err(Error::ConfigValidation(format!(
+                    "resource {resource} has configured trust production but no configured trust cost",
+                    resource = resource_value.name(),
                 )));
             }
         }
@@ -1009,12 +1030,13 @@ mod tests {
         base = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }
         unit = { money = 1.5, resources = { lithium = 5.2, iron = 10.5 } }
 
-        [costs.trust.resources]
-        lithium = 1.5
-        iron = 2.5
-
-        [costs.trust]
+        [costs.trust.lithium]
         money = 1.2
+        resources = { lithium = 1.5, iron = 2.5 }
+
+        [costs.trust.iron]
+        money = 1.3
+        resources = { lithium = 1.0, iron = 2.0 }
 
         [trust_production]
         money_per_resource = { lithium = 2.0, iron = 2.5 }
@@ -1248,7 +1270,10 @@ mod tests {
 
     #[tokio::test]
     async fn parse_rejects_unknown_cost_resource() {
-        let toml_str = base_toml().replace("        iron = 2.5", "        iron = 2.5\n        copper = 3.5");
+        let toml_str = base_toml().replace(
+            "resources = { lithium = 1.5, iron = 2.5 }",
+            "resources = { lithium = 1.5, iron = 2.5, copper = 3.5 }",
+        );
 
         match Config::parse_from_str(&toml_str).await {
             Err(Error::ConfigValidation(error)) => {
@@ -1259,6 +1284,56 @@ mod tests {
             }
             Err(error) => panic!("unexpected error: {error}"),
             Ok(_) => panic!("config with unknown cost resource must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_missing_trust_cost() {
+        let toml_str = base_toml().replace(
+            r#"
+        [costs.trust.iron]
+        money = 1.3
+        resources = { lithium = 1.0, iron = 2.0 }
+"#,
+            "",
+        );
+
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(
+                    error,
+                    "resource iron has configured trust production but no configured trust cost"
+                );
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("config with missing trust cost must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_trust_cost_without_production() {
+        let toml_str = base_toml().replace(
+            r#"
+        [trust_production]
+"#,
+            r#"
+        [costs.trust.copper]
+        money = 1.0
+        resources = {}
+
+        [trust_production]
+"#,
+        );
+
+        match Config::parse_from_str(&toml_str).await {
+            Err(Error::ConfigValidation(error)) => {
+                assert_eq!(
+                    error,
+                    "resource copper has a configured trust cost but no configured trust production"
+                );
+            }
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("config with trust cost without production must fail"),
         }
     }
 
@@ -1415,6 +1490,7 @@ mod tests {
         let trust = seeded.trusts.values().next().unwrap().read().await;
         assert_eq!(trust.placement_id().to_string(), "placement_2");
         assert_eq!(trust.base_income().value(), 2.0);
+        assert_eq!(trust.loot().money().value(), 0.6);
         assert_eq!(
             trust.producing_base_value().get(&ResourceName::new("lithium".into())),
             Some(3.5)

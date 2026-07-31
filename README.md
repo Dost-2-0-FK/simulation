@@ -203,7 +203,8 @@ There are four fundamental types:
 ### Trusts<a name="trusts"></a>
 
 - Are created on a placement
-- Cost "money" (`Float`) and "resources" (`Dict<str, Float>`)
+- Cost "money" (`Float`) and "resources" (`Dict<str, Float>`). Costs are configured per produced resource:
+  `[costs.trust.<resource>]` with `money` and `resources` fields.
 - Are "paid" by the zone the placement is associated with (at least `50%`), and potentially by a financier (max `50%`)
 - Payments are made to the `credit-exchanger`:
   - `CREDIT-EXCHANGER-SERVICE/api/credits/book?id=<unique_id>&receiver=<receiver_id>&value=<value>`
