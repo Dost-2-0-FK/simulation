@@ -322,6 +322,10 @@ impl CreditExchangeService {
         self.trust.get(resource)
     }
 
+    pub(crate) fn trust_costs(&self) -> impl Iterator<Item = (&ResourceName, &Cost<Trust>)> {
+        self.trust.iter()
+    }
+
     #[inline]
     fn log_payment<T: std::fmt::Debug>(&self, cost: &Cost<T>) {
         log::debug!("issuing payment of {}", cost);

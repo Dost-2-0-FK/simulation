@@ -10,6 +10,7 @@ pub(crate) mod auth;
 pub(crate) mod bases;
 pub(crate) mod blocs;
 pub(crate) mod combats;
+pub(crate) mod costs;
 pub(crate) mod placements;
 pub(crate) mod production_units;
 pub(crate) mod resources;
