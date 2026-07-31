@@ -43,6 +43,10 @@ services:
     environment:
       RUST_LOG: ${RUST_LOG:-info}
       COORDINATION_API_KEY: ${COORDINATION_API_KEY:-}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-simulation}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-https://auth.dost-2-0-fk.art/}
+      CREDIT_EXCHANGE_URL: ${CREDIT_EXCHANGE_URL:-http://credit-exchanger:18080}
     depends_on:
       mongodb:
         condition: service_healthy

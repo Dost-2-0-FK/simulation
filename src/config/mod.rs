@@ -32,6 +32,10 @@ use crate::{
 };
 
 const CONFIG_FILE_NAME: &str = "simulation.toml";
+const MONGODB_URI_ENV: &str = "MONGODB_URI";
+const MONGODB_DATABASE_ENV: &str = "MONGODB_DATABASE";
+const AUTH_SERVICE_URL_ENV: &str = "AUTH_SERVICE_URL";
+const CREDIT_EXCHANGE_URL_ENV: &str = "CREDIT_EXCHANGE_URL";
 
 // TODO Placements must be part of config
 #[derive(Debug, Deserialize)]
@@ -101,6 +105,79 @@ pub(crate) struct SeededStructures {
 struct EnvConfig {
     auth_service_url: url::Url,
     credit_exchange_url: url::Url,
+}
+
+impl TomlConfig {
+    fn apply_dependency_env_overrides(&mut self) -> Result<()> {
+        self.apply_dependency_env_overrides_with(|variable| match std::env::var(variable) {
+            Ok(value) => Ok(Some(value)),
+            Err(std::env::VarError::NotPresent) => Ok(None),
+            Err(std::env::VarError::NotUnicode(_)) => Err(Error::ConfigValidation(format!(
+                "environment variable {variable} is not valid Unicode"
+            ))),
+        })
+    }
+
+    fn apply_dependency_env_overrides_with(
+        &mut self,
+        mut read: impl FnMut(&str) -> Result<Option<String>>,
+    ) -> Result<()> {
+        override_string(&mut self.persistence.uri, MONGODB_URI_ENV, "persistence.uri", &mut read)?;
+        override_string(
+            &mut self.persistence.database,
+            MONGODB_DATABASE_ENV,
+            "persistence.database",
+            &mut read,
+        )?;
+        override_url(
+            &mut self.env.auth_service_url,
+            AUTH_SERVICE_URL_ENV,
+            "env.auth_service_url",
+            &mut read,
+        )?;
+        override_url(
+            &mut self.env.credit_exchange_url,
+            CREDIT_EXCHANGE_URL_ENV,
+            "env.credit_exchange_url",
+            &mut read,
+        )?;
+
+        Ok(())
+    }
+}
+
+fn override_string(
+    config_value: &mut String,
+    variable: &str,
+    config_key: &str,
+    read: &mut impl FnMut(&str) -> Result<Option<String>>,
+) -> Result<()> {
+    match read(variable)? {
+        Some(value) => {
+            log::info!("{variable} is set; using it instead of {config_key} from {CONFIG_FILE_NAME}.");
+            *config_value = value;
+        }
+        None => log::info!("{variable} is not set; using {config_key} from {CONFIG_FILE_NAME}."),
+    }
+    Ok(())
+}
+
+fn override_url(
+    config_value: &mut url::Url,
+    variable: &str,
+    config_key: &str,
+    read: &mut impl FnMut(&str) -> Result<Option<String>>,
+) -> Result<()> {
+    match read(variable)? {
+        Some(value) => {
+            *config_value = url::Url::parse(&value).map_err(|error| {
+                Error::ConfigValidation(format!("environment variable {variable} is not a valid URL: {error}"))
+            })?;
+            log::info!("{variable} is set; using it instead of {config_key} from {CONFIG_FILE_NAME}.");
+        }
+        None => log::info!("{variable} is not set; using {config_key} from {CONFIG_FILE_NAME}."),
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -317,7 +394,9 @@ pub(crate) struct CostsConfig {
 impl Config {
     pub(crate) async fn parse() -> Result<Self> {
         let config = fs::read_to_string(CONFIG_FILE_NAME).await.map_err(Error::Io)?;
-        Self::parse_from_str(&config).await
+        let mut config = toml::from_str::<TomlConfig>(&config).map_err(Error::Toml)?;
+        config.apply_dependency_env_overrides()?;
+        Self::parse_toml_config(config).await
     }
 
     pub(crate) fn credit_exchange_service(&self) -> &CreditExchangeService {
@@ -484,7 +563,10 @@ impl Config {
 
     async fn parse_from_str(config: &str) -> Result<Self> {
         let config = toml::from_str::<TomlConfig>(config).map_err(Error::Toml)?;
+        Self::parse_toml_config(config).await
+    }
 
+    async fn parse_toml_config(config: TomlConfig) -> Result<Self> {
         validate_unique("bloc key", config.blocs.iter().map(|bloc| &bloc.key))?;
         validate_unique("bloc name", config.blocs.iter().map(|bloc| &bloc.name))?;
         validate_unique("zone key", config.zones.iter().map(|zone| &zone.key))?;
@@ -885,7 +967,7 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
     use super::*;
 
@@ -980,6 +1062,53 @@ mod tests {
         let config = Config::parse_from_str(base_toml()).await.expect("config can be parsed");
 
         assert_eq!(config.server_address(), "127.0.0.1:0".parse().unwrap());
+    }
+
+    #[test]
+    fn dependency_environment_variables_override_config() {
+        let mut config = toml::from_str::<TomlConfig>(base_toml()).expect("config can be parsed");
+        let values = HashMap::from([
+            (MONGODB_URI_ENV, "mongodb://mongo.example:27018"),
+            (MONGODB_DATABASE_ENV, "production"),
+            (AUTH_SERVICE_URL_ENV, "https://auth.example/"),
+            (CREDIT_EXCHANGE_URL_ENV, "https://credits.example/"),
+        ]);
+
+        config
+            .apply_dependency_env_overrides_with(|variable| Ok(values.get(variable).map(ToString::to_string)))
+            .expect("environment overrides are valid");
+
+        assert_eq!(config.persistence.uri, "mongodb://mongo.example:27018");
+        assert_eq!(config.persistence.database, "production");
+        assert_eq!(config.env.auth_service_url.as_str(), "https://auth.example/");
+        assert_eq!(config.env.credit_exchange_url.as_str(), "https://credits.example/");
+    }
+
+    #[test]
+    fn unset_dependency_environment_variables_preserve_config() {
+        let mut config = toml::from_str::<TomlConfig>(base_toml()).expect("config can be parsed");
+
+        config
+            .apply_dependency_env_overrides_with(|_| Ok(None))
+            .expect("config fallbacks are valid");
+
+        assert_eq!(config.persistence.uri, "mongodb://localhost:27017");
+        assert_eq!(config.persistence.database, "simulation");
+        assert_eq!(config.env.auth_service_url.as_str(), "http://0.0.0.0:4535/");
+        assert_eq!(config.env.credit_exchange_url.as_str(), "http://0.0.0.0:4534/");
+    }
+
+    #[test]
+    fn invalid_dependency_url_environment_variable_is_rejected() {
+        let mut config = toml::from_str::<TomlConfig>(base_toml()).expect("config can be parsed");
+
+        let error = config
+            .apply_dependency_env_overrides_with(|variable| {
+                Ok((variable == AUTH_SERVICE_URL_ENV).then(|| "not a url".to_string()))
+            })
+            .expect_err("invalid URL must be rejected");
+
+        assert!(error.to_string().contains(AUTH_SERVICE_URL_ENV));
     }
 
     #[tokio::test]

@@ -158,6 +158,27 @@ auth_service_url = "https://auth.dost-2-0-fk.art/"
 credit_exchange_url = "http://127.0.0.1:18080"
 ```
 
+Dependency settings can be overridden at runtime with environment variables. When a variable is unset, the matching
+value from `simulation.toml` is used. Startup logs report which source was selected without logging the configured
+value.
+
+| Environment variable | `simulation.toml` fallback |
+| --- | --- |
+| `MONGODB_URI` | `persistence.uri` |
+| `MONGODB_DATABASE` | `persistence.database` |
+| `AUTH_SERVICE_URL` | `env.auth_service_url` |
+| `CREDIT_EXCHANGE_URL` | `env.credit_exchange_url` |
+
+For example:
+
+```sh
+MONGODB_URI=mongodb://mongo.example:27017 \
+MONGODB_DATABASE=simulation-production \
+AUTH_SERVICE_URL=https://auth.example/ \
+CREDIT_EXCHANGE_URL=https://credits.example/ \
+cargo run
+```
+
 Financed trust and base creation is checked once per financier at
 `POST /api/users/{financierId}/verify` before payment is booked. Every financier must approve the request.
 
