@@ -10,7 +10,18 @@ permissions:
   contents: read
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      build_date: ${{ steps.set_build_date.outputs.build_date }}
+    steps:
+      # Set build date for image tagging. Produces a tag like "2026-08-01-23-22".
+      - name: Set build date for image tagging
+        id: set_build_date
+        run: echo "build_date=$(date +'%Y-%m-%d-%H-%M')" >> $GITHUB_OUTPUT
+
   docker-build-scan-push:
+    needs: setup
     strategy:
       matrix:
         include:
@@ -26,8 +37,9 @@ jobs:
       artifact_registry_project: "awzmb"
       artifact_registry_image_name: ${{ matrix.image_name }}
       artifact_registry_repository: "infrastructure"
-      # Manual runs (workflow_dispatch) have no release tag, so push just `latest`.
-      tags: ${{ github.event_name == 'release' && format('latest,{0}', github.event.release.tag_name) || 'latest' }}
+      # PRs build/scan only; release & manual runs push `latest` + the date tag
+      # that the Flux ImagePolicies track.
+      tags: ${{ github.event_name == 'pull_request' && 'latest' || format('latest,{0}', needs.setup.outputs.build_date) }}
       # PRs build and scan only; never push the image.
       push: ${{ github.event_name != 'pull_request' }}
       # Issue creation is disabled so the workflow needs no write token scopes.
