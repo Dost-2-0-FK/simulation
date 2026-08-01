@@ -10,7 +10,7 @@ use crate::{
     services::credit_exchange_service::{CreditExchangeService, Money, ResourceValue, Resources, Share},
 };
 
-use super::ResourceName;
+use super::{CreditUserId, ResourceName};
 
 #[derive(Debug, Clone, Deserialize, Display)]
 #[display("{}: {} ({})", type_name::<T>(), money, resources)]
@@ -59,16 +59,18 @@ pub(crate) struct Payment<'a, T, P> {
 
 #[derive(Debug, Clone)]
 pub(super) struct PayerShare {
-    pub(crate) payer_id: String,
+    pub(crate) payer_id: CreditUserId,
     pub(crate) share: Share,
 }
 
 pub(super) trait Payers {
     fn payers(&self) -> impl Iterator<Item = PayerShare> + Send;
+
+    fn resource_payer(&self) -> CreditUserId;
 }
 
 /// The `SinglePayer` policyl
-pub(crate) struct SinglePayer(pub(super) String);
+pub(crate) struct SinglePayer(pub(super) CreditUserId);
 
 impl Payers for SinglePayer {
     fn payers(&self) -> impl Iterator<Item = PayerShare> + Send {
@@ -77,12 +79,16 @@ impl Payers for SinglePayer {
             share: 1.0.into(),
         })
     }
+
+    fn resource_payer(&self) -> CreditUserId {
+        self.0.clone()
+    }
 }
 
 /// The `Financiers` policy
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct Financiers {
-    primary_payer_id: String,
+    primary_payer_id: CreditUserId,
     secondary_payers: Vec<PayerShare>,
 }
 
@@ -108,6 +114,10 @@ impl Payers for Financiers {
 
         payers.into_iter()
     }
+
+    fn resource_payer(&self) -> CreditUserId {
+        self.primary_payer_id.clone()
+    }
 }
 
 impl<'a, T, P> Payment<'a, T, P> {
@@ -126,7 +136,7 @@ impl<'a, T> Payment<'a, T, Financiers> {
             .secondary_payers
             .iter()
             .map(|payer| Financing {
-                financier: payer.payer_id.clone().into(),
+                financier: payer.payer_id.as_str().to_string().into(),
                 share: payer.share,
             })
             .collect()
@@ -139,7 +149,7 @@ impl CreditExchangeService {
         payer: &BlocKey,
     ) -> Result<Payment<'_, MilitaryUnit, SinglePayer>> {
         self.log_payment(&self.military_unit);
-        let policy = SinglePayer(payer.to_string());
+        let policy = SinglePayer(CreditUserId::from(payer));
         self.book_cost(policy, &self.military_unit).await
     }
 
@@ -148,22 +158,54 @@ impl CreditExchangeService {
         T: std::fmt::Debug,
         P: Payers + Send,
     {
-        let payers = policy.payers();
-        for payer in payers {
-            self.book_credit(
-                payer.payer_id.as_str(),
-                &self.bank_user_id,
-                "money",
-                payer.share * cost.money(),
-            )
-            .await?;
-            for resource in cost.resources() {
-                self.book_resource(payer.payer_id.as_str(), &self.bank_user_id, &resource, payer.share)
+        let obligations = payment_obligations(&policy, cost);
+        self.ensure_balances_cover(&obligations).await?;
+
+        for obligation in obligations {
+            self.book_credit(&obligation.payer_id, &self.bank_user_id, obligation.money)
+                .await?;
+            for resource in &obligation.resources {
+                self.book_resource(&obligation.payer_id, &self.bank_user_id, &resource)
                     .await?;
             }
         }
         Ok(Payment { policy, cost })
     }
+}
+
+#[derive(Debug)]
+pub(super) struct PaymentObligation {
+    pub(super) payer_id: CreditUserId,
+    pub(super) money: Money,
+    pub(super) resources: Resources,
+}
+
+fn payment_obligations<T, P: Payers>(policy: &P, cost: &Cost<T>) -> Vec<PaymentObligation> {
+    let mut obligations = Vec::<PaymentObligation>::new();
+    for payer in policy.payers() {
+        let money = payer.share * cost.money();
+        if let Some(obligation) = obligations.iter_mut().find(|entry| entry.payer_id == payer.payer_id) {
+            obligation.money += money;
+        } else {
+            obligations.push(PaymentObligation {
+                payer_id: payer.payer_id,
+                money,
+                resources: Resources::default(),
+            });
+        }
+    }
+
+    let resource_payer = policy.resource_payer();
+    if let Some(obligation) = obligations.iter_mut().find(|entry| entry.payer_id == resource_payer) {
+        obligation.resources += &cost.resources_owned();
+    } else {
+        obligations.push(PaymentObligation {
+            payer_id: resource_payer,
+            money: Money::default(),
+            resources: cost.resources_owned(),
+        });
+    }
+    obligations
 }
 
 impl Financiers {
@@ -173,18 +215,18 @@ impl Financiers {
             bail!("financier shares sum to {financier_share}, expected at most 1");
         }
         Ok(Self {
-            primary_payer_id,
+            primary_payer_id: primary_payer_id.into(),
             secondary_payers: financiers
                 .iter()
                 .map(|financing| PayerShare {
-                    payer_id: financing.financier.as_str().to_string(),
+                    payer_id: CreditUserId::from(&financing.financier),
                     share: financing.share,
                 })
                 .collect(),
         })
     }
 
-    pub(super) fn primary_payer_id(&self) -> &str {
+    pub(super) fn primary_payer_id(&self) -> &CreditUserId {
         &self.primary_payer_id
     }
 }

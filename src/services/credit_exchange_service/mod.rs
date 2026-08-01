@@ -25,10 +25,12 @@ use crate::{
         NameMappings, ProductionUnit, ProductionUnitKey, Trust, TrustId, ZoneKey, ZoneName,
     },
     handlers::bases::Financing,
-    services::credit_exchange_service::cost::Payers,
+    services::credit_exchange_service::cost::{Payers, PaymentObligation},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, derive_more::Display, utoipa::ToSchema)]
+const INSUFFICIENT_CREDIT_MESSAGE: &str = "Insufficient credit for booking";
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, derive_more::Display, utoipa::ToSchema)]
 pub(crate) struct CreditUserId(String);
 
 impl CreditUserId {
@@ -55,6 +57,12 @@ impl From<&CharacterKey> for CreditUserId {
     }
 }
 
+impl From<String> for CreditUserId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
 pub(crate) struct SubscriptionId(String);
 
@@ -62,8 +70,20 @@ pub(crate) struct SubscriptionId(String);
 pub(crate) struct CreditType(String);
 
 impl CreditType {
+    fn money() -> Self {
+        Self("money".to_string())
+    }
+
+    fn resource(resource: &ResourceName) -> Self {
+        Self(resource.as_str().to_string())
+    }
+
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+
     fn is_money(&self) -> bool {
-        self.0 == "money"
+        self == &Self::money()
     }
 
     fn into_resource_name(self) -> ResourceName {
@@ -167,39 +187,39 @@ impl Serialize for UserType {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateUserRequest {
-    id: String,
+    id: CreditUserId,
     user_type: UserType,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CreditBooking {
-    credit_type: String,
-    receiver: String,
+    credit_type: CreditType,
+    receiver: CreditUserId,
     value: f32,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateSubscriptionRequest {
-    receiver: String,
+    receiver: CreditUserId,
     value: f32,
-    subscription_type: &'static str,
+    subscription_type: SubscriptionType,
     priority: u32,
-    credit_type: String,
+    credit_type: CreditType,
 }
 
 #[derive(Debug, PartialEq)]
 struct SubscriptionSpec {
-    receiver: String,
-    credit_type: String,
+    receiver: CreditUserId,
+    credit_type: CreditType,
     share: Share,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PatchUserRequest {
-    credit_type: String,
+    credit_type: CreditType,
     last_day_average: f32,
 }
 
@@ -251,7 +271,7 @@ struct SubscriptionResponse {
 pub(crate) struct CreditExchangeService {
     client: reqwest::Client,
     url: Url,
-    bank_user_id: String,
+    bank_user_id: CreditUserId,
     resources: VecResourceName,
     pub(crate) military_unit: Cost<MilitaryUnit>,
     trust: TrustCosts,
@@ -284,7 +304,7 @@ impl CreditExchangeResponseError {
     }
 
     pub(crate) fn is_insufficient_credit(&self) -> bool {
-        self.status == StatusCode::BAD_REQUEST && self.body.trim() == "Insufficient credit for booking"
+        self.status == StatusCode::BAD_REQUEST && self.body.trim() == INSUFFICIENT_CREDIT_MESSAGE
     }
 }
 
@@ -301,7 +321,7 @@ impl CreditExchangeService {
         Self {
             client: reqwest::Client::new(),
             url,
-            bank_user_id,
+            bank_user_id: bank_user_id.into(),
             military_unit: military_unit_cost,
             trust: trust_costs,
             military_base: military_base_cost,
@@ -602,7 +622,7 @@ impl CreditExchangeService {
             .client
             .post(url)
             .json(&CreateUserRequest {
-                id: id.to_string(),
+                id: id.clone(),
                 user_type: UserType::Unit,
             })
             .send()
@@ -617,27 +637,51 @@ impl CreditExchangeService {
         Ok(())
     }
 
-    async fn book_credit(&self, payer: &str, receiver: &str, credit_type: &str, value: Money) -> Result<()> {
-        self.book_value(payer, receiver, credit_type, value.value()).await
+    async fn ensure_balances_cover(&self, obligations: &[PaymentObligation]) -> Result<()> {
+        for obligation in obligations {
+            let credits = self.list_credits(&obligation.payer_id).await?;
+            let mut money = Money::default();
+            let mut resources = Resources::default();
+            for credit in credits.credits {
+                if credit.credit_type.is_money() {
+                    money = Money::from(credit.balance);
+                } else {
+                    resources.insert(credit.credit_type.into_resource_name(), credit.balance);
+                }
+            }
+            if money < obligation.money || !resources.covers(&obligation.resources) {
+                return Err(CreditExchangeResponseError::new(
+                    StatusCode::BAD_REQUEST,
+                    INSUFFICIENT_CREDIT_MESSAGE.to_string(),
+                )
+                .into());
+            }
+        }
+        Ok(())
+    }
+
+    async fn book_credit(&self, payer: &CreditUserId, receiver: &CreditUserId, value: Money) -> Result<()> {
+        self.book_value(payer, receiver, CreditType::money(), value.value())
+            .await
     }
 
     async fn book_resource(
         &self,
-        payer: &str,
-        receiver: &str,
+        payer: &CreditUserId,
+        receiver: &CreditUserId,
         resource: &ResourceValue<'_>,
-        share: Share,
     ) -> Result<()> {
-        self.book_value(
-            payer,
-            receiver,
-            resource.name().as_str(),
-            resource.value() * share.value(),
-        )
-        .await
+        self.book_value(payer, receiver, CreditType::resource(resource.name()), resource.value())
+            .await
     }
 
-    async fn book_value(&self, payer: &str, receiver: &str, credit_type: &str, value: f32) -> Result<()> {
+    async fn book_value(
+        &self,
+        payer: &CreditUserId,
+        receiver: &CreditUserId,
+        credit_type: CreditType,
+        value: f32,
+    ) -> Result<()> {
         if value <= 0.0 {
             return Ok(());
         }
@@ -647,16 +691,16 @@ impl CreditExchangeService {
             .client
             .post(url)
             .json(&CreditBooking {
-                credit_type: credit_type.to_string(),
-                receiver: receiver.to_string(),
+                credit_type: credit_type.clone(),
+                receiver: receiver.clone(),
                 value,
             })
             .send()
             .await
-            .with_context(|| format!("booking {value} {credit_type} from {payer} to {receiver}"))?;
+            .with_context(|| format!("booking {value} {} from {payer} to {receiver}", credit_type.as_str()))?;
         Self::error_for_status(
             response,
-            &format!("booking {value} {credit_type} from {payer} to {receiver}"),
+            &format!("booking {value} {} from {payer} to {receiver}", credit_type.as_str()),
         )
         .await?;
         Ok(())
@@ -678,8 +722,8 @@ impl CreditExchangeService {
     async fn create_subscription(
         &self,
         producer: &CreditUserId,
-        receiver: &str,
-        credit_type: &str,
+        receiver: &CreditUserId,
+        credit_type: &CreditType,
         share: Share,
     ) -> Result<()> {
         let value = share.value() * 100.0;
@@ -692,18 +736,26 @@ impl CreditExchangeService {
             .client
             .post(url)
             .json(&CreateSubscriptionRequest {
-                receiver: receiver.to_string(),
+                receiver: receiver.clone(),
                 value,
-                subscription_type: "contract",
+                subscription_type: SubscriptionType::Contract,
                 priority: 0,
-                credit_type: credit_type.to_string(),
+                credit_type: credit_type.clone(),
             })
             .send()
             .await
-            .with_context(|| format!("creating {credit_type} subscription from {producer} to {receiver}"))?;
+            .with_context(|| {
+                format!(
+                    "creating {} subscription from {producer} to {receiver}",
+                    credit_type.as_str()
+                )
+            })?;
         Self::error_for_status(
             response,
-            &format!("creating {credit_type} subscription from {producer} to {receiver}"),
+            &format!(
+                "creating {} subscription from {producer} to {receiver}",
+                credit_type.as_str()
+            ),
         )
         .await?;
         Ok(())
@@ -750,26 +802,31 @@ impl CreditExchangeService {
     }
 
     async fn set_credit_production(&self, user_id: &CreditUserId, value: Money) -> Result<()> {
-        self.set_production(user_id, "money", value.value()).await
+        self.set_production(user_id, CreditType::money(), value.value()).await
     }
 
     async fn set_resource_production(&self, user_id: &CreditUserId, resource: &ResourceName, value: f32) -> Result<()> {
-        self.set_production(user_id, resource.as_str(), value).await
+        self.set_production(user_id, CreditType::resource(resource), value)
+            .await
     }
 
-    async fn set_production(&self, user_id: &CreditUserId, credit_type: &str, value: f32) -> Result<()> {
+    async fn set_production(&self, user_id: &CreditUserId, credit_type: CreditType, value: f32) -> Result<()> {
         let url = self.endpoint(&format!("api/users/{user_id}"))?;
         let response = self
             .client
             .patch(url)
             .json(&PatchUserRequest {
-                credit_type: credit_type.to_string(),
+                credit_type: credit_type.clone(),
                 last_day_average: value,
             })
             .send()
             .await
-            .with_context(|| format!("setting {credit_type} production for {user_id}"))?;
-        Self::error_for_status(response, &format!("setting {credit_type} production for {user_id}")).await?;
+            .with_context(|| format!("setting {} production for {user_id}", credit_type.as_str()))?;
+        Self::error_for_status(
+            response,
+            &format!("setting {} production for {user_id}", credit_type.as_str()),
+        )
+        .await?;
         Ok(())
     }
 
@@ -803,9 +860,9 @@ impl CreditExchangeService {
     }
 }
 
-fn sum_resource_totals(users: Vec<CreditUserResponse>, bank_user_id: &str) -> Resources {
+fn sum_resource_totals(users: Vec<CreditUserResponse>, bank_user_id: &CreditUserId) -> Resources {
     let mut totals = Resources::default();
-    for user in users.into_iter().filter(|user| user.id != bank_user_id) {
+    for user in users.into_iter().filter(|user| user.id != bank_user_id.as_str()) {
         for (resource, credit) in user.resources {
             let total = totals.get(&resource).unwrap_or_default() + credit.total;
             totals.insert(resource, total);
@@ -819,13 +876,13 @@ fn financed_subscription_specs(policy: &Financiers, resources: &VecResourceName)
         .payers()
         .map(|payer| SubscriptionSpec {
             receiver: payer.payer_id,
-            credit_type: "money".to_string(),
+            credit_type: CreditType::money(),
             share: payer.share,
         })
         .collect::<Vec<_>>();
     subscriptions.extend(resources.iter().map(|resource| SubscriptionSpec {
-        receiver: policy.primary_payer_id().to_string(),
-        credit_type: resource.as_str().to_string(),
+        receiver: policy.primary_payer_id().clone(),
+        credit_type: CreditType::resource(resource),
         share: Share::from(1.0),
     }));
     subscriptions
@@ -848,6 +905,21 @@ mod tests {
             serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
             serde_json::from_value(serde_json::json!({})).unwrap(),
             serde_json::from_value(serde_json::json!([])).unwrap(),
+            LootFactors::default(),
+        )
+    }
+
+    fn payment_test_service(url: Url) -> CreditExchangeService {
+        CreditExchangeService::new(
+            url,
+            "bank".to_string(),
+            serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
+            serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
+            serde_json::from_value(serde_json::json!({
+                "iron": { "money": 100.0, "resources": { "steel": 10.0 } }
+            }))
+            .unwrap(),
+            serde_json::from_value(serde_json::json!(["steel"])).unwrap(),
             LootFactors::default(),
         )
     }
@@ -924,27 +996,160 @@ mod tests {
             financed_subscription_specs(&policy, &resources),
             vec![
                 SubscriptionSpec {
-                    receiver: "primary".to_string(),
-                    credit_type: "money".to_string(),
+                    receiver: "primary".to_string().into(),
+                    credit_type: CreditType::money(),
                     share: Share::from(0.6),
                 },
                 SubscriptionSpec {
-                    receiver: "financier".to_string(),
-                    credit_type: "money".to_string(),
+                    receiver: "financier".to_string().into(),
+                    credit_type: CreditType::money(),
                     share: Share::from(0.4),
                 },
                 SubscriptionSpec {
-                    receiver: "primary".to_string(),
-                    credit_type: "iron".to_string(),
+                    receiver: "primary".to_string().into(),
+                    credit_type: CreditType::resource(&ResourceName::new("iron".to_string())),
                     share: Share::from(1.0),
                 },
                 SubscriptionSpec {
-                    receiver: "primary".to_string(),
-                    credit_type: "copper".to_string(),
+                    receiver: "primary".to_string().into(),
+                    credit_type: CreditType::resource(&ResourceName::new("copper".to_string())),
                     share: Share::from(1.0),
                 },
             ]
         );
+    }
+
+    #[actix_web::test]
+    async fn insufficient_financier_balance_prevents_every_booking() {
+        let bookings = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server_bookings = bookings.clone();
+        let server = HttpServer::new(move || {
+            App::new()
+                .app_data(web::Data::new(server_bookings.clone()))
+                .route(
+                    "/api/users/{user_id}/credits",
+                    web::get().to(|path: web::Path<String>| async move {
+                        let credits = match path.as_str() {
+                            "zone" => serde_json::json!([
+                                { "creditType": "money", "balance": 100.0, "hourly": 0.0 },
+                                { "creditType": "steel", "balance": 10.0, "hourly": 0.0 }
+                            ]),
+                            "financier" => serde_json::json!([
+                                { "creditType": "money", "balance": 10.0, "hourly": 0.0 }
+                            ]),
+                            _ => serde_json::json!([]),
+                        };
+                        HttpResponse::Ok().json(serde_json::json!({ "credits": credits }))
+                    }),
+                )
+                .route(
+                    "/api/users/{user_id}/bookings",
+                    web::post().to(
+                        |body: web::Json<serde_json::Value>,
+                         bookings: web::Data<Arc<Mutex<Vec<serde_json::Value>>>>| async move {
+                            bookings.lock().unwrap().push(body.into_inner());
+                            HttpResponse::Ok().finish()
+                        },
+                    ),
+                )
+        })
+        .listen(listener)
+        .unwrap()
+        .run();
+        let handle = server.handle();
+        actix_web::rt::spawn(server);
+
+        let error = payment_test_service(format!("http://{address}/").parse().unwrap())
+            .pay_for_trust(
+                &ZoneKey::from("zone".to_string()),
+                vec![Financing {
+                    financier: "financier".to_string().into(),
+                    share: Share::from(0.4),
+                }],
+                &ResourceName::new("iron".to_string()),
+            )
+            .await
+            .unwrap_err();
+
+        assert!(
+            error
+                .downcast_ref::<CreditExchangeResponseError>()
+                .is_some_and(CreditExchangeResponseError::is_insufficient_credit)
+        );
+        assert!(bookings.lock().unwrap().is_empty());
+        handle.stop(true).await;
+    }
+
+    #[actix_web::test]
+    async fn financiers_pay_money_while_primary_payer_pays_all_resources() {
+        let bookings = Arc::new(Mutex::new(Vec::<(String, serde_json::Value)>::new()));
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server_bookings = bookings.clone();
+        let server = HttpServer::new(move || {
+            App::new()
+                .app_data(web::Data::new(server_bookings.clone()))
+                .route(
+                    "/api/users/{user_id}/credits",
+                    web::get().to(|| async {
+                        HttpResponse::Ok().json(serde_json::json!({
+                            "credits": [
+                                { "creditType": "money", "balance": 100.0, "hourly": 0.0 },
+                                { "creditType": "steel", "balance": 10.0, "hourly": 0.0 }
+                            ]
+                        }))
+                    }),
+                )
+                .route(
+                    "/api/users/{user_id}/bookings",
+                    web::post().to(
+                        |path: web::Path<String>,
+                         body: web::Json<serde_json::Value>,
+                         bookings: web::Data<Arc<Mutex<Vec<(String, serde_json::Value)>>>>| async move {
+                            bookings.lock().unwrap().push((path.into_inner(), body.into_inner()));
+                            HttpResponse::Ok().finish()
+                        },
+                    ),
+                )
+        })
+        .listen(listener)
+        .unwrap()
+        .run();
+        let handle = server.handle();
+        actix_web::rt::spawn(server);
+
+        payment_test_service(format!("http://{address}/").parse().unwrap())
+            .pay_for_trust(
+                &ZoneKey::from("zone".to_string()),
+                vec![Financing {
+                    financier: "financier".to_string().into(),
+                    share: Share::from(0.4),
+                }],
+                &ResourceName::new("iron".to_string()),
+            )
+            .await
+            .unwrap();
+
+        let bookings = bookings.lock().unwrap();
+        assert_eq!(bookings.len(), 3);
+        assert!(bookings.iter().any(|(payer, booking)| {
+            payer == "zone" && booking["creditType"] == "steel" && booking["value"].as_f64() == Some(10.0)
+        }));
+        assert!(bookings.iter().any(|(payer, booking)| {
+            payer == "financier"
+                && booking["creditType"] == "money"
+                && booking["value"]
+                    .as_f64()
+                    .is_some_and(|value| (value - 40.0).abs() < 0.001)
+        }));
+        assert!(
+            !bookings
+                .iter()
+                .any(|(payer, booking)| { payer == "financier" && booking["creditType"] == "steel" })
+        );
+        handle.stop(true).await;
     }
 
     #[test]
@@ -983,7 +1188,7 @@ mod tests {
         ]))
         .unwrap();
 
-        let totals = sum_resource_totals(users, "bank");
+        let totals = sum_resource_totals(users, &"bank".to_string().into());
 
         assert_eq!(totals.get(&ResourceName::new("iron".to_string())), Some(6.0));
         assert_eq!(totals.get(&ResourceName::new("water".to_string())), Some(4.0));
