@@ -4,8 +4,8 @@ set -u
 
 usage() {
   echo "Usage: $0 <interval-seconds>" >&2
-  echo "Set SIMULATION_URL to override http://127.0.0.1:8080." >&2
-  echo "Set CREDIT_SERVICE_URL to override http://127.0.0.1:18080." >&2
+  echo "Set SIMULATION_URL to override https://simulation.dost-2-0-fk.dev." >&2
+  echo "Set CREDIT_SERVICE_URL to override https://credit-exchanger.dost-2-0-fk.dev." >&2
   echo "Set COORDINATION_API_KEY to the API key used for authorization." >&2
 }
 
@@ -25,9 +25,9 @@ if (( interval_seconds % 2 != 0 )); then
   half_interval_seconds="${half_interval_seconds}.5"
 fi
 
-simulation_url=${SIMULATION_URL:-http://127.0.0.1:8080}
+simulation_url=${SIMULATION_URL:-https://simulation.dost-2-0-fk.dev}
 simulation_url=${simulation_url%/}
-credit_service_url=${CREDIT_SERVICE_URL:-http://127.0.0.1:18080}
+credit_service_url=${CREDIT_SERVICE_URL:-https://credit-exchanger.dost-2-0-fk.dev}
 credit_service_url=${credit_service_url%/}
 
 if [[ -z ${COORDINATION_API_KEY:-} ]]; then
