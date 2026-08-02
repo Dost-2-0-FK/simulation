@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::RwLock;
 
@@ -9,7 +6,7 @@ use super::combat;
 use crate::{
     domain::{BaseId, Combat, CombatStructureSnapshot, MilitaryBase, MilitaryUnit, Trust, TrustId, UnitId},
     error::UserError,
-    geometry::Point,
+    geometry::{Point, WorldBounds},
     services::credit_exchange_service::CreditExchangeService,
 };
 
@@ -19,6 +16,7 @@ pub(crate) async fn delete_base(
     units: &mut HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     combats: &mut HashMap<Point, Arc<RwLock<Combat>>>,
     credit_exchange_service: &CreditExchangeService,
+    world_bounds: WorldBounds,
 ) -> Result<(), UserError> {
     if !bases.contains_key(&id) {
         return Err(UserError::NotFound("Base"));
@@ -32,34 +30,7 @@ pub(crate) async fn delete_base(
             UserError::InternalError
         })?;
 
-    let mut unit_ids = HashSet::new();
-    for (unit_id, unit) in units.iter() {
-        if unit.read().await.base().await.id() == id {
-            unit_ids.insert(*unit_id);
-        }
-    }
-
-    let mut combat_positions = Vec::new();
-    for (position, combat) in combats.iter() {
-        let combat = combat.read().await;
-        let attacks_base = matches!(
-            combat.structure_snapshot().await,
-            CombatStructureSnapshot::Base { id: target_id, .. } if target_id == id
-        );
-        let contains_deleted_unit = combat
-            .unit_ids_by_bloc()
-            .await
-            .into_iter()
-            .flat_map(|(_, ids)| ids)
-            .any(|unit_id| unit_ids.contains(&unit_id));
-        if attacks_base || contains_deleted_unit {
-            combat_positions.push(*position);
-        }
-    }
-
-    units.retain(|unit_id, _| !unit_ids.contains(unit_id));
-    combats.retain(|position, _| !combat_positions.contains(position));
-    combat::destroy_base(id, bases).await;
+    combat::destroy_base(id, bases, units, combats, world_bounds).await;
     Ok(())
 }
 

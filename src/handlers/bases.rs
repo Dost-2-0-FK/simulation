@@ -361,7 +361,7 @@ pub(crate) async fn get(
     Ok(HttpResponse::Ok().json(base))
 }
 
-/// Delete a base and its dependent simulation state.
+/// Delete a base and rebase its units to the closest remaining base in the same bloc.
 #[utoipa::path(
     operation_id = "deleteBase",
     tag = BASES,

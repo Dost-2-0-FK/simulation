@@ -118,6 +118,10 @@ impl MilitaryUnit {
         self.base.read().await
     }
 
+    pub(crate) fn rebase(&mut self, base: Arc<RwLock<MilitaryBase>>) {
+        self.base = base;
+    }
+
     #[expect(dead_code)]
     pub(crate) fn set_position(&mut self, position: Point) {
         self.position = position;

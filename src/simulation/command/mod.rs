@@ -284,6 +284,7 @@ pub(crate) async fn run(
                     &mut units,
                     &mut combats,
                     config.credit_exchange_service(),
+                    config.world_bounds(),
                 )
                 .await;
                 let _ = response.send(result);
@@ -466,7 +467,15 @@ pub(crate) async fn run(
             Command::CombatTick => {
                 let _combat_lock_guard = combat_lock.lock().await;
                 let events = combat::tick(&mut combats).await;
-                combat::apply_events(&events, &mut bases, &mut trusts).await;
+                combat::apply_events(
+                    &events,
+                    &mut bases,
+                    &mut units,
+                    &mut trusts,
+                    &mut combats,
+                    config.world_bounds(),
+                )
+                .await;
                 combat::clear_dead_units(&mut units).await;
             }
         }
