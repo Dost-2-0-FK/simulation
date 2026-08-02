@@ -236,7 +236,7 @@
     {
       "id": "WSLS-Vg5s-J4nF-uL9D",
       "credit": {
-        "total": 1200,
+        "total": 10752,
         "last_day_average": 800,
         "subscriptions": [
           {
@@ -279,7 +279,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -293,7 +293,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -307,7 +307,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -321,7 +321,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -335,7 +335,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -349,7 +349,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -363,7 +363,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -377,7 +377,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -391,7 +391,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -405,7 +405,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -419,7 +419,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -437,7 +437,7 @@
     {
       "id": "eTjs-NCE0-jpCH-cAXS",
       "credit": {
-        "total": 1200,
+        "total": 10752,
         "last_day_average": 800,
         "subscriptions": [
           {
@@ -473,7 +473,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -487,7 +487,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -501,7 +501,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -515,7 +515,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -529,7 +529,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -543,7 +543,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -557,7 +557,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -571,7 +571,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -585,7 +585,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -599,7 +599,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -613,7 +613,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -631,7 +631,7 @@
     {
       "id": "pis3-MGbn-Vl78-2ZB8",
       "credit": {
-        "total": 1200,
+        "total": 10752,
         "last_day_average": 800,
         "subscriptions": [
           {
@@ -667,7 +667,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -681,7 +681,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -695,7 +695,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -709,7 +709,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -723,7 +723,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -737,7 +737,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -751,7 +751,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -765,7 +765,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -779,7 +779,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -793,7 +793,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -807,7 +807,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -825,7 +825,7 @@
     {
       "id": "qcrC-wqWy-IFcG-CCo8",
       "credit": {
-        "total": 1200,
+        "total": 10752,
         "last_day_average": 800,
         "subscriptions": [
           {
@@ -861,7 +861,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -875,7 +875,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -889,7 +889,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -903,7 +903,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -917,7 +917,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -931,7 +931,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -945,7 +945,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -959,7 +959,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -973,7 +973,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -987,7 +987,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1001,7 +1001,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1019,7 +1019,7 @@
     {
       "id": "i8es-hJW9-hpIB-N7jF",
       "credit": {
-        "total": 1200,
+        "total": 10752,
         "last_day_average": 800,
         "subscriptions": [
           {
@@ -1055,7 +1055,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1069,7 +1069,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1083,7 +1083,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1097,7 +1097,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1111,7 +1111,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1125,7 +1125,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1139,7 +1139,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1153,7 +1153,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1167,7 +1167,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1181,7 +1181,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1195,7 +1195,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1393,7 +1393,7 @@
     {
       "id": "ESdg-8X29-43KN-aFQT",
       "credit": {
-        "total": 500,
+        "total": 3672,
         "last_day_average": 450,
         "subscriptions": [
           {
@@ -1415,7 +1415,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1429,7 +1429,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1443,7 +1443,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1457,7 +1457,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1471,7 +1471,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1485,7 +1485,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1499,7 +1499,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1513,7 +1513,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1527,7 +1527,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1541,7 +1541,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1555,7 +1555,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1573,7 +1573,7 @@
     {
       "id": "XeBt-YLoS-qDnh-VUtF",
       "credit": {
-        "total": 500,
+        "total": 3672,
         "last_day_average": 450,
         "subscriptions": [
           {
@@ -1595,7 +1595,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1609,7 +1609,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1623,7 +1623,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1637,7 +1637,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1651,7 +1651,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1665,7 +1665,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1679,7 +1679,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1693,7 +1693,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1707,7 +1707,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1721,7 +1721,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1735,7 +1735,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1753,7 +1753,7 @@
     {
       "id": "qfko-nYmv-9piG-BBxk",
       "credit": {
-        "total": 500,
+        "total": 3672,
         "last_day_average": 450,
         "subscriptions": [
           {
@@ -1775,7 +1775,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1789,7 +1789,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1803,7 +1803,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1817,7 +1817,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1831,7 +1831,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1845,7 +1845,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1859,7 +1859,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1873,7 +1873,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1887,7 +1887,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1901,7 +1901,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1915,7 +1915,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1933,7 +1933,7 @@
     {
       "id": "hGkk-9TSW-2xTV-tHG3",
       "credit": {
-        "total": 500,
+        "total": 3672,
         "last_day_average": 450,
         "subscriptions": [
           {
@@ -1955,7 +1955,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1969,7 +1969,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1983,7 +1983,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -1997,7 +1997,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2011,7 +2011,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2025,7 +2025,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2039,7 +2039,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2053,7 +2053,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2067,7 +2067,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2081,7 +2081,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2095,7 +2095,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2113,7 +2113,7 @@
     {
       "id": "ZHO6-hNpX-9Wyv-yJwM",
       "credit": {
-        "total": 500,
+        "total": 3672,
         "last_day_average": 450,
         "subscriptions": [
           {
@@ -2135,7 +2135,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2149,7 +2149,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2163,7 +2163,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2177,7 +2177,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2191,7 +2191,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2205,7 +2205,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2219,7 +2219,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2233,7 +2233,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2247,7 +2247,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2261,7 +2261,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2275,7 +2275,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2293,7 +2293,7 @@
     {
       "id": "WaZS-LKed-Gofz-Ye9O",
       "credit": {
-        "total": 500,
+        "total": 3672,
         "last_day_average": 450,
         "subscriptions": [
           {
@@ -2315,7 +2315,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2329,7 +2329,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2343,7 +2343,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2357,7 +2357,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2371,7 +2371,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2385,7 +2385,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2399,7 +2399,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2413,7 +2413,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2427,7 +2427,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2441,7 +2441,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2455,7 +2455,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2473,7 +2473,7 @@
     {
       "id": "eQ9R-xrSk-Filk-YKyP",
       "credit": {
-        "total": 500,
+        "total": 3672,
         "last_day_average": 450,
         "subscriptions": [
           {
@@ -2495,7 +2495,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2509,7 +2509,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2523,7 +2523,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2537,7 +2537,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2551,7 +2551,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2565,7 +2565,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2579,7 +2579,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2593,7 +2593,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2607,7 +2607,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2621,7 +2621,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2635,7 +2635,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2653,7 +2653,7 @@
     {
       "id": "rPcg-Lg2s-eKRI-3UdN",
       "credit": {
-        "total": 500,
+        "total": 3672,
         "last_day_average": 450,
         "subscriptions": [
           {
@@ -2675,7 +2675,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2689,7 +2689,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2703,7 +2703,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2717,7 +2717,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2731,7 +2731,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2745,7 +2745,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2759,7 +2759,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2773,7 +2773,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2787,7 +2787,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2801,7 +2801,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2815,7 +2815,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2833,7 +2833,7 @@
     {
       "id": "Bggh-bybz-X9HR-sVRf",
       "credit": {
-        "total": 500,
+        "total": 3672,
         "last_day_average": 450,
         "subscriptions": [
           {
@@ -2855,7 +2855,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2869,7 +2869,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2883,7 +2883,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2897,7 +2897,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2911,7 +2911,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2925,7 +2925,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2939,7 +2939,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2953,7 +2953,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2967,7 +2967,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2981,7 +2981,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -2995,7 +2995,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3013,7 +3013,7 @@
     {
       "id": "YVsc-U036-R35W-9yLN",
       "credit": {
-        "total": 500,
+        "total": 3672,
         "last_day_average": 450,
         "subscriptions": [
           {
@@ -3035,7 +3035,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3049,7 +3049,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3063,7 +3063,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3077,7 +3077,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3091,7 +3091,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3105,7 +3105,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3119,7 +3119,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3133,7 +3133,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3147,7 +3147,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3161,7 +3161,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3175,7 +3175,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3270,7 +3270,7 @@
     {
       "id": "TfCE-X2Wf-MT7R-LO4i",
       "credit": {
-        "total": 250,
+        "total": 1747.1999999999998,
         "last_day_average": 260,
         "subscriptions": [
           {
@@ -3292,7 +3292,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3306,7 +3306,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3320,7 +3320,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3334,7 +3334,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3348,7 +3348,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3362,7 +3362,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3376,7 +3376,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3390,7 +3390,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3404,7 +3404,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3418,7 +3418,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3432,7 +3432,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3630,7 +3630,7 @@
     {
       "id": "Xjn0-IQ1z-43qn-lNgr",
       "credit": {
-        "total": 250,
+        "total": 1747.1999999999998,
         "last_day_average": 260,
         "subscriptions": [
           {
@@ -3652,7 +3652,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3666,7 +3666,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3680,7 +3680,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3694,7 +3694,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3708,7 +3708,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3722,7 +3722,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3736,7 +3736,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3750,7 +3750,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3764,7 +3764,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3778,7 +3778,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3792,7 +3792,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -3990,7 +3990,7 @@
     {
       "id": "JF8T-Wzj3-g987-nO4p",
       "credit": {
-        "total": 250,
+        "total": 1747.1999999999998,
         "last_day_average": 260,
         "subscriptions": [
           {
@@ -4012,7 +4012,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4026,7 +4026,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4040,7 +4040,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4054,7 +4054,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4068,7 +4068,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4082,7 +4082,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4096,7 +4096,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4110,7 +4110,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4124,7 +4124,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4138,7 +4138,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4152,7 +4152,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4170,7 +4170,7 @@
     {
       "id": "zXW3-8ERm-ewqW-HqiM",
       "credit": {
-        "total": 250,
+        "total": 1747.1999999999998,
         "last_day_average": 260,
         "subscriptions": [
           {
@@ -4192,7 +4192,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4206,7 +4206,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4220,7 +4220,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4234,7 +4234,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4248,7 +4248,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4262,7 +4262,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4276,7 +4276,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4290,7 +4290,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4304,7 +4304,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4318,7 +4318,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4332,7 +4332,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4350,7 +4350,7 @@
     {
       "id": "CGjL-cDe5-eE4S-rHR1",
       "credit": {
-        "total": 250,
+        "total": 1747.1999999999998,
         "last_day_average": 260,
         "subscriptions": [
           {
@@ -4372,7 +4372,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4386,7 +4386,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4400,7 +4400,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4414,7 +4414,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4428,7 +4428,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4442,7 +4442,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4456,7 +4456,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4470,7 +4470,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4484,7 +4484,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4498,7 +4498,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4512,7 +4512,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4530,7 +4530,7 @@
     {
       "id": "XfFR-CV3g-FJMH-pUGZ",
       "credit": {
-        "total": 250,
+        "total": 1747.1999999999998,
         "last_day_average": 260,
         "subscriptions": [
           {
@@ -4552,7 +4552,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4566,7 +4566,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4580,7 +4580,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4594,7 +4594,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4608,7 +4608,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4622,7 +4622,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4636,7 +4636,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4650,7 +4650,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4664,7 +4664,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4678,7 +4678,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4692,7 +4692,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4710,7 +4710,7 @@
     {
       "id": "Iq0i-dnAB-lAsF-5c2y",
       "credit": {
-        "total": 250,
+        "total": 1747.1999999999998,
         "last_day_average": 260,
         "subscriptions": [
           {
@@ -4732,7 +4732,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4746,7 +4746,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4760,7 +4760,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4774,7 +4774,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4788,7 +4788,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4802,7 +4802,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4816,7 +4816,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4830,7 +4830,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4844,7 +4844,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4858,7 +4858,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4872,7 +4872,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4890,7 +4890,7 @@
     {
       "id": "3B5i-ir71-3DXq-Vh9q",
       "credit": {
-        "total": 250,
+        "total": 1747.1999999999998,
         "last_day_average": 260,
         "subscriptions": [
           {
@@ -4912,7 +4912,7 @@
       },
       "resources": {
         "water": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4926,7 +4926,7 @@
           "history": []
         },
         "thermal_oil": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4940,7 +4940,7 @@
           "history": []
         },
         "silicon": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4954,7 +4954,7 @@
           "history": []
         },
         "uxmal_gas": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4968,7 +4968,7 @@
           "history": []
         },
         "uxmal_crystals": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4982,7 +4982,7 @@
           "history": []
         },
         "lsc": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -4996,7 +4996,7 @@
           "history": []
         },
         "solar_energy": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -5010,7 +5010,7 @@
           "history": []
         },
         "oxygen": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -5024,7 +5024,7 @@
           "history": []
         },
         "iron": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -5038,7 +5038,7 @@
           "history": []
         },
         "steel": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -5052,7 +5052,7 @@
           "history": []
         },
         "humans": {
-          "total": 200,
+          "total": 1440,
           "last_day_average": 60,
           "subscriptions": [
             {
@@ -5069,186 +5069,6 @@
     },
     {
       "id": "iEme-cEH1-tq5d-s9AQ",
-      "credit": {
-        "total": 1000000000,
-        "last_day_average": 400,
-        "subscriptions": [
-          {
-            "receiver": "r6B8-XeFz-cg6C-xMIq",
-            "value": 50,
-            "subscription_type": "sr",
-            "priority": 10,
-            "credit_type": "money"
-          },
-          {
-            "receiver": "WSLS-Vg5s-J4nF-uL9D",
-            "value": 50,
-            "subscription_type": "sr",
-            "priority": 10,
-            "credit_type": "money"
-          }
-        ],
-        "history": []
-      },
-      "resources": {
-        "water": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "water"
-            }
-          ],
-          "history": []
-        },
-        "thermal_oil": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "thermal_oil"
-            }
-          ],
-          "history": []
-        },
-        "silicon": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "silicon"
-            }
-          ],
-          "history": []
-        },
-        "uxmal_gas": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "uxmal_gas"
-            }
-          ],
-          "history": []
-        },
-        "uxmal_crystals": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "uxmal_crystals"
-            }
-          ],
-          "history": []
-        },
-        "lsc": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "lsc"
-            }
-          ],
-          "history": []
-        },
-        "solar_energy": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "solar_energy"
-            }
-          ],
-          "history": []
-        },
-        "oxygen": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "oxygen"
-            }
-          ],
-          "history": []
-        },
-        "iron": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "iron"
-            }
-          ],
-          "history": []
-        },
-        "steel": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "steel"
-            }
-          ],
-          "history": []
-        },
-        "humans": {
-          "total": 1000000000,
-          "last_day_average": 60,
-          "subscriptions": [
-            {
-              "receiver": "r6B8-XeFz-cg6C-xMIq",
-              "value": 50,
-              "subscription_type": "sr",
-              "priority": 10,
-              "credit_type": "humans"
-            }
-          ],
-          "history": []
-        }
-      }
-    },
-    {
-      "id": "6tvh-zaIp-ih0s-QDTa",
       "credit": {
         "total": 1000000000,
         "last_day_average": 400,
@@ -8301,13 +8121,6 @@
             "subscription_type": "sr",
             "priority": 20,
             "credit_type": "money"
-          },
-          {
-            "receiver": "6tvh-zaIp-ih0s-QDTa",
-            "value": 14.285714285714286,
-            "subscription_type": "sr",
-            "priority": 20,
-            "credit_type": "money"
           }
         ],
         "history": []
@@ -8395,7 +8208,7 @@
     {
       "id": "0VgW-Q0xK-PKK8-tNKt",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -8412,7 +8225,7 @@
     {
       "id": "1txX-Elq4-oUDm-a1oe",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -8429,7 +8242,7 @@
     {
       "id": "3HgN-BHhu-1oU4-hqHZ",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -8446,7 +8259,7 @@
     {
       "id": "4o6s-1RWb-Et4U-sKsV",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -8463,7 +8276,7 @@
     {
       "id": "5CFs-HWZD-jiBf-7D43",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -8480,7 +8293,7 @@
     {
       "id": "5XeZ-elqC-DYLA-AU17",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -8497,7 +8310,7 @@
     {
       "id": "6TGn-JoBH-sdeB-jyac",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -8514,7 +8327,7 @@
     {
       "id": "6Yz2-TZ5f-p3Ri-cvlM",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -8531,7 +8344,7 @@
     {
       "id": "7kYc-WgGX-Iafe-TLju",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -8548,7 +8361,7 @@
     {
       "id": "9ELs-y59z-7Uqf-ut1l",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -8565,7 +8378,7 @@
     {
       "id": "AM2s-4ZxJ-I4vC-pZ24",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -8582,7 +8395,7 @@
     {
       "id": "Bi9M-slAN-hC1r-trTF",
       "credit": {
-        "total": 8,
+        "total": 52.800000000000004,
         "last_day_average": 22,
         "subscriptions": [
           {
@@ -8599,7 +8412,7 @@
     {
       "id": "CzCh-jnoo-sxew-K9qp",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -8616,7 +8429,7 @@
     {
       "id": "DS5Q-jb9H-6ncE-WSHO",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -8633,7 +8446,7 @@
     {
       "id": "GRzH-KrHC-5SUL-yzb5",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -8650,7 +8463,7 @@
     {
       "id": "I9MO-9QcS-o9NW-jNCf",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -8667,7 +8480,7 @@
     {
       "id": "KKS6-A62j-i0FH-g1Q4",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -8684,7 +8497,7 @@
     {
       "id": "KQsf-b00z-I210-GGWL",
       "credit": {
-        "total": 8,
+        "total": 52.800000000000004,
         "last_day_average": 22,
         "subscriptions": [
           {
@@ -8701,7 +8514,7 @@
     {
       "id": "L5XT-Xpnp-ROVT-bpFh",
       "credit": {
-        "total": 8,
+        "total": 52.800000000000004,
         "last_day_average": 22,
         "subscriptions": [
           {
@@ -8718,7 +8531,7 @@
     {
       "id": "N7E5-ac08-ekbx-9z4z",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -8735,7 +8548,7 @@
     {
       "id": "OhY0-4fxe-Nqp6-L8hf",
       "credit": {
-        "total": 60,
+        "total": 1003.1999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -8759,7 +8572,7 @@
     {
       "id": "RI7Q-gBYl-9ao0-xvHt",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -8776,7 +8589,7 @@
     {
       "id": "RdgX-W4HP-o0FE-h8eV",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -8793,7 +8606,7 @@
     {
       "id": "RvlM-C3zD-Rlmk-N76G",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -8810,7 +8623,7 @@
     {
       "id": "U28f-pogA-HZSP-4v6u",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -8827,7 +8640,7 @@
     {
       "id": "U4OC-sm7S-VATO-6rSc",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -8844,7 +8657,7 @@
     {
       "id": "UCeN-9NVh-fxjR-UI7r",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -8861,7 +8674,7 @@
     {
       "id": "UEKq-sdBK-ngHo-uws6",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -8878,7 +8691,7 @@
     {
       "id": "VDtq-4lT7-ck8Z-tFJu",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -8895,7 +8708,7 @@
     {
       "id": "W5Jf-SSbX-GlLS-q0wz",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -8912,7 +8725,7 @@
     {
       "id": "WTLW-mfQg-QFqb-NpzX",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -8929,7 +8742,7 @@
     {
       "id": "XtEl-eZVv-SX64-wYIj",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -8946,7 +8759,7 @@
     {
       "id": "YWjm-oxy0-BYi5-Ku1n",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -8963,7 +8776,7 @@
     {
       "id": "ZpTE-CJfb-gGsQ-C39u",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -8980,7 +8793,7 @@
     {
       "id": "aTQh-8QG2-9uJr-qR2m",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -8997,7 +8810,7 @@
     {
       "id": "au2n-q5ev-t0zl-iNHP",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -9014,7 +8827,7 @@
     {
       "id": "br3f-wIDf-gHqo-VhTa",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -9031,7 +8844,7 @@
     {
       "id": "dRBH-9hys-VTbV-tyhj",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -9048,7 +8861,7 @@
     {
       "id": "eCb9-eWgi-GWMS-Pxg9",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -9065,7 +8878,7 @@
     {
       "id": "fa9m-sLVA-hkBp-rI4x",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -9082,7 +8895,7 @@
     {
       "id": "gEq5-mMWO-9RQ6-azS7",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -9099,7 +8912,7 @@
     {
       "id": "gMIK-3WqP-8bKC-SaYd",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -9116,7 +8929,7 @@
     {
       "id": "gMi6-SxnT-XQpS-pLRD",
       "credit": {
-        "total": 8,
+        "total": 52.800000000000004,
         "last_day_average": 22,
         "subscriptions": [
           {
@@ -9133,7 +8946,7 @@
     {
       "id": "jGCO-kAF0-KI0S-iuBC",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -9150,7 +8963,7 @@
     {
       "id": "k36L-Tj3n-FUJU-aPw4",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -9167,7 +8980,7 @@
     {
       "id": "k551-bD14-0Ydj-LUcu",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -9184,7 +8997,7 @@
     {
       "id": "kzHI-8jN6-CLpy-hktP",
       "credit": {
-        "total": 28,
+        "total": 148.8,
         "last_day_average": 62,
         "subscriptions": [
           {
@@ -9201,7 +9014,7 @@
     {
       "id": "lwSK-XvmF-pMMi-vV0Q",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -9218,7 +9031,7 @@
     {
       "id": "o2tX-HIFw-O8oD-P8ZQ",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -9235,7 +9048,7 @@
     {
       "id": "srK6-byGQ-rjjP-r2Vb",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -9252,7 +9065,7 @@
     {
       "id": "tWJE-k8y5-d4R0-IqUI",
       "credit": {
-        "total": 48,
+        "total": 220.79999999999998,
         "last_day_average": 92,
         "subscriptions": [
           {
@@ -9269,7 +9082,7 @@
     {
       "id": "x7A8-mFIT-YwkB-Em2q",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -9286,7 +9099,7 @@
     {
       "id": "zP3j-RPzK-ouKI-CG3w",
       "credit": {
-        "total": 75,
+        "total": 312,
         "last_day_average": 130,
         "subscriptions": [
           {
@@ -9303,7 +9116,7 @@
     {
       "id": "zjIB-GwXQ-vIXA-rmqH",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -9320,7 +9133,7 @@
     {
       "id": "zjbq-Lbt2-fJh2-oMHy",
       "credit": {
-        "total": 15,
+        "total": 91.19999999999999,
         "last_day_average": 38,
         "subscriptions": [
           {
@@ -9560,15 +9373,6 @@
       }
     },
     {
-      "id": "zone-5-0-6-e-household",
-      "credit": {
-        "total": 0,
-        "last_day_average": 0,
-        "subscriptions": [],
-        "history": []
-      }
-    },
-    {
       "id": "zone-1-b-1-w-household",
       "credit": {
         "total": 0,
@@ -9580,7 +9384,7 @@
     {
       "id": "mL7Q-v2Ns-K8pR-4XaD",
       "credit": {
-        "total": 0,
+        "total": 2100,
         "last_day_average": 43.75,
         "subscriptions": [
           {
@@ -9688,7 +9492,7 @@
     {
       "id": "B9tC-3wFy-H6jM-q1Ze",
       "credit": {
-        "total": 0,
+        "total": 1344,
         "last_day_average": 28,
         "subscriptions": [
           {
@@ -9796,7 +9600,7 @@
     {
       "id": "rP4K-x8Vu-2DnS-L5cJ",
       "credit": {
-        "total": 0,
+        "total": 3528,
         "last_day_average": 73.5,
         "subscriptions": [
           {
@@ -9904,7 +9708,7 @@
     {
       "id": "T6hW-n3Gb-Y9sA-7QeF",
       "credit": {
-        "total": 0,
+        "total": 1176,
         "last_day_average": 24.5,
         "subscriptions": [
           {
@@ -10701,31 +10505,6 @@
           "subscriptions": [
             {
               "receiver": "iEme-cEH1-tq5d-s9AQ",
-              "value": 100,
-              "subscription_type": "contract",
-              "priority": 0,
-              "credit_type": "humans"
-            }
-          ],
-          "history": []
-        }
-      }
-    },
-    {
-      "id": "humans-5-0-6-e",
-      "credit": {
-        "total": 0,
-        "last_day_average": 0,
-        "subscriptions": [],
-        "history": []
-      },
-      "resources": {
-        "humans": {
-          "total": 0,
-          "last_day_average": 1,
-          "subscriptions": [
-            {
-              "receiver": "6tvh-zaIp-ih0s-QDTa",
               "value": 100,
               "subscription_type": "contract",
               "priority": 0,
