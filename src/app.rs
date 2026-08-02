@@ -23,9 +23,10 @@ pub(crate) async fn start_simulation(config: Config) -> Result<mpsc::Sender<Comm
     if loaded_state.is_empty() {
         let seeded = config.seeded_structures();
         log::info!(
-            "No simulation state persisted, instantiating {} bases, {} trusts, and {} production units from config.",
+            "No simulation state persisted, instantiating {} bases, {} trusts, {} units, and {} production units from config.",
             seeded.bases.len(),
             seeded.trusts.len(),
+            seeded.units.len(),
             seeded.production_units.len(),
         );
 
@@ -56,9 +57,10 @@ pub(crate) async fn start_simulation(config: Config) -> Result<mpsc::Sender<Comm
 
         loaded_state.bases = seeded.bases;
         loaded_state.trusts = seeded.trusts;
+        loaded_state.units = seeded.units;
         loaded_state.production_units = seeded.production_units;
     } else {
-        log::info!("Loaded simulation state from database, ignoring configured base and trust seeds.");
+        log::info!("Loaded simulation state from database, ignoring configured seeds.");
     }
 
     let persist_interval = config.persistence().interval();

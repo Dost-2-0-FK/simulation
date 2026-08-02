@@ -8,7 +8,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use crate::{
     domain::{Loot, LootFactors, MilitaryBase, politics::DieRollOutcome},
     geometry::{Distance, Point, Positioned, WorldBounds},
-    services::credit_exchange_service::{Payment, SinglePayer},
+    services::credit_exchange_service::{Cost, Payment, SinglePayer},
 };
 
 /// Identifies a [MilitaryUnit].
@@ -72,6 +72,21 @@ impl MilitaryUnit {
         position: Point,
     ) -> Self {
         let loot = Loot::from_cost(payment.cost(), loot_factors);
+        Self::new_prepaid_with_loot(base, position, loot)
+    }
+
+    /// Create a unit whose configured cost has already been paid.
+    pub(crate) fn new_prepaid(
+        cost: &Cost<Self>,
+        loot_factors: &LootFactors,
+        base: Arc<RwLock<MilitaryBase>>,
+        position: Point,
+    ) -> Self {
+        let loot = Loot::from_cost(cost, loot_factors);
+        Self::new_prepaid_with_loot(base, position, loot)
+    }
+
+    fn new_prepaid_with_loot(base: Arc<RwLock<MilitaryBase>>, position: Point, loot: Loot) -> Self {
         Self {
             id: UnitId::new(),
             base,

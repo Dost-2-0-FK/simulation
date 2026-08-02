@@ -19,9 +19,10 @@ use crate::{
     domain::{
         BaseId, Bloc, BlocKey, BlocName, Chance, CharacterKey, CharacterName, LootFactors, MilitaryBase, MilitaryUnit,
         NameMappings, Placement, PlacementId, ProductionUnit, ProductionUnitKey, SocialRule, SocialRuleFactorPerLevel,
-        SocialRuleKey, SocialRuleLevel, SocialRuleName, Trust, TrustId, Zone, ZoneKey, ZoneName, ZoneSocialRule,
+        SocialRuleKey, SocialRuleLevel, SocialRuleName, Trust, TrustId, UnitId, Zone, ZoneKey, ZoneName,
+        ZoneSocialRule,
     },
-    geometry::{Distance, Point, WorldBounds},
+    geometry::{Distance, Point, Positioned, WorldBounds},
     handlers::bases::Financing,
     services::{
         auth_service::AuthService,
@@ -99,6 +100,7 @@ pub(crate) struct Config {
 pub(crate) struct SeededStructures {
     pub(crate) bases: HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
     pub(crate) trusts: HashMap<TrustId, Arc<RwLock<Trust>>>,
+    pub(crate) units: HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
     pub(crate) production_units: HashMap<ProductionUnitKey, Arc<RwLock<ProductionUnit>>>,
 }
 
@@ -275,6 +277,16 @@ pub(crate) struct PlacementConfig {
 struct BaseConfig {
     placement_id: PlacementId,
     payment: Vec<Financing>,
+    #[serde(default = "default_enabled")]
+    enabled: bool,
+    #[serde(default)]
+    prioritized: bool,
+    #[serde(default)]
+    initial_units: u32,
+}
+
+const fn default_enabled() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize)]
@@ -493,7 +505,7 @@ impl Config {
     }
 
     pub(crate) fn seeded_structures(&self) -> SeededStructures {
-        let bases = self
+        let seeded_bases = self
             .base_seeds
             .iter()
             .map(|seed| {
@@ -501,15 +513,37 @@ impl Config {
                     .placements()
                     .find(|placement| placement.id() == &seed.placement_id)
                     .expect("seed placement references were validated while parsing config");
-                let base = MilitaryBase::new_prepaid(
+                let mut base = MilitaryBase::new_prepaid(
                     seed.payment.clone(),
                     &self.credit_exchange_service.military_base,
                     self.credit_exchange_service.loot_factors(),
-                    placement,
+                    placement.clone(),
                 );
-                (base.id(), Arc::new(RwLock::new(base)))
+                base.set_enabled(seed.enabled);
+                base.set_prioritized(seed.prioritized);
+                (seed, placement.position(), base.id(), Arc::new(RwLock::new(base)))
+            })
+            .collect::<Vec<_>>();
+
+        let units = seeded_bases
+            .iter()
+            .flat_map(|(seed, position, _, base)| {
+                let base = base.clone();
+                let position = *position;
+                std::iter::repeat_with(move || {
+                    let unit = MilitaryUnit::new_prepaid(
+                        &self.credit_exchange_service.military_unit,
+                        self.credit_exchange_service.loot_factors(),
+                        base.clone(),
+                        position,
+                    );
+                    (unit.id(), Arc::new(RwLock::new(unit)))
+                })
+                .take(seed.initial_units as usize)
             })
             .collect();
+
+        let bases = seeded_bases.into_iter().map(|(_, _, id, base)| (id, base)).collect();
 
         let trusts = self
             .trust_seeds
@@ -568,6 +602,7 @@ impl Config {
         SeededStructures {
             bases,
             trusts,
+            units,
             production_units,
         }
     }
@@ -1518,10 +1553,13 @@ mod tests {
 
         assert_eq!(seeded.bases.len(), 1);
         assert_eq!(seeded.trusts.len(), 1);
+        assert!(seeded.units.is_empty());
 
         let base = seeded.bases.values().next().unwrap().read().await;
         assert_eq!(base.placement_id().to_string(), "placement_1");
         assert_eq!(base.financiers().len(), 1);
+        assert!(base.enabled());
+        assert!(!base.prioritized());
 
         let trust = seeded.trusts.values().next().unwrap().read().await;
         assert_eq!(trust.placement_id().to_string(), "placement_2");
@@ -1531,6 +1569,37 @@ mod tests {
             trust.producing_base_value().get(&ResourceName::new("lithium".into())),
             Some(3.5)
         );
+    }
+
+    #[tokio::test]
+    async fn parse_builds_configured_base_state_and_prepaid_units() {
+        let toml = with_structure_seeds().replace(
+            "payment = [{ financierId = \"base-financier\", share = 0.25 }]",
+            r#"payment = [{ financierId = "base-financier", share = 0.25 }]
+        enabled = false
+        prioritized = true
+        initial_units = 2"#,
+        );
+        let config = Config::parse_from_str(&toml)
+            .await
+            .expect("config with initial base units can be parsed");
+        let seeded = config.seeded_structures();
+
+        assert_eq!(seeded.units.len(), 2);
+        let base = seeded.bases.values().next().unwrap();
+        let base_guard = base.read().await;
+        assert!(!base_guard.enabled());
+        assert!(base_guard.prioritized());
+        let base_id = base_guard.id();
+        let base_position = base_guard.position();
+        drop(base_guard);
+
+        for unit in seeded.units.values() {
+            let unit = unit.read().await;
+            assert_eq!(unit.base().await.id(), base_id);
+            assert_eq!(unit.position(), base_position);
+            assert_eq!(unit.loot().money().value(), 0.75);
+        }
     }
 
     #[tokio::test]
