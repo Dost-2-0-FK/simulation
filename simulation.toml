@@ -41,10 +41,6 @@ resources = { water = 90, thermal_oil = 90, solar_energy = 90 }
 money = 200
 resources = { water = 90, thermal_oil = 90, solar_energy = 90, oxygen = 90, iron = 180 }
 
-[costs.trust.humans]
-money = 200
-resources = { water = 90, thermal_oil = 90, solar_energy = 90 }
-
 [costs.base]
 money = 1800
 resources = { water = 90, solar_energy = 90, steel = 90 }

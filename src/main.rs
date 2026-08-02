@@ -46,7 +46,7 @@ async fn main() -> std::io::Result<()> {
         return Err(error);
     }
     let coordination_service = CoordinationService::new(coordination_api_key);
-    let resources = config.resources().to_vec();
+    let resources = config.resources().cloned().collect::<Vec<_>>();
     let server_address = config.server_address();
 
     let tx = app::start_simulation(config).await.map_err(|e| {

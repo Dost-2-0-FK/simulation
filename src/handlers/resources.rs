@@ -4,12 +4,12 @@ use crate::services::credit_exchange_service::ResourceName;
 
 const RESOURCES: &str = "resources";
 
-/// List all configured resources.
+/// List configured resources that are not produced by production units.
 #[utoipa::path(
     operation_id = "listResources",
     tag = RESOURCES,
     responses(
-        (status = 200, description = "All configured resources", body = [ResourceName])
+        (status = 200, description = "Configured resources not produced by production units", body = [ResourceName])
     )
 )]
 #[get("/resources")]
@@ -25,7 +25,7 @@ mod tests {
     use crate::services::credit_exchange_service::ResourceName;
 
     #[actix_web::test]
-    async fn lists_all_configured_resources() {
+    async fn lists_available_resources() {
         let resources = vec![
             ResourceName::new("Lithium".to_string()),
             ResourceName::new("Iron".to_string()),

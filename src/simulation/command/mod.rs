@@ -299,6 +299,10 @@ pub(crate) async fn run(
                         return Err(UserError::Conflict("Placement"));
                     }
 
+                    if config.is_production_unit_resource(&resource) {
+                        return Err(UserError::NotFound("Resource"));
+                    }
+
                     let approved = config
                         .auth_service()
                         .verify_financing(

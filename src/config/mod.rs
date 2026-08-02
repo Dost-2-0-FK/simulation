@@ -93,6 +93,7 @@ pub(crate) struct Config {
     base_seeds: Vec<BaseConfig>,
     trust_seeds: Vec<TrustConfig>,
     production_unit_seeds: Vec<ProductionUnitConfig>,
+    production_unit_resources: HashSet<ResourceName>,
 }
 
 pub(crate) struct SeededStructures {
@@ -404,8 +405,15 @@ impl Config {
         &self.credit_exchange_service
     }
 
-    pub(crate) fn resources(&self) -> &[ResourceName] {
-        self.credit_exchange_service.resources()
+    pub(crate) fn resources(&self) -> impl Iterator<Item = &ResourceName> {
+        self.credit_exchange_service
+            .resources()
+            .iter()
+            .filter(|resource| !self.production_unit_resources.contains(*resource))
+    }
+
+    pub(crate) fn is_production_unit_resource(&self, resource: &ResourceName) -> bool {
+        self.production_unit_resources.contains(resource)
     }
 
     pub(crate) fn placements(&self) -> impl Iterator<Item = Arc<Placement>> + Clone + '_ {
@@ -590,6 +598,12 @@ impl Config {
             config.production_units.iter().map(|unit| &unit.key),
         )?;
 
+        let production_unit_resources = config
+            .production_units
+            .iter()
+            .map(|unit| unit.resource.clone())
+            .collect::<HashSet<_>>();
+
         let name_mappings = Arc::new(NameMappings::new(
             config
                 .blocs
@@ -678,7 +692,9 @@ impl Config {
         }
 
         for resource_value in &config.trust_production.resources {
-            if config.costs.trust.get(resource_value.name()).is_none() {
+            if config.costs.trust.get(resource_value.name()).is_none()
+                && !production_unit_resources.contains(resource_value.name())
+            {
                 return Err(Error::ConfigValidation(format!(
                     "resource {resource} has configured trust production but no configured trust cost",
                     resource = resource_value.name(),
@@ -921,6 +937,13 @@ impl Config {
                     resource = &trust.resource,
                 )));
             }
+            if config.costs.trust.get(&trust.resource).is_none() {
+                return Err(Error::ConfigValidation(format!(
+                    "seeded trust on placement {placement_id} uses resource {resource} without configured trust cost",
+                    placement_id = &trust.placement_id,
+                    resource = &trust.resource,
+                )));
+            }
         }
 
         for production_unit in &config.production_units {
@@ -942,6 +965,18 @@ impl Config {
                     resource = production_unit.resource,
                 )));
             }
+        }
+
+        if let Some(resource) = config
+            .costs
+            .trust
+            .iter()
+            .map(|(resource, _)| resource)
+            .find(|resource| production_unit_resources.contains(*resource))
+        {
+            return Err(Error::ConfigValidation(format!(
+                "resource {resource} is configured for both trusts and production units"
+            )));
         }
 
         assert!(
@@ -974,6 +1009,7 @@ impl Config {
             base_seeds: config.bases,
             trust_seeds: config.trusts,
             production_unit_seeds: config.production_units,
+            production_unit_resources,
             credit_exchange_service: CreditExchangeService::new(
                 config.env.credit_exchange_url,
                 config.bank_user_id,
@@ -1499,6 +1535,14 @@ mod tests {
 
     #[tokio::test]
     async fn parse_builds_typed_production_unit_seed() {
+        let config_without_lithium_trust = base_toml().replace(
+            r#"
+        [costs.trust.lithium]
+        money = 1.2
+        resources = { lithium = 1.5, iron = 2.5 }
+"#,
+            "",
+        );
         let toml = format!(
             r#"{}
 
@@ -1507,7 +1551,7 @@ mod tests {
             zone = "zone_1"
             resource = "Lithium"
             "#,
-            base_toml()
+            config_without_lithium_trust
         );
         let config = Config::parse_from_str(&toml)
             .await
@@ -1525,6 +1569,68 @@ mod tests {
                 .get(&ResourceName::new("lithium".into())),
             Some(3.5)
         );
+        assert_eq!(
+            config.resources().map(ResourceName::as_str).collect::<Vec<_>>(),
+            ["iron"]
+        );
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_resource_configured_for_trust_and_production_unit() {
+        let toml = format!(
+            r#"{}
+
+            [[production_unit]]
+            key = "people-factory"
+            zone = "zone_1"
+            resource = "Lithium"
+            "#,
+            base_toml()
+        );
+
+        match Config::parse_from_str(&toml).await {
+            Err(Error::ConfigValidation(error)) => assert_eq!(
+                error,
+                "resource lithium is configured for both trusts and production units"
+            ),
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("resource overlap between trusts and production units must fail"),
+        }
+    }
+
+    #[tokio::test]
+    async fn parse_rejects_seeded_trust_for_production_unit_resource() {
+        let config_without_lithium_trust = base_toml().replace(
+            r#"
+        [costs.trust.lithium]
+        money = 1.2
+        resources = { lithium = 1.5, iron = 2.5 }
+"#,
+            "",
+        );
+        let toml = format!(
+            r#"{config_without_lithium_trust}
+
+            [[production_unit]]
+            key = "people-factory"
+            zone = "zone_1"
+            resource = "Lithium"
+
+            [[trust]]
+            placement_id = "placement_2"
+            resource = "Lithium"
+            payment = []
+            "#
+        );
+
+        match Config::parse_from_str(&toml).await {
+            Err(Error::ConfigValidation(error)) => assert_eq!(
+                error,
+                "seeded trust on placement placement_2 uses resource lithium without configured trust cost"
+            ),
+            Err(error) => panic!("unexpected error: {error}"),
+            Ok(_) => panic!("seeded trust for a production-unit resource must fail"),
+        }
     }
 
     #[tokio::test]
