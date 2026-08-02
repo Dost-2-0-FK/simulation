@@ -74,8 +74,9 @@ pub(crate) async fn produce_units(
             "Bloc {bloc_name}: hourly income {hourly_money}, production budget {budget_money} {budget_resources}"
         );
 
-        // Round Robin spending of the budget, prioritized bases first, ascending ids.
-        enabled_bases_with_quota.sort_by_key(|(id, ..)| *id);
+        // Round Robin spending of the budget, prioritized bases first (descending quota), ascending ids.
+        enabled_bases_with_quota
+            .sort_by(|(id_a, _, quota_a), (id_b, _, quota_b)| quota_b.cmp(quota_a).then_with(|| id_a.cmp(id_b)));
         let mut produced_units = 0;
         'outer: loop {
             for (_, base_arc, quota) in &enabled_bases_with_quota {
