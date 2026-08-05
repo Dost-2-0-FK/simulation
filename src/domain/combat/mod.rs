@@ -2,7 +2,7 @@ pub(super) mod loot;
 mod structure;
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     sync::Arc,
 };
 
@@ -422,35 +422,51 @@ impl Combat {
     async fn units_fight(&mut self) -> CombatEvent {
         let mut killed_events = Vec::new();
         let mut killed_units = HashMap::new();
-        let mut alive_units = Vec::new();
+        let mut alive_units = HashMap::new();
+        let mut available_targets = HashMap::<BlocKey, BTreeSet<UnitId>>::new();
 
         for (bloc, units) in &self.units {
             for (unit_id, unit) in units {
                 if unit.read().await.state() == UnitState::Alive {
-                    alive_units.push((bloc.clone(), *unit_id, unit.clone()));
+                    alive_units.insert(*unit_id, (bloc.clone(), unit.clone()));
+                    available_targets.entry(bloc.clone()).or_default().insert(*unit_id);
                 }
             }
         }
 
-        for (bloc_a, unit_a_id, unit_a) in &alive_units {
-            let Some((_, unit_b_id, unit_b)) = alive_units
+        let mut attacker_ids = alive_units.keys().copied().collect::<Vec<_>>();
+        attacker_ids.sort_unstable();
+        for attacker_id in attacker_ids {
+            let (attacker_bloc, attacker) = alive_units
+                .get(&attacker_id)
+                .expect("attacker ids were collected from alive units");
+            let Some(target_id) = available_targets
                 .iter()
-                .find(|(bloc_b, unit_b_id, _)| bloc_a != bloc_b && !killed_units.contains_key(unit_b_id))
+                .filter(|(target_bloc, _)| *target_bloc != attacker_bloc)
+                .filter_map(|(_, targets)| targets.first())
+                .min()
+                .copied()
             else {
                 continue;
             };
+            let (target_bloc, target) = alive_units
+                .get(&target_id)
+                .expect("available target ids belong to alive units");
 
-            let unit_a_guard = unit_a.read().await;
+            let attacker = attacker.read().await;
 
-            if unit_a_guard.attack().await == AttackOutcome::Killed
-                && killed_units.insert(*unit_b_id, *unit_a_id).is_none()
+            if attacker.attack().await == AttackOutcome::Killed && killed_units.insert(target_id, attacker_id).is_none()
             {
-                let killer_base = unit_a_guard.base().await.id();
-                let unit_b_guard = unit_b.read().await;
-                let loot = unit_b_guard.loot().clone();
+                available_targets
+                    .get_mut(target_bloc)
+                    .expect("the target bloc has an available-target set")
+                    .remove(&target_id);
+                let killer_base = attacker.base().await.id();
+                let target = target.read().await;
+                let loot = target.loot().clone();
                 killed_events.push(UnitKilled {
-                    killed: *unit_b_id,
-                    killer: *unit_a_id,
+                    killed: target_id,
+                    killer: attacker_id,
                     loot: LootTransfer {
                         base_id: killer_base,
                         loot,
@@ -465,12 +481,10 @@ impl Combat {
 
         // Resolve deaths after all units that were alive at the start of the tick attacked.
         for (unit_id, killer_id) in &killed_units {
-            if let Some(unit) = alive_units
-                .iter()
-                .find_map(|(_, candidate_id, unit)| (candidate_id == unit_id).then_some(unit))
-            {
-                unit.write().await.kill(*killer_id);
-            }
+            let (_, unit) = alive_units
+                .get(unit_id)
+                .expect("killed unit ids belong to the alive-at-start snapshot");
+            unit.write().await.kill(*killer_id);
         }
 
         self.prune_dead_units().await;
@@ -533,13 +547,89 @@ mod tests {
     }
 
     fn unit(base: Arc<RwLock<MilitaryBase>>, position: Point) -> Arc<RwLock<MilitaryUnit>> {
+        unit_with_uuid(base, position, Uuid::new())
+    }
+
+    fn unit_with_id(base: Arc<RwLock<MilitaryBase>>, position: Point, id: u8) -> Arc<RwLock<MilitaryUnit>> {
+        unit_with_uuid(base, position, Uuid::from_bytes([id; 16]))
+    }
+
+    fn unit_with_uuid(base: Arc<RwLock<MilitaryBase>>, position: Point, id: Uuid) -> Arc<RwLock<MilitaryUnit>> {
         Arc::new(RwLock::new(MilitaryUnit::from_persisted(
-            Uuid::new(),
+            id,
             base,
             position,
             UnitState::Alive,
             Loot::default(),
         )))
+    }
+
+    async fn units_by_id(
+        units: impl IntoIterator<Item = Arc<RwLock<MilitaryUnit>>>,
+    ) -> HashMap<UnitId, Arc<RwLock<MilitaryUnit>>> {
+        let mut result = HashMap::new();
+        for unit in units {
+            let id = unit.read().await.id();
+            result.insert(id, unit);
+        }
+        result
+    }
+
+    #[tokio::test]
+    async fn attacks_target_lowest_available_enemy_unit_id() {
+        let position = Point::new(NotNan::new(0.0).unwrap(), NotNan::new(0.0).unwrap());
+        let bloc_a_base = base("bloc-a", position);
+        let bloc_b_base = base("bloc-b", position);
+        let a1 = unit_with_id(bloc_a_base.clone(), position, 1);
+        let b2 = unit_with_id(bloc_b_base.clone(), position, 2);
+        let b3 = unit_with_id(bloc_b_base, position, 3);
+        let a4 = unit_with_id(bloc_a_base, position, 4);
+        let a1_id = a1.read().await.id();
+        let b2_id = b2.read().await.id();
+        let b3_id = b3.read().await.id();
+        let a4_id = a4.read().await.id();
+        let units = HashMap::from([
+            (BlocKey::from("bloc-a".to_owned()), units_by_id([a4, a1]).await),
+            (BlocKey::from("bloc-b".to_owned()), units_by_id([b3, b2]).await),
+        ]);
+        let mut combat = Combat::new(CombatParameters::Units(units)).await;
+
+        let CombatEvent::UnitsKilled { units } = combat.tick().await else {
+            panic!("guaranteed hits should kill units");
+        };
+
+        let attacks = units
+            .iter()
+            .map(|event| (event.killer(), event.killed()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            attacks,
+            vec![(a1_id, b2_id), (b2_id, a1_id), (b3_id, a4_id), (a4_id, b3_id)]
+        );
+    }
+
+    #[tokio::test]
+    async fn combat_tick_handles_eight_thousand_units() {
+        let position = Point::new(NotNan::new(0.0).unwrap(), NotNan::new(0.0).unwrap());
+        let bloc_a_base = base("bloc-a", position);
+        let bloc_b_base = base("bloc-b", position);
+        let mut bloc_a_units = Vec::with_capacity(4_000);
+        let mut bloc_b_units = Vec::with_capacity(4_000);
+        for _ in 0..4_000 {
+            bloc_a_units.push(unit(bloc_a_base.clone(), position));
+            bloc_b_units.push(unit(bloc_b_base.clone(), position));
+        }
+        let units = HashMap::from([
+            (BlocKey::from("bloc-a".to_owned()), units_by_id(bloc_a_units).await),
+            (BlocKey::from("bloc-b".to_owned()), units_by_id(bloc_b_units).await),
+        ]);
+        let mut combat = Combat::new(CombatParameters::Units(units)).await;
+
+        let event = tokio::time::timeout(std::time::Duration::from_secs(10), combat.tick())
+            .await
+            .expect("an 8,000-unit combat tick should complete promptly");
+
+        assert!(matches!(event, CombatEvent::UnitsKilled { units } if units.len() == 8_000));
     }
 
     #[tokio::test]
@@ -607,5 +697,7 @@ mod tests {
             panic!("guaranteed hits should kill units");
         };
         assert_eq!(units.len(), 4);
+        assert_eq!(units.iter().map(UnitKilled::killed).collect::<HashSet<_>>().len(), 4);
+        assert_eq!(units.iter().map(UnitKilled::killer).collect::<HashSet<_>>().len(), 4);
     }
 }
