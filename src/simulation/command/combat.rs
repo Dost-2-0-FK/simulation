@@ -9,8 +9,8 @@ use tokio::sync::{RwLock, oneshot::Sender};
 use crate::{
     config::Config,
     domain::{
-        BaseId, BlocKey, Combat, CombatEvent, CombatStructureSnapshot, MilitaryBase, MilitaryUnit, Target, Trust,
-        TrustId, UnitId, UnitState,
+        BaseId, BlocKey, Combat, CombatEvent, CombatStructureSnapshot, DestructionSource, MilitaryBase, MilitaryUnit,
+        SimulationStats, Target, Trust, TrustId, UnitId, UnitState,
     },
     geometry::{Distance, Point, Positioned, WorldBounds},
     handlers::combats::CombatResponse,
@@ -55,6 +55,7 @@ pub(crate) async fn tick(combats: &mut HashMap<Point, Arc<RwLock<Combat>>>) -> V
     events
 }
 
+#[expect(clippy::too_many_arguments)]
 pub(crate) async fn apply_events(
     events: &[CombatEvent],
     bases: &mut HashMap<BaseId, Arc<RwLock<MilitaryBase>>>,
@@ -63,28 +64,51 @@ pub(crate) async fn apply_events(
     combats: &mut HashMap<Point, Arc<RwLock<Combat>>>,
     world_bounds: WorldBounds,
     auth_service: &AuthService,
+    stats: &mut SimulationStats,
 ) {
+    let mut unit_blocs = HashMap::with_capacity(units.len());
+    for (id, unit) in units.iter() {
+        unit_blocs.insert(*id, unit.read().await.base().await.bloc_key().clone());
+    }
+
     for event in events {
         match event {
             CombatEvent::None => {}
-            CombatEvent::UnitsKilled { units } => {
-                for unit in units {
+            CombatEvent::UnitsKilled { units: killed_units } => {
+                for unit in killed_units {
+                    if let Some(bloc) = unit_blocs.get(&unit.killed()) {
+                        stats.record_unit_destroyed_by_enemy(bloc.clone());
+                    }
                     transfer_loot(unit.loot(), bases).await;
                     publish_destruction(auth_service, DestroyedObject::Unit).await;
                 }
             }
             CombatEvent::BaseDestroyed { id, loot: transfers } => {
+                let destroyed_bloc = match bases.get(id) {
+                    Some(base) => Some(base.read().await.bloc_key().clone()),
+                    None => None,
+                };
                 for transfer in transfers {
                     transfer_loot(transfer, bases).await;
                 }
                 destroy_base(*id, bases, units, combats, world_bounds).await;
+                if let Some(bloc) = destroyed_bloc {
+                    stats.record_base_destroyed(bloc, DestructionSource::Combat);
+                }
                 publish_destruction(auth_service, DestroyedObject::Base).await;
             }
             CombatEvent::TrustDestroyed { id, loot } => {
+                let destroyed_bloc = match trusts.get(id) {
+                    Some(trust) => Some(trust.read().await.placement().zone().bloc_key().clone()),
+                    None => None,
+                };
                 for transfer in loot {
                     transfer_loot(transfer, bases).await;
                 }
                 destroy_trust(*id, bases, trusts).await;
+                if let Some(bloc) = destroyed_bloc {
+                    stats.record_trust_destroyed(bloc, DestructionSource::Combat);
+                }
                 publish_destruction(auth_service, DestroyedObject::Trust).await;
             }
         }

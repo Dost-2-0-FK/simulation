@@ -513,6 +513,22 @@ impl CreditExchangeService {
             }))
     }
 
+    /// Whether the bloc's own current balance covers the full configured base cost.
+    pub(crate) async fn can_afford_military_base(&self, bloc: &BlocKey) -> Result<bool> {
+        let response = self.list_credits(&CreditUserId::from(bloc)).await?;
+        let mut money = Money::default();
+        let mut resources = Resources::default();
+        for credit in response.credits {
+            if credit.credit_type.is_money() {
+                money = Money::from(credit.balance);
+            } else {
+                resources.insert(credit.credit_type.into_resource_name(), credit.balance);
+            }
+        }
+
+        Ok(money >= self.military_base.money() && resources.covers(&self.military_base.resources_owned()))
+    }
+
     pub(crate) async fn subscriptions(
         &self,
         user_id: &CreditUserId,
@@ -1016,6 +1032,67 @@ mod tests {
                     share: Share::from(1.0),
                 },
             ]
+        );
+    }
+
+    #[actix_web::test]
+    async fn base_affordability_requires_full_money_and_resource_cost() {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = HttpServer::new(|| {
+            App::new().route(
+                "/api/users/{user_id}/credits",
+                web::get().to(|path: web::Path<String>| async move {
+                    let credits = match path.as_str() {
+                        "ready" => serde_json::json!([
+                            { "creditType": "money", "balance": 100.0, "hourly": 0.0 },
+                            { "creditType": "steel", "balance": 10.0, "hourly": 0.0 }
+                        ]),
+                        "short-money" => serde_json::json!([
+                            { "creditType": "money", "balance": 99.0, "hourly": 0.0 },
+                            { "creditType": "steel", "balance": 10.0, "hourly": 0.0 }
+                        ]),
+                        _ => serde_json::json!([
+                            { "creditType": "money", "balance": 100.0, "hourly": 0.0 },
+                            { "creditType": "steel", "balance": 9.0, "hourly": 0.0 }
+                        ]),
+                    };
+                    HttpResponse::Ok().json(serde_json::json!({ "credits": credits }))
+                }),
+            )
+        })
+        .listen(listener)
+        .unwrap()
+        .run();
+        actix_web::rt::spawn(server);
+
+        let service = CreditExchangeService::new(
+            format!("http://{address}/").parse().unwrap(),
+            "bank".to_string(),
+            serde_json::from_value(serde_json::json!({ "money": 0.0, "resources": {} })).unwrap(),
+            serde_json::from_value(serde_json::json!({ "money": 100.0, "resources": { "steel": 10.0 } })).unwrap(),
+            serde_json::from_value(serde_json::json!({})).unwrap(),
+            serde_json::from_value(serde_json::json!(["steel"])).unwrap(),
+            LootFactors::default(),
+        );
+
+        assert!(
+            service
+                .can_afford_military_base(&BlocKey::from("ready".to_string()))
+                .await
+                .unwrap()
+        );
+        assert!(
+            !service
+                .can_afford_military_base(&BlocKey::from("short-money".to_string()))
+                .await
+                .unwrap()
+        );
+        assert!(
+            !service
+                .can_afford_military_base(&BlocKey::from("short-resource".to_string()))
+                .await
+                .unwrap()
         );
     }
 

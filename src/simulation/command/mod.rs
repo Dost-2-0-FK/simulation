@@ -5,6 +5,7 @@ mod deletion;
 pub(crate) mod persist;
 pub(crate) mod placement;
 pub(crate) mod production_unit;
+pub(crate) mod stats;
 pub(crate) mod trust;
 pub(crate) mod unit;
 pub(crate) mod zone;
@@ -79,8 +80,9 @@ use tokio::sync::{Mutex, RwLock, mpsc::Receiver, oneshot::Sender};
 use crate::{
     config::Config,
     domain::{
-        BaseId, Bloc, BlocKey, Chance, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, ProductionUnit,
-        ProductionUnitKey, SocialRuleLevel, SocialRuleName, Target, Trust, TrustId, UnitId, Zone, ZoneKey,
+        BaseId, Bloc, BlocKey, Chance, Combat, DestructionSource, MilitaryBase, MilitaryUnit, Placement, PlacementId,
+        ProductionUnit, ProductionUnitKey, SimulationStats, SocialRuleLevel, SocialRuleName, Target, Trust, TrustId,
+        UnitId, Zone, ZoneKey,
     },
     error::UserError,
     geometry::Point,
@@ -88,6 +90,7 @@ use crate::{
         bases::{Financing, TargetBody},
         combats::CombatResponse,
         production_units::ProductionUnitResponse,
+        stats::StatsResponse,
         trusts::TrustResponse,
         units::UnitResponse,
     },
@@ -100,6 +103,7 @@ use crate::{
 pub(crate) enum Command {
     GetUnits(Sender<core::result::Result<Vec<UnitResponse>, UserError>>),
     GetCombats(Sender<core::result::Result<Vec<CombatResponse>, UserError>>),
+    GetStats(Sender<core::result::Result<StatsResponse, UserError>>),
     CreateBase {
         placement_id: PlacementId,
         financing: Vec<Financing>,
@@ -116,6 +120,7 @@ pub(crate) enum Command {
     },
     DeleteBase {
         id: BaseId,
+        source: DestructionSource,
         response: Sender<core::result::Result<(), UserError>>,
     },
     CreateTrust {
@@ -133,6 +138,7 @@ pub(crate) enum Command {
     ),
     DeleteTrust {
         id: TrustId,
+        source: DestructionSource,
         response: Sender<core::result::Result<(), UserError>>,
     },
     GetPlacements(Sender<Vec<Arc<Placement>>>),
@@ -181,6 +187,7 @@ pub(crate) async fn run(
     production_units: HashMap<ProductionUnitKey, Arc<RwLock<ProductionUnit>>>,
     blocs: HashMap<BlocKey, Arc<RwLock<Bloc>>>,
     mut combats: HashMap<Point, Arc<RwLock<Combat>>>,
+    mut stats: SimulationStats,
 ) {
     // We need this because combat tick and combat initiation should never happen concurrently.
     let combat_lock = Mutex::new(());
@@ -192,6 +199,18 @@ pub(crate) async fn run(
             }
             Command::GetCombats(resp) => {
                 combat::get_all(resp, &combats, config).await;
+            }
+            Command::GetStats(response) => {
+                stats::get(
+                    response,
+                    &stats,
+                    &blocs,
+                    &bases,
+                    &trusts,
+                    &units,
+                    config.credit_exchange_service(),
+                )
+                .await;
             }
             Command::CreateBase {
                 placement_id,
@@ -228,6 +247,7 @@ pub(crate) async fn run(
                     )
                     .await
                     .map_err(|err| err.into_user_error("creating base"))?;
+                    stats.record_base_built(base.bloc_key().clone());
                     bases.insert(base.id(), Arc::new(RwLock::new(base)));
                     Ok(())
                 }
@@ -277,7 +297,11 @@ pub(crate) async fn run(
                 .await;
                 let _ = response.send(result);
             }
-            Command::DeleteBase { id, response } => {
+            Command::DeleteBase { id, source, response } => {
+                let bloc = match bases.get(&id) {
+                    Some(base) => Some(base.read().await.bloc_key().clone()),
+                    None => None,
+                };
                 let result = deletion::delete_base(
                     id,
                     &mut bases,
@@ -287,6 +311,11 @@ pub(crate) async fn run(
                     config.world_bounds(),
                 )
                 .await;
+                if result.is_ok()
+                    && let Some(bloc) = bloc
+                {
+                    stats.record_base_destroyed(bloc, source);
+                }
                 let _ = response.send(result);
             }
             Command::CreateTrust {
@@ -339,6 +368,7 @@ pub(crate) async fn run(
                     )
                     .await
                     .map_err(|err| err.into_user_error("creating trust"))?;
+                    stats.record_trust_built(trust.placement().zone().bloc_key().clone());
                     trusts.insert(trust.id(), Arc::new(RwLock::new(trust)));
                     Ok(())
                 }
@@ -357,7 +387,11 @@ pub(crate) async fn run(
             Command::GetProductionUnit(key, response) => {
                 production_unit::get(&key, response, &production_units, config.credit_exchange_service()).await;
             }
-            Command::DeleteTrust { id, response } => {
+            Command::DeleteTrust { id, source, response } => {
+                let bloc = match trusts.get(&id) {
+                    Some(trust) => Some(trust.read().await.placement().zone().bloc_key().clone()),
+                    None => None,
+                };
                 let result = deletion::delete_trust(
                     id,
                     &mut bases,
@@ -366,6 +400,11 @@ pub(crate) async fn run(
                     config.credit_exchange_service(),
                 )
                 .await;
+                if result.is_ok()
+                    && let Some(bloc) = bloc
+                {
+                    stats.record_trust_destroyed(bloc, source);
+                }
                 let _ = response.send(result);
             }
             Command::GetPlacements(resp) => {
@@ -409,6 +448,7 @@ pub(crate) async fn run(
                     &blocs,
                     &combats,
                     config.zones(),
+                    &stats,
                 )
                 .await;
             }
@@ -440,12 +480,23 @@ pub(crate) async fn run(
             }
             Command::ProduceMilitaryUnits { response } => {
                 let result = async {
-                    unit::produce_units(&blocs, &bases, &mut units, config.credit_exchange_service())
-                        .await
-                        .map_err(|err| {
-                            log::error!("failed to produce military units: {err:#}");
-                            UserError::InternalError
-                        })?;
+                    let previous_unit_ids = units.keys().copied().collect::<std::collections::HashSet<_>>();
+                    let production_result =
+                        unit::produce_units(&blocs, &bases, &mut units, config.credit_exchange_service()).await;
+                    let mut produced_by_bloc = HashMap::<BlocKey, u64>::new();
+                    for (id, unit) in &units {
+                        if !previous_unit_ids.contains(id) {
+                            let bloc = unit.read().await.base().await.bloc_key().clone();
+                            *produced_by_bloc.entry(bloc).or_default() += 1;
+                        }
+                    }
+                    for (bloc, count) in produced_by_bloc {
+                        stats.record_units_produced(bloc, count);
+                    }
+                    production_result.map_err(|err| {
+                        log::error!("failed to produce military units: {err:#}");
+                        UserError::InternalError
+                    })?;
                     Ok(())
                 }
                 .await;
@@ -475,6 +526,7 @@ pub(crate) async fn run(
                     &mut combats,
                     config.world_bounds(),
                     config.auth_service(),
+                    &mut stats,
                 )
                 .await;
                 combat::clear_dead_units(&mut units).await;

@@ -6,6 +6,7 @@ mod politics;
 mod production;
 mod production_unit;
 mod social_rule;
+mod stats;
 mod trust;
 mod unit;
 
@@ -27,5 +28,6 @@ pub(crate) use social_rule::{
     SocialRule, SocialRuleFactorPerLevel, SocialRuleKey, SocialRuleLevel, SocialRuleLevelChange, SocialRuleName,
     ZoneSocialRule,
 };
+pub(crate) use stats::{BlocStats, DestructionSource, SimulationStats, StructureStats, UnitStats};
 pub(crate) use trust::{Trust, TrustId};
 pub(crate) use unit::{AttackOutcome, MilitaryUnit, UnitId, UnitState};

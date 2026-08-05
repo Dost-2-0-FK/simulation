@@ -36,6 +36,7 @@ impl Simulation {
             combats,
             production_units,
             zones: persisted_zones,
+            stats,
         } = self.loaded_state;
 
         let live_blocs = self.config.blocs().collect::<Vec<_>>();
@@ -137,6 +138,7 @@ impl Simulation {
             production_units,
             blocs_by_key,
             combats,
+            stats,
         )
         .await;
     }

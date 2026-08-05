@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::{
-    domain::{NameMappings, PlacementId, Trust, TrustId, ZoneName},
+    domain::{DestructionSource, NameMappings, PlacementId, Trust, TrustId, ZoneName},
     error::{Result, UserError},
     geometry::{Distance, Point, Positioned},
     handlers::{
@@ -269,8 +269,9 @@ pub(crate) async fn delete(
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
     let id = TrustId(path.into_inner());
-    if coordination_authorization.is_present() {
+    let source = if coordination_authorization.is_present() {
         coordination_authorization.require(CoordinationCapability::DeleteTrust)?;
+        DestructionSource::CoordinationService
     } else {
         authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
         let (trust_tx, trust_rx) = tokio::sync::oneshot::channel();
@@ -287,15 +288,20 @@ pub(crate) async fn delete(
             .map(|trust| &trust.zone)
             .ok_or(UserError::NotFound("Trust"))?;
         require_zone_write(&session, zone)?;
-    }
+        DestructionSource::AuthorizedUser
+    };
 
     let (sender, receiver) = tokio::sync::oneshot::channel();
-    tx.send(Command::DeleteTrust { id, response: sender })
-        .await
-        .map_err(|error| {
-            log::error!("Error sending trust deletion command: {error}");
-            UserError::InternalError
-        })?;
+    tx.send(Command::DeleteTrust {
+        id,
+        source,
+        response: sender,
+    })
+    .await
+    .map_err(|error| {
+        log::error!("Error sending trust deletion command: {error}");
+        UserError::InternalError
+    })?;
 
     receiver.await.map_err(|error| {
         log::error!("Error receiving trust deletion result: {error}");
@@ -313,7 +319,7 @@ mod tests {
 
     use super::{TrustResponse, delete};
     use crate::{
-        domain::{PlacementId, TrustId, ZoneName},
+        domain::{DestructionSource, PlacementId, TrustId, ZoneName},
         geometry::{Distance, Point},
         services::{
             auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthenticatedUser},
@@ -363,6 +369,7 @@ mod tests {
             match rx.recv().await.unwrap() {
                 Command::DeleteTrust {
                     id: actual_id,
+                    source: DestructionSource::AuthorizedUser,
                     response,
                 } => {
                     assert_eq!(actual_id, id);

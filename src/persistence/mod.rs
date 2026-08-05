@@ -9,7 +9,7 @@ use crate::{
     config::PersistenceConfig,
     domain::{
         BaseId, Bloc, Combat, MilitaryBase, MilitaryUnit, Placement, PlacementId, ProductionUnit, ProductionUnitKey,
-        Trust, TrustId, UnitId, Zone, ZoneKey,
+        SimulationStats, Trust, TrustId, UnitId, Zone, ZoneKey,
     },
     geometry::Point,
 };
@@ -18,6 +18,7 @@ mod bases;
 mod blocs;
 mod combats;
 mod production_units;
+mod stats;
 mod trusts;
 mod units;
 mod zones;
@@ -26,6 +27,7 @@ use bases::PersistedBase;
 pub(crate) use blocs::PersistedBloc;
 use combats::PersistedCombat;
 use production_units::PersistedProductionUnit;
+use stats::PersistedStats;
 use trusts::PersistedTrust;
 use units::PersistedUnit;
 pub(crate) use zones::PersistedZone;
@@ -39,6 +41,7 @@ pub(crate) struct MongoPersistence {
     combats: Collection<PersistedCombat>,
     production_units: Collection<PersistedProductionUnit>,
     zones: Collection<PersistedZone>,
+    stats: Collection<PersistedStats>,
 }
 
 pub(crate) struct LoadedState {
@@ -49,6 +52,7 @@ pub(crate) struct LoadedState {
     pub(crate) combats: HashMap<Point, Arc<RwLock<Combat>>>,
     pub(crate) production_units: HashMap<ProductionUnitKey, Arc<RwLock<ProductionUnit>>>,
     pub(crate) zones: Vec<PersistedZone>,
+    pub(crate) stats: SimulationStats,
 }
 
 impl LoadedState {
@@ -89,6 +93,7 @@ impl MongoPersistence {
             combats: database.collection("combats"),
             production_units: database.collection("production_units"),
             zones: database.collection("zones"),
+            stats: database.collection("stats"),
         })
     }
 
@@ -207,6 +212,14 @@ impl MongoPersistence {
             .map(|combat| (combat.position(), Arc::new(RwLock::new(combat))))
             .collect();
 
+        let stats = self
+            .stats
+            .find_one(doc! { "_id": 0 })
+            .await
+            .context("loading simulation stats from MongoDB")?
+            .map(PersistedStats::into_stats)
+            .unwrap_or_default();
+
         Ok(LoadedState {
             bases,
             trusts,
@@ -215,6 +228,7 @@ impl MongoPersistence {
             combats,
             production_units,
             zones: persisted_zones,
+            stats,
         })
     }
 
@@ -285,6 +299,15 @@ impl MongoPersistence {
             .upsert(true)
             .await
             .context("saving combat to MongoDB")?;
+        Ok(())
+    }
+
+    pub(crate) async fn save_stats(&self, stats: &SimulationStats) -> Result<()> {
+        self.stats
+            .replace_one(doc! { "_id": 0 }, PersistedStats::new(stats.clone()))
+            .upsert(true)
+            .await
+            .context("saving simulation stats to MongoDB")?;
         Ok(())
     }
 

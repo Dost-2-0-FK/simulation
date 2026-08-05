@@ -4,8 +4,8 @@ use tokio::sync::RwLock;
 
 use crate::{
     domain::{
-        BaseId, Bloc, BlocKey, Combat, MilitaryBase, MilitaryUnit, ProductionUnit, ProductionUnitKey, Trust, TrustId,
-        UnitId, Zone,
+        BaseId, Bloc, BlocKey, Combat, MilitaryBase, MilitaryUnit, ProductionUnit, ProductionUnitKey, SimulationStats,
+        Trust, TrustId, UnitId, Zone,
     },
     geometry::Point,
     persistence::MongoPersistence,
@@ -24,6 +24,7 @@ pub(crate) async fn persist_all(
     blocs: &HashMap<BlocKey, Arc<RwLock<Bloc>>>,
     combats: &HashMap<Point, Arc<RwLock<Combat>>>,
     zones: impl Iterator<Item = Arc<Zone>>,
+    stats: &SimulationStats,
 ) {
     let mut unit_ids = Vec::with_capacity(units.len());
     for unit in units.values() {
@@ -101,6 +102,10 @@ pub(crate) async fn persist_all(
     }
     if let Err(e) = persistence.delete_combats_except(combat_ids).await {
         log::error!("Error deleting stale combats: {e:#}");
+    }
+
+    if let Err(e) = persistence.save_stats(stats).await {
+        log::error!("Error persisting simulation stats: {e:#}");
     }
 
     log::info!("successfully persisted all collections.")

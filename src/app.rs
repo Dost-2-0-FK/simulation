@@ -99,7 +99,8 @@ pub(crate) fn openapi() -> utoipa::openapi::OpenApi {
             (name = "blocs", description = "Endpoints related to blocs."),
             (name = "combats", description = "Endpoints related to combats."),
             (name = "zones", description = "Endpoints related to zones."),
-            (name = "auth", description = "Endpoints related to user authentication.")
+            (name = "auth", description = "Endpoints related to user authentication."),
+            (name = "stats", description = "Cumulative simulation statistics.")
         ),
     )]
 struct ApiDoc;

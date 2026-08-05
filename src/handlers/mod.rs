@@ -14,6 +14,7 @@ pub(crate) mod costs;
 pub(crate) mod placements;
 pub(crate) mod production_units;
 pub(crate) mod resources;
+pub(crate) mod stats;
 pub(crate) mod trusts;
 pub(crate) mod units;
 pub(crate) mod zones;

@@ -5,8 +5,8 @@ use tokio::sync::mpsc;
 
 use crate::{
     domain::{
-        BaseId, BlocName, CharacterKey, CharacterName, Loot, MilitaryBase, NameMappings, PlacementId, Target, TrustId,
-        ZoneName,
+        BaseId, BlocName, CharacterKey, CharacterName, DestructionSource, Loot, MilitaryBase, NameMappings,
+        PlacementId, Target, TrustId, ZoneName,
     },
     error::{Result, UserError},
     geometry::{Point, Positioned},
@@ -381,8 +381,9 @@ pub(crate) async fn delete(
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
     let id = BaseId(path.into_inner());
-    if coordination_authorization.is_present() {
+    let source = if coordination_authorization.is_present() {
         coordination_authorization.require(CoordinationCapability::DeleteBase)?;
+        DestructionSource::CoordinationService
     } else {
         authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
         let (base_tx, base_rx) = tokio::sync::oneshot::channel();
@@ -399,15 +400,20 @@ pub(crate) async fn delete(
             .map(MilitaryBase::bloc_name)
             .ok_or(UserError::NotFound("Base"))?;
         require_bloc_write(&session, bloc)?;
-    }
+        DestructionSource::AuthorizedUser
+    };
 
     let (sender, receiver) = tokio::sync::oneshot::channel();
-    tx.send(Command::DeleteBase { id, response: sender })
-        .await
-        .map_err(|error| {
-            log::error!("Error sending base deletion command: {error}");
-            UserError::InternalError
-        })?;
+    tx.send(Command::DeleteBase {
+        id,
+        source,
+        response: sender,
+    })
+    .await
+    .map_err(|error| {
+        log::error!("Error sending base deletion command: {error}");
+        UserError::InternalError
+    })?;
 
     receiver.await.map_err(|error| {
         log::error!("Error receiving base deletion result: {error}");
@@ -491,8 +497,8 @@ mod tests {
     };
     use crate::{
         domain::{
-            BaseId, Bloc, BlocKey, BlocName, Chance, CharacterKey, CharacterName, Loot, MilitaryBase, NameMappings,
-            Placement, PlacementId, Zone, ZoneKey, ZoneName,
+            BaseId, Bloc, BlocKey, BlocName, Chance, CharacterKey, CharacterName, DestructionSource, Loot,
+            MilitaryBase, NameMappings, Placement, PlacementId, Zone, ZoneKey, ZoneName,
         },
         geometry::Point,
         services::{
@@ -554,6 +560,7 @@ mod tests {
             match rx.recv().await.unwrap() {
                 Command::DeleteBase {
                     id: actual_id,
+                    source: DestructionSource::AuthorizedUser,
                     response,
                 } => {
                     assert_eq!(actual_id, id);
