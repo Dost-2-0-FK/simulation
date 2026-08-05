@@ -433,28 +433,29 @@ impl Combat {
         }
 
         for (bloc_a, unit_a_id, unit_a) in &alive_units {
-            for (bloc_b, unit_b_id, unit_b) in &alive_units {
-                if bloc_a == bloc_b {
-                    continue;
-                }
+            let Some((_, unit_b_id, unit_b)) = alive_units
+                .iter()
+                .find(|(bloc_b, unit_b_id, _)| bloc_a != bloc_b && !killed_units.contains_key(unit_b_id))
+            else {
+                continue;
+            };
 
-                let unit_a_guard = unit_a.read().await;
+            let unit_a_guard = unit_a.read().await;
 
-                if unit_a_guard.attack().await == AttackOutcome::Killed
-                    && killed_units.insert(*unit_b_id, *unit_a_id).is_none()
-                {
-                    let killer_base = unit_a_guard.base().await.id();
-                    let unit_b_guard = unit_b.read().await;
-                    let loot = unit_b_guard.loot().clone();
-                    killed_events.push(UnitKilled {
-                        killed: *unit_b_id,
-                        killer: *unit_a_id,
-                        loot: LootTransfer {
-                            base_id: killer_base,
-                            loot,
-                        },
-                    });
-                }
+            if unit_a_guard.attack().await == AttackOutcome::Killed
+                && killed_units.insert(*unit_b_id, *unit_a_id).is_none()
+            {
+                let killer_base = unit_a_guard.base().await.id();
+                let unit_b_guard = unit_b.read().await;
+                let loot = unit_b_guard.loot().clone();
+                killed_events.push(UnitKilled {
+                    killed: *unit_b_id,
+                    killer: *unit_a_id,
+                    loot: LootTransfer {
+                        base_id: killer_base,
+                        loot,
+                    },
+                });
             }
         }
 
@@ -482,4 +483,129 @@ async fn unit_bloc_name(unit_a: &RwLock<MilitaryUnit>) -> BlocKey {
     let military_unit = unit_a.read().await;
     let military_base = military_unit.base().await;
     military_base.bloc_key().clone()
+}
+
+#[cfg(test)]
+mod tests {
+    use mongodb::bson::Uuid;
+    use ordered_float::NotNan;
+
+    use super::*;
+    use crate::{
+        domain::{Bloc, BlocName, Chance, LootFactors, Placement, PlacementId, Zone, ZoneKey, ZoneName},
+        services::credit_exchange_service::{Cost, Share},
+    };
+
+    fn base(bloc: &str, position: Point) -> Arc<RwLock<MilitaryBase>> {
+        let bloc_key = BlocKey::from(bloc.to_owned());
+        let bloc_name = BlocName::from(bloc.to_owned());
+        let bloc_state = Arc::new(RwLock::new(Bloc::new(
+            bloc_key.clone(),
+            bloc_name.clone(),
+            Chance::new(1),
+            Share::default(),
+        )));
+        let zone = Arc::new(Zone::new_with_social_rules(
+            ZoneKey::from(format!("{bloc}-zone")),
+            ZoneName::from(format!("{bloc} zone")),
+            bloc_key,
+            bloc_name,
+            bloc_state,
+            Vec::new(),
+        ));
+        let placement = Arc::new(Placement::new(
+            serde_json::from_value::<PlacementId>(serde_json::json!(format!("{bloc}-placement"))).unwrap(),
+            zone,
+            position,
+        ));
+        let cost: Cost<MilitaryBase> = serde_json::from_value(serde_json::json!({
+            "money": 0.0,
+            "resources": {}
+        }))
+        .unwrap();
+
+        Arc::new(RwLock::new(MilitaryBase::new_prepaid(
+            Vec::new(),
+            &cost,
+            &LootFactors::default(),
+            placement,
+        )))
+    }
+
+    fn unit(base: Arc<RwLock<MilitaryBase>>, position: Point) -> Arc<RwLock<MilitaryUnit>> {
+        Arc::new(RwLock::new(MilitaryUnit::from_persisted(
+            Uuid::new(),
+            base,
+            position,
+            UnitState::Alive,
+            Loot::default(),
+        )))
+    }
+
+    #[tokio::test]
+    async fn each_unit_attacks_at_most_once_per_tick() {
+        let position = Point::new(NotNan::new(0.0).unwrap(), NotNan::new(0.0).unwrap());
+        let attacker_base = base("attackers", position);
+        let defender_base = base("defenders", position);
+        let attacker = unit(attacker_base, position);
+        let defender_a = unit(defender_base.clone(), position);
+        let defender_b = unit(defender_base, position);
+        let attacker_id = attacker.read().await.id();
+        let defender_a_id = defender_a.read().await.id();
+        let defender_b_id = defender_b.read().await.id();
+        let units = HashMap::from([
+            (
+                BlocKey::from("attackers".to_owned()),
+                HashMap::from([(attacker_id, attacker)]),
+            ),
+            (
+                BlocKey::from("defenders".to_owned()),
+                HashMap::from([(defender_a_id, defender_a.clone()), (defender_b_id, defender_b.clone())]),
+            ),
+        ]);
+        let mut combat = Combat::new(CombatParameters::Units(units)).await;
+
+        let event = combat.tick().await;
+
+        let CombatEvent::UnitsKilled { units } = event else {
+            panic!("guaranteed hits should kill units");
+        };
+        assert_eq!(units.len(), 2);
+        let surviving_defenders = usize::from(defender_a.read().await.state() == UnitState::Alive)
+            + usize::from(defender_b.read().await.state() == UnitState::Alive);
+        assert_eq!(surviving_defenders, 1);
+    }
+
+    #[tokio::test]
+    async fn attacks_skip_units_already_killed_this_tick() {
+        let position = Point::new(NotNan::new(0.0).unwrap(), NotNan::new(0.0).unwrap());
+        let bloc_a_base = base("bloc-a", position);
+        let bloc_b_base = base("bloc-b", position);
+        let bloc_a_units = [unit(bloc_a_base.clone(), position), unit(bloc_a_base, position)];
+        let bloc_b_units = [unit(bloc_b_base.clone(), position), unit(bloc_b_base, position)];
+        let units = HashMap::from([
+            (
+                BlocKey::from("bloc-a".to_owned()),
+                HashMap::from([
+                    (bloc_a_units[0].read().await.id(), bloc_a_units[0].clone()),
+                    (bloc_a_units[1].read().await.id(), bloc_a_units[1].clone()),
+                ]),
+            ),
+            (
+                BlocKey::from("bloc-b".to_owned()),
+                HashMap::from([
+                    (bloc_b_units[0].read().await.id(), bloc_b_units[0].clone()),
+                    (bloc_b_units[1].read().await.id(), bloc_b_units[1].clone()),
+                ]),
+            ),
+        ]);
+        let mut combat = Combat::new(CombatParameters::Units(units)).await;
+
+        let event = combat.tick().await;
+
+        let CombatEvent::UnitsKilled { units } = event else {
+            panic!("guaranteed hits should kill units");
+        };
+        assert_eq!(units.len(), 4);
+    }
 }
