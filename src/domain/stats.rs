@@ -177,8 +177,8 @@ mod tests {
         let mut stats = SimulationStats::default();
         stats.record_base_built(bloc);
 
-        let document = mongodb::bson::to_document(&stats).unwrap();
-        let restored: SimulationStats = mongodb::bson::from_document(document).unwrap();
+        let bytes = mongodb::bson::to_vec(&stats).unwrap();
+        let restored: SimulationStats = mongodb::bson::from_slice(&bytes).unwrap();
 
         assert_eq!(restored, stats);
     }

@@ -20,6 +20,7 @@ pub(crate) struct ZoneName(String);
 pub(crate) struct ZoneKey(String);
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
+#[serde(transparent)]
 pub(crate) struct BlocKey(String);
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, derive_more::Display, utoipa::ToSchema)]
