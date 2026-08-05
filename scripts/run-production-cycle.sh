@@ -24,6 +24,12 @@ half_interval_seconds=$((interval_seconds / 2))
 if (( interval_seconds % 2 != 0 )); then
   half_interval_seconds="${half_interval_seconds}.5"
 fi
+quarter_interval_seconds=$((interval_seconds / 4))
+case $((interval_seconds % 4)) in
+  1) quarter_interval_seconds="${quarter_interval_seconds}.25" ;;
+  2) quarter_interval_seconds="${quarter_interval_seconds}.5" ;;
+  3) quarter_interval_seconds="${quarter_interval_seconds}.75" ;;
+esac
 
 simulation_url=${SIMULATION_URL:-https://simulation.dost-2-0-fk.dev}
 simulation_url=${simulation_url%/}
@@ -60,14 +66,17 @@ invoke_endpoint() {
   fi
 }
 
-run_production_cycle() {
+run_resource_production_cycle() {
   local failed=0
 
   invoke_endpoint "$simulation_url" "/api/trusts/publish-production" || failed=1
   invoke_endpoint "$simulation_url" "/api/bases/publish-production" || failed=1
-  invoke_endpoint "$simulation_url" "/api/units/produce" || failed=1
 
   return "$failed"
+}
+
+run_unit_production() {
+  invoke_endpoint "$simulation_url" "/api/units/produce"
 }
 
 run_credit_evaluation() {
@@ -76,11 +85,17 @@ run_credit_evaluation() {
 
 trap stop INT TERM
 
-echo "Waiting an initial ${interval_seconds}s, then running credit evaluation and production cycle every ${interval_seconds}s, staggered by ${half_interval_seconds}s."
+echo "Waiting an initial ${interval_seconds}s, then running credit evaluation and resource production every ${interval_seconds}s, staggered by ${half_interval_seconds}s; unit production runs every ${quarter_interval_seconds}s."
 sleep "$interval_seconds"
 while true; do
   run_credit_evaluation || true
-  sleep "$half_interval_seconds"
-  run_production_cycle || true
-  sleep "$half_interval_seconds"
+  sleep "$quarter_interval_seconds"
+  run_unit_production || true
+  sleep "$quarter_interval_seconds"
+  run_resource_production_cycle || true
+  run_unit_production || true
+  sleep "$quarter_interval_seconds"
+  run_unit_production || true
+  sleep "$quarter_interval_seconds"
+  run_unit_production || true
 done
