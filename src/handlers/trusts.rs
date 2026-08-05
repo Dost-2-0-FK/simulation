@@ -13,7 +13,7 @@ use crate::{
         can_read_zone, require_zone_write,
     },
     services::{
-        coordination_service::{CoordinationAuthorization, CoordinationCapability},
+        coordination_service::{CoordinationAuthorization, CoordinationCapability, OptionalCoordinationAuthorization},
         credit_exchange_service::{Money, ResourceName, Resources},
     },
     simulation::Command,
@@ -255,29 +255,47 @@ pub(crate) async fn get(
     tag = TRUSTS,
     responses(
         (status = 204, description = "Trust deleted successfully"),
-        (status = 401, description = "Missing or invalid coordination service credentials", body = String, content_type = "text/html"),
-        (status = 403, description = "Coordination service lacks permission to delete trusts", body = String, content_type = "text/html"),
+        (status = 401, description = "Missing or invalid user or coordination service credentials", body = String, content_type = "text/html"),
+        (status = 403, description = "Missing required zone-write or coordination-service permission", body = String, content_type = "text/html"),
         (status = 404, description = "Trust not found", body = String, content_type = "text/html"),
         (status = 500, description = "Failed to delete the trust or its credit subscriptions", body = String, content_type = "text/html")
     )
 )]
 #[delete("/trusts/{id}")]
 pub(crate) async fn delete(
-    authorization: CoordinationAuthorization,
+    session: Session,
+    coordination_authorization: OptionalCoordinationAuthorization,
     path: web::Path<u64>,
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
-    authorization.require(CoordinationCapability::DeleteTrust)?;
+    let id = TrustId(path.into_inner());
+    if coordination_authorization.is_present() {
+        coordination_authorization.require(CoordinationCapability::DeleteTrust)?;
+    } else {
+        authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
+        let (trust_tx, trust_rx) = tokio::sync::oneshot::channel();
+        tx.send(Command::GetTrust(id, trust_tx)).await.map_err(|error| {
+            log::error!("Error sending trust lookup command: {error}");
+            UserError::InternalError
+        })?;
+        let trust = trust_rx.await.map_err(|error| {
+            log::error!("Error receiving trust: {error}");
+            UserError::InternalError
+        })??;
+        let zone = trust
+            .as_ref()
+            .map(|trust| &trust.zone)
+            .ok_or(UserError::NotFound("Trust"))?;
+        require_zone_write(&session, zone)?;
+    }
+
     let (sender, receiver) = tokio::sync::oneshot::channel();
-    tx.send(Command::DeleteTrust {
-        id: TrustId(path.into_inner()),
-        response: sender,
-    })
-    .await
-    .map_err(|error| {
-        log::error!("Error sending trust deletion command: {error}");
-        UserError::InternalError
-    })?;
+    tx.send(Command::DeleteTrust { id, response: sender })
+        .await
+        .map_err(|error| {
+            log::error!("Error sending trust deletion command: {error}");
+            UserError::InternalError
+        })?;
 
     receiver.await.map_err(|error| {
         log::error!("Error receiving trust deletion result: {error}");
@@ -288,14 +306,93 @@ pub(crate) async fn delete(
 
 #[cfg(test)]
 mod tests {
+    use actix_session::{Session, SessionMiddleware, storage::CookieSessionStore};
+    use actix_web::{App, HttpResponse, cookie::Key, http::StatusCode, test as actix_test, web};
     use ordered_float::NotNan;
+    use tokio::sync::mpsc;
 
-    use super::TrustResponse;
+    use super::{TrustResponse, delete};
     use crate::{
         domain::{PlacementId, TrustId, ZoneName},
         geometry::{Distance, Point},
-        services::credit_exchange_service::{Money, ResourceName, Resources},
+        services::{
+            auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthenticatedUser},
+            credit_exchange_service::{Money, ResourceName, Resources},
+        },
+        simulation::Command,
     };
+
+    async fn seed_authenticated_session(session: Session, user: web::Data<AuthenticatedUser>) -> HttpResponse {
+        session.insert(AUTHENTICATED_USER_SESSION_KEY, user.get_ref()).unwrap();
+        HttpResponse::Ok().finish()
+    }
+
+    fn trust_response(id: TrustId, zone: ZoneName) -> TrustResponse {
+        TrustResponse {
+            id,
+            placement_id: serde_json::from_value(serde_json::json!("placement")).unwrap(),
+            zone,
+            payment: vec![],
+            position: Point::new(NotNan::new(0.0).unwrap(), NotNan::new(0.0).unwrap()),
+            resource: ResourceName::new("oil".to_string()),
+            inhibition_radius: serde_json::from_value(serde_json::json!(1.0)).unwrap(),
+            income: Some(Money::from(1.0)),
+            producing: Some(Resources::new_single(ResourceName::new("oil".to_string()), 1.0)),
+        }
+    }
+
+    #[actix_web::test]
+    async fn user_with_zone_write_permission_can_delete_trust() {
+        let id = TrustId(7);
+        let trust = trust_response(id, ZoneName::from("zone-w".to_string()));
+        let user = serde_json::from_value::<AuthenticatedUser>(serde_json::json!({
+            "userId": "alice",
+            "blocPermissions": {},
+            "zonePermissions": { "zone-w": "write" }
+        }))
+        .unwrap();
+        let (tx, mut rx) = mpsc::channel(2);
+        actix_web::rt::spawn(async move {
+            match rx.recv().await.unwrap() {
+                Command::GetTrust(actual_id, response) => {
+                    assert_eq!(actual_id, id);
+                    response.send(Ok(Some(trust))).unwrap();
+                }
+                command => panic!("unexpected command: {command:?}"),
+            }
+            match rx.recv().await.unwrap() {
+                Command::DeleteTrust {
+                    id: actual_id,
+                    response,
+                } => {
+                    assert_eq!(actual_id, id);
+                    response.send(Ok(())).unwrap();
+                }
+                command => panic!("unexpected command: {command:?}"),
+            }
+        });
+
+        let app = actix_test::init_service(
+            App::new()
+                .wrap(SessionMiddleware::new(CookieSessionStore::default(), Key::generate()))
+                .app_data(web::Data::new(user))
+                .app_data(web::Data::new(tx))
+                .route("/test/session", web::post().to(seed_authenticated_session))
+                .service(delete),
+        )
+        .await;
+        let session_response =
+            actix_test::call_service(&app, actix_test::TestRequest::post().uri("/test/session").to_request()).await;
+        let session_cookie = session_response.response().cookies().next().unwrap();
+        let request = actix_test::TestRequest::delete()
+            .uri("/trusts/7")
+            .cookie(session_cookie)
+            .to_request();
+
+        let response = actix_test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    }
 
     #[test]
     fn redacted_trust_omits_income_and_producing() {

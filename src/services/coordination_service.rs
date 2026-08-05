@@ -65,6 +65,10 @@ pub(crate) struct CoordinationAuthorization {
 pub(crate) struct OptionalCoordinationAuthorization(Option<CoordinationAuthorization>);
 
 impl OptionalCoordinationAuthorization {
+    pub(crate) fn is_present(&self) -> bool {
+        self.0.is_some()
+    }
+
     pub(crate) fn require(&self, capability: CoordinationCapability) -> Result<(), UserError> {
         self.0.as_ref().ok_or(UserError::Unauthorized)?.require(capability)
     }
@@ -139,6 +143,14 @@ mod tests {
         Ok(HttpResponse::Ok().finish())
     }
 
+    async fn report_optional_authorization(authorization: OptionalCoordinationAuthorization) -> HttpResponse {
+        if authorization.is_present() {
+            HttpResponse::Ok().finish()
+        } else {
+            HttpResponse::NoContent().finish()
+        }
+    }
+
     #[actix_web::test]
     async fn valid_bearer_token_authorizes_request() {
         let app = test::init_service(
@@ -199,5 +211,38 @@ mod tests {
         )
         .await;
         assert_eq!(valid.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    async fn optional_authorization_distinguishes_absent_valid_and_invalid_credentials() {
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(CoordinationService::new("secret".to_string())))
+                .route("/authorization", web::get().to(report_optional_authorization)),
+        )
+        .await;
+
+        let absent = test::call_service(&app, test::TestRequest::get().uri("/authorization").to_request()).await;
+        assert_eq!(absent.status(), StatusCode::NO_CONTENT);
+
+        let valid = test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri("/authorization")
+                .insert_header((header::AUTHORIZATION, "Bearer secret"))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(valid.status(), StatusCode::OK);
+
+        let invalid = test::call_service(
+            &app,
+            test::TestRequest::get()
+                .uri("/authorization")
+                .insert_header((header::AUTHORIZATION, "Bearer wrong"))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(invalid.status(), StatusCode::UNAUTHORIZED);
     }
 }

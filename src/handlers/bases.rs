@@ -12,7 +12,7 @@ use crate::{
     geometry::{Point, Positioned},
     handlers::{authenticated_user, can_read_bloc, require_bloc_write},
     services::{
-        coordination_service::{CoordinationAuthorization, CoordinationCapability},
+        coordination_service::{CoordinationAuthorization, CoordinationCapability, OptionalCoordinationAuthorization},
         credit_exchange_service::Share,
     },
     simulation::Command,
@@ -367,29 +367,47 @@ pub(crate) async fn get(
     tag = BASES,
     responses(
         (status = 204, description = "Base deleted successfully"),
-        (status = 401, description = "Missing or invalid coordination service credentials", body = String, content_type = "text/html"),
-        (status = 403, description = "Coordination service lacks permission to delete bases", body = String, content_type = "text/html"),
+        (status = 401, description = "Missing or invalid user or coordination service credentials", body = String, content_type = "text/html"),
+        (status = 403, description = "Missing required bloc-write or coordination-service permission", body = String, content_type = "text/html"),
         (status = 404, description = "Base not found", body = String, content_type = "text/html"),
         (status = 500, description = "Failed to delete the base or its credit subscriptions", body = String, content_type = "text/html")
     )
 )]
 #[delete("/bases/{id}")]
 pub(crate) async fn delete(
-    authorization: CoordinationAuthorization,
+    session: Session,
+    coordination_authorization: OptionalCoordinationAuthorization,
     path: web::Path<u64>,
     tx: web::Data<mpsc::Sender<Command>>,
 ) -> Result<impl Responder> {
-    authorization.require(CoordinationCapability::DeleteBase)?;
+    let id = BaseId(path.into_inner());
+    if coordination_authorization.is_present() {
+        coordination_authorization.require(CoordinationCapability::DeleteBase)?;
+    } else {
+        authenticated_user(&session)?.ok_or(UserError::Unauthorized)?;
+        let (base_tx, base_rx) = tokio::sync::oneshot::channel();
+        tx.send(Command::GetBase(id, base_tx)).await.map_err(|error| {
+            log::error!("Error sending base lookup command: {error}");
+            UserError::InternalError
+        })?;
+        let base = base_rx.await.map_err(|error| {
+            log::error!("Error receiving base: {error}");
+            UserError::InternalError
+        })?;
+        let bloc = base
+            .as_ref()
+            .map(MilitaryBase::bloc_name)
+            .ok_or(UserError::NotFound("Base"))?;
+        require_bloc_write(&session, bloc)?;
+    }
+
     let (sender, receiver) = tokio::sync::oneshot::channel();
-    tx.send(Command::DeleteBase {
-        id: BaseId(path.into_inner()),
-        response: sender,
-    })
-    .await
-    .map_err(|error| {
-        log::error!("Error sending base deletion command: {error}");
-        UserError::InternalError
-    })?;
+    tx.send(Command::DeleteBase { id, response: sender })
+        .await
+        .map_err(|error| {
+            log::error!("Error sending base deletion command: {error}");
+            UserError::InternalError
+        })?;
 
     receiver.await.map_err(|error| {
         log::error!("Error receiving base deletion result: {error}");
@@ -461,15 +479,111 @@ pub(crate) async fn patch(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Arc};
 
+    use actix_session::{Session, SessionMiddleware, storage::CookieSessionStore};
+    use actix_web::{App, HttpResponse, cookie::Key, http::StatusCode, test as actix_test, web};
     use ordered_float::NotNan;
+    use tokio::sync::{RwLock, mpsc};
 
-    use super::{BaseResponse, BaseTargetResponse, Financing, FinancingRequest, financing_response, resolve_financing};
-    use crate::{
-        domain::{BaseId, BlocName, CharacterKey, CharacterName, Loot, NameMappings, PlacementId, ZoneName},
-        geometry::Point,
+    use super::{
+        BaseResponse, BaseTargetResponse, Financing, FinancingRequest, delete, financing_response, resolve_financing,
     };
+    use crate::{
+        domain::{
+            BaseId, Bloc, BlocKey, BlocName, Chance, CharacterKey, CharacterName, Loot, MilitaryBase, NameMappings,
+            Placement, PlacementId, Zone, ZoneKey, ZoneName,
+        },
+        geometry::Point,
+        services::{
+            auth_service::{AUTHENTICATED_USER_SESSION_KEY, AuthenticatedUser},
+            credit_exchange_service::Share,
+        },
+        simulation::Command,
+    };
+
+    async fn seed_authenticated_session(session: Session, user: web::Data<AuthenticatedUser>) -> HttpResponse {
+        session.insert(AUTHENTICATED_USER_SESSION_KEY, user.get_ref()).unwrap();
+        HttpResponse::Ok().finish()
+    }
+
+    fn base(id: BaseId, bloc_name: BlocName) -> MilitaryBase {
+        let bloc_key = BlocKey::from("bloc-key".to_string());
+        let bloc = Arc::new(RwLock::new(Bloc::new(
+            bloc_key.clone(),
+            bloc_name.clone(),
+            Chance::new(1),
+            Share::default(),
+        )));
+        let zone = Arc::new(Zone::new_with_social_rules(
+            ZoneKey::from("zone-key".to_string()),
+            ZoneName::from("zone".to_string()),
+            bloc_key,
+            bloc_name,
+            bloc,
+            vec![],
+        ));
+        let placement = Arc::new(Placement::new(
+            serde_json::from_value(serde_json::json!("placement")).unwrap(),
+            zone,
+            Point::new(NotNan::new(0.0).unwrap(), NotNan::new(0.0).unwrap()),
+        ));
+        MilitaryBase::from_persisted(id, placement, vec![], true, false, Loot::default(), Loot::default())
+    }
+
+    #[actix_web::test]
+    async fn user_with_bloc_write_permission_can_delete_base() {
+        let id = BaseId(7);
+        let bloc_name = BlocName::from("west".to_string());
+        let base = base(id, bloc_name.clone());
+        let user = serde_json::from_value::<AuthenticatedUser>(serde_json::json!({
+            "userId": "alice",
+            "blocPermissions": { "west": "write" },
+            "zonePermissions": {}
+        }))
+        .unwrap();
+        let (tx, mut rx) = mpsc::channel(2);
+        actix_web::rt::spawn(async move {
+            match rx.recv().await.unwrap() {
+                Command::GetBase(actual_id, response) => {
+                    assert_eq!(actual_id, id);
+                    response.send(Some(base)).unwrap();
+                }
+                command => panic!("unexpected command: {command:?}"),
+            }
+            match rx.recv().await.unwrap() {
+                Command::DeleteBase {
+                    id: actual_id,
+                    response,
+                } => {
+                    assert_eq!(actual_id, id);
+                    response.send(Ok(())).unwrap();
+                }
+                command => panic!("unexpected command: {command:?}"),
+            }
+        });
+
+        let app = actix_test::init_service(
+            App::new()
+                .wrap(SessionMiddleware::new(CookieSessionStore::default(), Key::generate()))
+                .app_data(web::Data::new(user))
+                .app_data(web::Data::new(tx))
+                .route("/test/session", web::post().to(seed_authenticated_session))
+                .service(delete),
+        )
+        .await;
+        let session_response =
+            actix_test::call_service(&app, actix_test::TestRequest::post().uri("/test/session").to_request()).await;
+        let session_cookie = session_response.response().cookies().next().unwrap();
+        let request = actix_test::TestRequest::delete()
+            .uri("/bases/7")
+            .cookie(session_cookie)
+            .to_request();
+
+        let response = actix_test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    }
 
     #[test]
     fn redacted_base_omits_target_and_production_count() {
