@@ -80,9 +80,7 @@ pub(crate) async fn move_units(
         drop(unit_write_guard);
         if should_start_combat {
             if let Some(existing_combat) = combats.get(&self_position) {
-                if existing_combat.write().await.include_unit(unit.clone()).await {
-                    log::debug!("Unit {} joins existing combat at position {self_position:?}", unit_id);
-                }
+                existing_combat.write().await.include_unit(unit.clone()).await;
                 continue;
             }
 
