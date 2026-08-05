@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use rstar::{AABB, PointDistance, RTree, RTreeObject};
 use tokio::sync::RwLock;
 
 use crate::{
@@ -8,6 +9,7 @@ use crate::{
 };
 
 /// The resolved destination a unit will move toward this tick.
+#[derive(Debug, PartialEq, Eq)]
 pub(super) enum MoveTo {
     /// An enemy unit is the closest target.
     EnemyUnit(UnitId, Point),
@@ -17,13 +19,105 @@ pub(super) enum MoveTo {
     None,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct IndexedUnit {
+    id: UnitId,
+    position: Point,
+}
+
+impl RTreeObject for IndexedUnit {
+    type Envelope = AABB<[f64; 2]>;
+
+    fn envelope(&self) -> Self::Envelope {
+        AABB::from_point(self.position.coordinates())
+    }
+}
+
+impl PointDistance for IndexedUnit {
+    fn distance_2(&self, point: &[f64; 2]) -> f64 {
+        let position = self.position.coordinates();
+        let dx = position[0] - point[0];
+        let dy = position[1] - point[1];
+        dx * dx + dy * dy
+    }
+}
+
+/// Immutable positions and bloc membership used for every target lookup in one operation.
+pub(super) struct UnitSpatialIndex {
+    by_bloc: HashMap<BlocKey, RTree<IndexedUnit>>,
+}
+
+impl UnitSpatialIndex {
+    pub(super) async fn snapshot(units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>) -> Self {
+        let mut positions_by_bloc = HashMap::<BlocKey, HashMap<Point, UnitId>>::new();
+        for unit in units.values() {
+            let unit = unit.read().await;
+            let bloc = unit.base().await.bloc_key().clone();
+            positions_by_bloc
+                .entry(bloc)
+                .or_default()
+                .entry(unit.position())
+                .and_modify(|id| *id = (*id).min(unit.id()))
+                .or_insert_with(|| unit.id());
+        }
+
+        let by_bloc = positions_by_bloc
+            .into_iter()
+            .map(|(bloc, positions)| {
+                let units = positions
+                    .into_iter()
+                    .map(|(position, id)| IndexedUnit { id, position })
+                    .collect();
+                (bloc, RTree::bulk_load(units))
+            })
+            .collect();
+        Self { by_bloc }
+    }
+
+    fn closest_enemy(&self, from: Point, unit_bloc: &BlocKey, world_bounds: WorldBounds) -> Option<IndexedUnit> {
+        let mut closest: Option<(IndexedUnit, Distance)> = None;
+        for (candidate_bloc, index) in &self.by_bloc {
+            if candidate_bloc == unit_bloc {
+                continue;
+            }
+
+            for image in world_bounds.periodic_images(from) {
+                for candidate in index.nearest_neighbors(&image.coordinates()) {
+                    let distance = world_bounds.distance_between(from, candidate.position);
+                    let is_closer = closest
+                        .as_ref()
+                        .map(|(closest, closest_distance)| {
+                            distance < *closest_distance || distance == *closest_distance && candidate.id < closest.id
+                        })
+                        .unwrap_or(true);
+                    if is_closer {
+                        closest = Some((*candidate, distance));
+                    }
+                }
+            }
+        }
+        closest.map(|(unit, _)| unit)
+    }
+}
+
+struct UnitMovement {
+    unit: Arc<RwLock<MilitaryUnit>>,
+    id: UnitId,
+    bloc: BlocKey,
+    target: Target,
+    position: Point,
+    reached_designated_target: bool,
+}
+
+type UnitsByBloc = HashMap<BlocKey, HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>>;
+
 /// Moves `unit` one `step` toward its effective target (see [`select_move_target`]).
-/// Returns `true` if combat should be initiated, `false` otherwise.
+/// Returns whether the unit reached its designated base or trust target.
 async fn move_toward_target(
     unit: &mut MilitaryUnit,
     unit_bloc: &BlocKey,
     target: &Target,
-    units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
+    spatial_index: &UnitSpatialIndex,
     step: Distance,
     world_bounds: WorldBounds,
 ) -> bool {
@@ -34,16 +128,14 @@ async fn move_toward_target(
     };
 
     let from = unit.position();
-    let to = match select_move_target(from, unit.id(), unit_bloc, target_position, units, world_bounds).await {
+    let (to, is_designated) = match select_move_target(from, unit_bloc, target_position, spatial_index, world_bounds) {
         MoveTo::None => return false,
-        MoveTo::EnemyUnit(_, position) | MoveTo::Designated(position) => position,
+        MoveTo::EnemyUnit(_, position) => (position, false),
+        MoveTo::Designated(position) => (position, true),
     };
     let to = world_bounds.wrap(to);
     unit.move_toward(to, step, world_bounds);
-    if unit.position() != to {
-        return false;
-    }
-    true
+    is_designated && unit.position() == to
 }
 
 /// Runs one movement tick: each unit moves one `step` toward its designated target (or the
@@ -66,6 +158,8 @@ pub(crate) async fn move_units(
     }
     combats.retain(|position, _| !ended_combats.contains(position));
 
+    let spatial_index = UnitSpatialIndex::snapshot(units).await;
+    let mut movements = Vec::with_capacity(units.len());
     for unit in units.values() {
         let mut unit_write_guard = unit.write().await;
         let (unit_bloc, target) = {
@@ -73,63 +167,98 @@ pub(crate) async fn move_units(
             (base.bloc_key().clone(), base.target().clone())
         };
 
-        let should_start_combat =
-            move_toward_target(&mut unit_write_guard, &unit_bloc, &target, units, step, world_bounds).await;
-        let self_position = unit_write_guard.position();
-        let unit_id = unit_write_guard.id();
-        drop(unit_write_guard);
-        if should_start_combat {
-            if let Some(existing_combat) = combats.get(&self_position) {
-                existing_combat.write().await.include_unit(unit.clone()).await;
-                continue;
-            }
+        let reached_designated_target = move_toward_target(
+            &mut unit_write_guard,
+            &unit_bloc,
+            &target,
+            &spatial_index,
+            step,
+            world_bounds,
+        )
+        .await;
+        movements.push(UnitMovement {
+            unit: unit.clone(),
+            id: unit_write_guard.id(),
+            bloc: unit_bloc,
+            target,
+            position: unit_write_guard.position(),
+            reached_designated_target,
+        });
+    }
 
-            // If target is a base or trust and the unit is there, the combat is initiated accordingly
-            let combat_params = match target {
-                Target::Base { base, .. } => {
-                    CombatParameters::Base(unit.clone(), base.clone(), base_destruction_threshold)
-                }
-                Target::Trust { trust, .. } => {
-                    CombatParameters::Trust(unit.clone(), trust.clone(), trust_destruction_threshold)
-                }
-                Target::None => {
-                    // Otherwise, it's a unit-only combat.
-                    //
-                    // Note: we need to account for the case where the unit has moved to a position where there are
-                    // multiple units of an enemy bloc.
+    movements.sort_unstable_by_key(|movement| movement.id);
+    resolve_combats(
+        &movements,
+        combats,
+        base_destruction_threshold,
+        trust_destruction_threshold,
+    )
+    .await;
+}
 
-                    log::debug!("Unit {} engages in new combat with other units", unit_id);
-                    let mut units_by_bloc =
-                        HashMap::from([(unit_bloc.clone(), HashMap::from([(unit_id, unit.clone())]))]);
+async fn resolve_combats(
+    movements: &[UnitMovement],
+    combats: &mut HashMap<Point, Arc<RwLock<Combat>>>,
+    base_destruction_threshold: u32,
+    trust_destruction_threshold: u32,
+) {
+    let mut units_by_position = HashMap::<Point, UnitsByBloc>::new();
+    for movement in movements {
+        units_by_position
+            .entry(movement.position)
+            .or_default()
+            .entry(movement.bloc.clone())
+            .or_default()
+            .insert(movement.id, movement.unit.clone());
+    }
 
-                    for other_unit in units.values() {
-                        if Arc::ptr_eq(unit, other_unit) {
-                            continue;
-                        }
-
-                        let other_unit_guard = other_unit.read().await;
-                        // So, filter units by position,
-                        if other_unit_guard.position() != self_position {
-                            continue;
-                        }
-
-                        let other_unit_bloc = other_unit_guard.base().await.bloc_key().clone();
-                        let other_unit_id = other_unit_guard.id();
-                        // and group them by bloc
-                        units_by_bloc
-                            .entry(other_unit_bloc)
-                            .or_default()
-                            .insert(other_unit_id, other_unit.clone());
-                    }
-
-                    // instantiate unit combat
-                    CombatParameters::Units(units_by_bloc)
-                }
-            };
-
-            let new_combat = Combat::new(combat_params).await;
-            combats.insert(new_combat.position(), Arc::new(RwLock::new(new_combat)));
+    for movement in movements {
+        if let Some(existing_combat) = combats.get(&movement.position) {
+            existing_combat.write().await.include_unit(movement.unit.clone()).await;
         }
+    }
+
+    for movement in movements.iter().filter(|movement| movement.reached_designated_target) {
+        if combats.contains_key(&movement.position) {
+            continue;
+        }
+
+        let combat_params = match &movement.target {
+            Target::Base { base, .. } => {
+                CombatParameters::Base(movement.unit.clone(), base.clone(), base_destruction_threshold)
+            }
+            Target::Trust { trust, .. } => {
+                CombatParameters::Trust(movement.unit.clone(), trust.clone(), trust_destruction_threshold)
+            }
+            Target::None => unreachable!("only designated targets can be reached here"),
+        };
+
+        let mut new_combat = Combat::new(combat_params).await;
+        for units in units_by_position
+            .get(&movement.position)
+            .expect("every moved unit was indexed by its final position")
+            .values()
+        {
+            for unit in units.values() {
+                new_combat.include_unit(unit.clone()).await;
+            }
+        }
+        combats.insert(movement.position, Arc::new(RwLock::new(new_combat)));
+    }
+
+    for (position, units_by_bloc) in units_by_position {
+        if combats.contains_key(&position) || units_by_bloc.len() < 2 {
+            continue;
+        }
+
+        let initiating_unit_id = units_by_bloc
+            .values()
+            .flat_map(HashMap::keys)
+            .min()
+            .expect("a position with multiple blocs has at least one unit");
+        log::debug!("Unit {} engages in new combat with other units", initiating_unit_id);
+        let new_combat = Combat::new(CombatParameters::Units(units_by_bloc)).await;
+        combats.insert(position, Arc::new(RwLock::new(new_combat)));
     }
 }
 
@@ -139,45 +268,25 @@ pub(crate) async fn move_units(
 ///
 /// An enemy unit that is strictly closer than `target_point` always wins over the designated
 /// target. When `target_point` is `None` the closest enemy unit is returned unconditionally.
-pub(super) async fn select_move_target(
+pub(super) fn select_move_target(
     from: Point,
-    unit_id: UnitId,
     unit_bloc: &BlocKey,
     target_point: Option<Point>,
-    units: &HashMap<UnitId, Arc<RwLock<MilitaryUnit>>>,
+    spatial_index: &UnitSpatialIndex,
     world_bounds: WorldBounds,
 ) -> MoveTo {
-    let mut closest_enemy: Option<(UnitId, Point, Distance)> = None;
-    for (other_id, other_unit) in units {
-        if *other_id == unit_id {
-            continue;
-        }
-
-        let other_unit = other_unit.read().await;
-        let other_unit_bloc = other_unit.base().await.bloc_key().clone();
-        if other_unit_bloc == *unit_bloc {
-            continue;
-        }
-
-        let position = other_unit.position();
-        let distance = world_bounds.distance_between(from, position);
-        let is_closer = closest_enemy
-            .as_ref()
-            .map(|(_, _, closest_distance)| distance < *closest_distance)
-            .unwrap_or(true);
-        if is_closer {
-            closest_enemy = Some((*other_id, position, distance));
-        }
-    }
+    let closest_enemy = spatial_index.closest_enemy(from, unit_bloc, world_bounds);
 
     match target_point {
         None => closest_enemy
-            .map(|(id, position, _)| MoveTo::EnemyUnit(id, position))
+            .map(|unit| MoveTo::EnemyUnit(unit.id, unit.position))
             .unwrap_or(MoveTo::None),
         Some(target) => {
             let target_dist = world_bounds.distance_between(from, target);
             match closest_enemy {
-                Some((id, position, distance)) if distance < target_dist => MoveTo::EnemyUnit(id, position),
+                Some(unit) if world_bounds.distance_between(from, unit.position) < target_dist => {
+                    MoveTo::EnemyUnit(unit.id, unit.position)
+                }
                 _ => MoveTo::Designated(target),
             }
         }
@@ -253,13 +362,143 @@ mod tests {
     }
 
     fn unit(base: Arc<RwLock<MilitaryBase>>, position: Point) -> Arc<RwLock<MilitaryUnit>> {
+        unit_with_uuid(base, position, Uuid::new())
+    }
+
+    fn unit_with_id(base: Arc<RwLock<MilitaryBase>>, position: Point, id: u8) -> Arc<RwLock<MilitaryUnit>> {
+        unit_with_uuid(base, position, Uuid::from_bytes([id; 16]))
+    }
+
+    fn unit_with_uuid(base: Arc<RwLock<MilitaryBase>>, position: Point, id: Uuid) -> Arc<RwLock<MilitaryUnit>> {
         Arc::new(RwLock::new(MilitaryUnit::from_persisted(
-            Uuid::new(),
+            id,
             base,
             position,
             UnitState::Alive,
             Loot::default(),
         )))
+    }
+
+    async fn unit_map(
+        units: impl IntoIterator<Item = Arc<RwLock<MilitaryUnit>>>,
+    ) -> HashMap<UnitId, Arc<RwLock<MilitaryUnit>>> {
+        let mut result = HashMap::new();
+        for unit in units {
+            let id = unit.read().await.id();
+            result.insert(id, unit);
+        }
+        result
+    }
+
+    #[tokio::test]
+    async fn nearest_enemy_uses_wrapped_distance() {
+        let enemy_base = base("enemy", point(0.0, 0.0));
+        let wrapped_enemy = unit_with_id(enemy_base.clone(), point(29.0, 10.0), 1);
+        let direct_enemy = unit_with_id(enemy_base, point(10.0, 10.0), 2);
+        let wrapped_enemy_id = wrapped_enemy.read().await.id();
+        let units = unit_map([wrapped_enemy, direct_enemy]).await;
+        let index = UnitSpatialIndex::snapshot(&units).await;
+
+        let target = select_move_target(
+            point(1.0, 10.0),
+            &BlocKey::from("friendly".to_string()),
+            None,
+            &index,
+            world_bounds(),
+        );
+
+        assert_eq!(target, MoveTo::EnemyUnit(wrapped_enemy_id, point(29.0, 10.0)));
+    }
+
+    #[tokio::test]
+    async fn equal_distance_enemy_ties_use_lowest_unit_id() {
+        let enemy_base = base("enemy", point(0.0, 0.0));
+        let lower_id_enemy = unit_with_id(enemy_base.clone(), point(11.0, 10.0), 1);
+        let higher_id_enemy = unit_with_id(enemy_base, point(9.0, 10.0), 2);
+        let lower_id = lower_id_enemy.read().await.id();
+        let units = unit_map([higher_id_enemy, lower_id_enemy]).await;
+        let index = UnitSpatialIndex::snapshot(&units).await;
+
+        let target = select_move_target(
+            point(10.0, 10.0),
+            &BlocKey::from("friendly".to_string()),
+            None,
+            &index,
+            world_bounds(),
+        );
+
+        assert_eq!(target, MoveTo::EnemyUnit(lower_id, point(11.0, 10.0)));
+    }
+
+    #[tokio::test]
+    async fn designated_target_wins_an_equal_distance_tie() {
+        let enemy = unit(base("enemy", point(0.0, 0.0)), point(12.0, 10.0));
+        let units = unit_map([enemy]).await;
+        let index = UnitSpatialIndex::snapshot(&units).await;
+
+        let target = select_move_target(
+            point(10.0, 10.0),
+            &BlocKey::from("friendly".to_string()),
+            Some(point(8.0, 10.0)),
+            &index,
+            world_bounds(),
+        );
+
+        assert_eq!(target, MoveTo::Designated(point(8.0, 10.0)));
+    }
+
+    #[tokio::test]
+    async fn simultaneous_movement_creates_combat_at_the_final_shared_position() {
+        let unit_a = unit(base("a", point(10.0, 10.0)), point(10.0, 10.0));
+        let unit_b = unit(base("b", point(12.0, 10.0)), point(12.0, 10.0));
+        let mut units = unit_map([unit_a.clone(), unit_b.clone()]).await;
+        let mut combats = HashMap::new();
+
+        move_units(&mut units, &mut combats, distance(1.0), world_bounds(), 1, 1).await;
+
+        assert_eq!(unit_a.read().await.position(), point(11.0, 10.0));
+        assert_eq!(unit_b.read().await.position(), point(11.0, 10.0));
+        let combat = combats.get(&point(11.0, 10.0)).expect("collocated enemies fight");
+        let unit_count = combat
+            .read()
+            .await
+            .unit_ids_by_bloc()
+            .await
+            .into_iter()
+            .map(|(_, ids)| ids.len())
+            .sum::<usize>();
+        assert_eq!(unit_count, 2);
+    }
+
+    #[tokio::test]
+    async fn movement_tick_handles_eight_thousand_collocated_units() {
+        let base_a = base("a", point(10.0, 10.0));
+        let base_b = base("b", point(12.0, 10.0));
+        let mut units = Vec::with_capacity(8_000);
+        for _ in 0..4_000 {
+            units.push(unit(base_a.clone(), point(10.0, 10.0)));
+            units.push(unit(base_b.clone(), point(12.0, 10.0)));
+        }
+        let mut units = unit_map(units).await;
+        let mut combats = HashMap::new();
+
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            move_units(&mut units, &mut combats, distance(1.0), world_bounds(), 1, 1),
+        )
+        .await
+        .expect("an 8,000-unit movement tick should complete promptly");
+
+        let combat = combats.get(&point(11.0, 10.0)).expect("collocated enemies fight");
+        let unit_count = combat
+            .read()
+            .await
+            .unit_ids_by_bloc()
+            .await
+            .into_iter()
+            .map(|(_, ids)| ids.len())
+            .sum::<usize>();
+        assert_eq!(unit_count, 8_000);
     }
 
     #[tokio::test]

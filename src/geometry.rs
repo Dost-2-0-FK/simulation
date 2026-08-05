@@ -15,6 +15,11 @@ impl Point {
     pub(crate) fn new(x: NotNan<f64>, y: NotNan<f64>) -> Self {
         Self { x, y }
     }
+
+    /// Returns this point in the coordinate representation expected by spatial indexes.
+    pub(crate) fn coordinates(self) -> [f64; 2] {
+        [self.x.into_inner(), self.y.into_inner()]
+    }
 }
 
 impl Add for Point {
@@ -142,6 +147,27 @@ impl WorldBounds {
             wrap_coordinate(point.x, self.min_x, self.max_x),
             wrap_coordinate(point.y, self.min_y, self.max_y),
         )
+    }
+
+    /// Returns the nine periodic images needed to query a planar spatial index as a wrapped world.
+    ///
+    /// The center image is canonical. The other images are shifted by one world width and/or height so a nearest
+    /// neighbor across an edge can be found without teaching the spatial index about wraparound geometry.
+    pub(crate) fn periodic_images(&self, point: Point) -> [Point; 9] {
+        let point = self.wrap(point);
+        let width = self.width();
+        let height = self.height();
+        [
+            point + Point::new(-width, -height),
+            point + Point::new(-width, NotNan::new(0.0).expect("zero is not NaN")),
+            point + Point::new(-width, height),
+            point + Point::new(NotNan::new(0.0).expect("zero is not NaN"), -height),
+            point,
+            point + Point::new(NotNan::new(0.0).expect("zero is not NaN"), height),
+            point + Point::new(width, -height),
+            point + Point::new(width, NotNan::new(0.0).expect("zero is not NaN")),
+            point + Point::new(width, height),
+        ]
     }
 
     /// Returns the shortest signed axis deltas from `from` to `to` in this wrapped world.
