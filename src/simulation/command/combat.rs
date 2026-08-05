@@ -14,7 +14,6 @@ use crate::{
     },
     geometry::{Distance, Point, Positioned, WorldBounds},
     handlers::combats::CombatResponse,
-    services::auth_service::{AuthService, DestroyedObject},
 };
 
 pub(crate) async fn get_all(
@@ -63,7 +62,6 @@ pub(crate) async fn apply_events(
     trusts: &mut HashMap<TrustId, Arc<RwLock<Trust>>>,
     combats: &mut HashMap<Point, Arc<RwLock<Combat>>>,
     world_bounds: WorldBounds,
-    auth_service: &AuthService,
     stats: &mut SimulationStats,
 ) {
     let mut unit_blocs = HashMap::with_capacity(units.len());
@@ -80,7 +78,6 @@ pub(crate) async fn apply_events(
                         stats.record_unit_destroyed_by_enemy(bloc.clone());
                     }
                     transfer_loot(unit.loot(), bases).await;
-                    publish_destruction(auth_service, DestroyedObject::Unit).await;
                 }
             }
             CombatEvent::BaseDestroyed { id, loot: transfers } => {
@@ -95,7 +92,6 @@ pub(crate) async fn apply_events(
                 if let Some(bloc) = destroyed_bloc {
                     stats.record_base_destroyed(bloc, DestructionSource::Combat);
                 }
-                publish_destruction(auth_service, DestroyedObject::Base).await;
             }
             CombatEvent::TrustDestroyed { id, loot } => {
                 let destroyed_bloc = match trusts.get(id) {
@@ -109,15 +105,8 @@ pub(crate) async fn apply_events(
                 if let Some(bloc) = destroyed_bloc {
                     stats.record_trust_destroyed(bloc, DestructionSource::Combat);
                 }
-                publish_destruction(auth_service, DestroyedObject::Trust).await;
             }
         }
-    }
-}
-
-async fn publish_destruction(auth_service: &AuthService, object: DestroyedObject) {
-    if let Err(error) = auth_service.publish_destruction(object).await {
-        log::error!("failed to publish {object:?} destruction to auth service: {error:#}");
     }
 }
 

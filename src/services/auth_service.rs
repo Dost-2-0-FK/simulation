@@ -32,13 +32,6 @@ pub(crate) enum FinancedObject {
     Base,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum DestroyedObject {
-    Base,
-    Unit,
-    Trust,
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FinancingVerificationRequest<'a> {
@@ -301,42 +294,6 @@ impl AuthService {
         Err(AuthServiceResponseError::new(status, body).into())
     }
 
-    pub(crate) async fn publish_destruction(&self, object: DestroyedObject) -> Result<()> {
-        let endpoint = self.destruction_endpoint(object)?;
-        let response = self
-            .client
-            .post(endpoint)
-            .send()
-            .await
-            .context("publishing destruction")?;
-
-        if response.status().is_success() {
-            return Ok(());
-        }
-
-        let status = response.status();
-        let body = response.text().await.unwrap_or_else(|err| err.to_string());
-        Err(AuthServiceResponseError::new(status, body).into())
-    }
-
-    fn destruction_endpoint(&self, object: DestroyedObject) -> Result<Url> {
-        let object_segment = match object {
-            DestroyedObject::Base => "base",
-            DestroyedObject::Unit => "unit",
-            DestroyedObject::Trust => "trust",
-        };
-        let mut endpoint = self
-            .url
-            .join("api/events/destroyed/")
-            .context("building auth-service destruction endpoint")?;
-        endpoint
-            .path_segments_mut()
-            .map_err(|()| anyhow!("auth-service URL cannot contain path segments"))?
-            .pop_if_empty()
-            .push(object_segment);
-        Ok(endpoint)
-    }
-
     fn social_rule_update_endpoint(&self, rule: &SocialRuleKey) -> Result<Url> {
         let mut endpoint = self
             .url
@@ -356,8 +313,8 @@ mod tests {
     use std::{collections::HashMap, sync::Arc};
 
     use super::{
-        AccessLevel, AuthenticatedUser, AuthenticationResponse, DestroyedObject, FinancedObject,
-        FinancingVerificationRequest, LoginCredentials, SocialRuleUpdateRequest,
+        AccessLevel, AuthenticatedUser, AuthenticationResponse, FinancedObject, FinancingVerificationRequest,
+        LoginCredentials, SocialRuleUpdateRequest,
     };
     use crate::domain::{
         BlocKey, BlocName, CharacterKey, CharacterName, NameMappings, PlacementId, SocialRuleKey, SocialRuleLevel,
@@ -516,19 +473,5 @@ mod tests {
             endpoint.as_str(),
             "http://localhost/api/events/social/rule%2Fwith%20space"
         );
-    }
-
-    #[test]
-    fn destruction_endpoints_match_the_auth_service_contract() {
-        let mappings = NameMappings::new(HashMap::new(), HashMap::new(), HashMap::new());
-        let service = super::AuthService::new("http://localhost/".parse().unwrap(), Arc::new(mappings));
-
-        for (object, expected) in [
-            (DestroyedObject::Base, "http://localhost/api/events/destroyed/base"),
-            (DestroyedObject::Unit, "http://localhost/api/events/destroyed/unit"),
-            (DestroyedObject::Trust, "http://localhost/api/events/destroyed/trust"),
-        ] {
-            assert_eq!(service.destruction_endpoint(object).unwrap().as_str(), expected);
-        }
     }
 }

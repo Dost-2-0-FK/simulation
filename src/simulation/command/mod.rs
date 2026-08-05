@@ -525,7 +525,6 @@ pub(crate) async fn run(
                     &mut trusts,
                     &mut combats,
                     config.world_bounds(),
-                    config.auth_service(),
                     &mut stats,
                 )
                 .await;
