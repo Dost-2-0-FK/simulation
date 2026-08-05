@@ -38,6 +38,7 @@ impl LootTransfer {
 pub(crate) struct UnitKilled {
     killer: UnitId,
     killed: UnitId,
+    killed_bloc: BlocKey,
     /// The loot transferred to the killer's base
     loot: LootTransfer,
 }
@@ -49,6 +50,10 @@ impl UnitKilled {
 
     pub(crate) fn killed(&self) -> UnitId {
         self.killed
+    }
+
+    pub(crate) fn killed_bloc(&self) -> &BlocKey {
+        &self.killed_bloc
     }
 
     pub(crate) fn loot(&self) -> &LootTransfer {
@@ -467,6 +472,7 @@ impl Combat {
                 killed_events.push(UnitKilled {
                     killed: target_id,
                     killer: attacker_id,
+                    killed_bloc: target_bloc.clone(),
                     loot: LootTransfer {
                         base_id: killer_base,
                         loot,

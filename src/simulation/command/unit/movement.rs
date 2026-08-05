@@ -301,7 +301,8 @@ mod tests {
     use super::*;
     use crate::{
         domain::{
-            Bloc, BlocName, Chance, Loot, MilitaryBase, Placement, PlacementId, UnitState, Zone, ZoneKey, ZoneName,
+            Bloc, BlocName, Chance, Loot, MilitaryBase, Placement, PlacementId, SimulationStats, UnitState, Zone,
+            ZoneKey, ZoneName,
         },
         services::credit_exchange_service::{Cost, Share},
         simulation::command::combat,
@@ -527,7 +528,7 @@ mod tests {
         .await;
         let mut combats = HashMap::from([(combat_position, Arc::new(RwLock::new(combat)))]);
 
-        let events = combat::tick(&mut combats).await;
+        let events = combat::tick(&mut combats, &mut SimulationStats::default()).await;
 
         assert!(matches!(
             events.as_slice(),

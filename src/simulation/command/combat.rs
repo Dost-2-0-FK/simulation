@@ -37,13 +37,21 @@ pub(crate) async fn get_all(
     let _ = resp.send(combat_responses);
 }
 
-/// Execute a [Combat::tick] on each combat and clear ended combats from the map.
-pub(crate) async fn tick(combats: &mut HashMap<Point, Arc<RwLock<Combat>>>) -> Vec<CombatEvent> {
+/// Execute a [Combat::tick] on each combat, record unit destructions, and clear ended combats from the map.
+pub(crate) async fn tick(
+    combats: &mut HashMap<Point, Arc<RwLock<Combat>>>,
+    stats: &mut SimulationStats,
+) -> Vec<CombatEvent> {
     let mut events = Vec::new();
     let mut ended_positions = Vec::new();
     for (position, combat) in combats.iter() {
         let mut combat_guard = combat.write().await;
-        combat_guard.tick().await;
+        let event = combat_guard.tick().await;
+        if let CombatEvent::UnitsKilled { units } = &event {
+            for unit in units {
+                stats.record_unit_destroyed_by_enemy(unit.killed_bloc().clone());
+            }
+        }
         if combat_guard.state() == crate::domain::CombatState::Ended {
             events.extend_from_slice(combat_guard.events());
             ended_positions.push(*position);
@@ -64,19 +72,11 @@ pub(crate) async fn apply_events(
     world_bounds: WorldBounds,
     stats: &mut SimulationStats,
 ) {
-    let mut unit_blocs = HashMap::with_capacity(units.len());
-    for (id, unit) in units.iter() {
-        unit_blocs.insert(*id, unit.read().await.base().await.bloc_key().clone());
-    }
-
     for event in events {
         match event {
             CombatEvent::None => {}
             CombatEvent::UnitsKilled { units: killed_units } => {
                 for unit in killed_units {
-                    if let Some(bloc) = unit_blocs.get(&unit.killed()) {
-                        stats.record_unit_destroyed_by_enemy(bloc.clone());
-                    }
                     transfer_loot(unit.loot(), bases).await;
                 }
             }
@@ -245,7 +245,8 @@ mod tests {
     use super::*;
     use crate::{
         domain::{
-            Bloc, BlocName, Chance, Loot, LootFactors, Placement, PlacementId, UnitState, Zone, ZoneKey, ZoneName,
+            Bloc, BlocName, Chance, CombatParameters, Loot, LootFactors, Placement, PlacementId, UnitState, Zone,
+            ZoneKey, ZoneName,
         },
         services::credit_exchange_service::{Cost, Share},
     };
@@ -312,6 +313,50 @@ mod tests {
 
     async fn id(base: &RwLock<MilitaryBase>) -> BaseId {
         base.read().await.id()
+    }
+
+    #[tokio::test]
+    async fn unit_kills_are_counted_immediately_and_not_recounted_when_applied() {
+        let position = point(10.0, 10.0);
+        let bloc_a = BlocKey::from("bloc-a".to_owned());
+        let bloc_b = BlocKey::from("bloc-b".to_owned());
+        let base_a = base("bloc-a", "bloc-a", position);
+        let base_b = base("bloc-b", "bloc-b", position);
+        let unit_a = unit(base_a.clone(), position);
+        let unit_b = unit(base_b.clone(), position);
+        let unit_a_id = unit_a.read().await.id();
+        let unit_b_id = unit_b.read().await.id();
+        let mut units = HashMap::from([(unit_a_id, unit_a.clone()), (unit_b_id, unit_b.clone())]);
+        let combat = Combat::new(CombatParameters::Units(HashMap::from([
+            (bloc_a.clone(), HashMap::from([(unit_a_id, unit_a)])),
+            (bloc_b.clone(), HashMap::from([(unit_b_id, unit_b)])),
+        ])))
+        .await;
+        let mut combats = HashMap::from([(position, Arc::new(RwLock::new(combat)))]);
+        let mut stats = SimulationStats::default();
+
+        let events = tick(&mut combats, &mut stats).await;
+
+        assert_eq!(stats.bloc(&bloc_a).units().destroyed_by_enemies(), 1);
+        assert_eq!(stats.bloc(&bloc_b).units().destroyed_by_enemies(), 1);
+
+        clear_dead_units(&mut units).await;
+        assert!(units.is_empty());
+
+        let mut bases = HashMap::from([(id(&base_a).await, base_a), (id(&base_b).await, base_b)]);
+        apply_events(
+            &events,
+            &mut bases,
+            &mut units,
+            &mut HashMap::new(),
+            &mut combats,
+            world_bounds(),
+            &mut stats,
+        )
+        .await;
+
+        assert_eq!(stats.bloc(&bloc_a).units().destroyed_by_enemies(), 1);
+        assert_eq!(stats.bloc(&bloc_b).units().destroyed_by_enemies(), 1);
     }
 
     #[tokio::test]
