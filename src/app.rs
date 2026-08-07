@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use anyhow::{Context, Result};
 use tokio::sync::mpsc;
 use utoipa::OpenApi;
@@ -9,9 +12,42 @@ use crate::{
     tasks::{periodic_combat_tick, periodic_move, periodic_persist},
 };
 
-pub(crate) async fn start_simulation(config: Config) -> Result<mpsc::Sender<Command>> {
+/// Starts the simulation without blocking the caller.
+///
+/// Returns the command sender immediately so the HTTP server can bind (and serve
+/// health probes) right away, plus a `ready` flag that flips to `true` once the
+/// simulation has finished its (potentially slow) initialisation — connecting to
+/// Mongo and registering the seeded structures with the credit-exchange service.
+/// The heavy work runs in a background task; if it fails the process stays up and
+/// `ready` stays `false`, so readiness gates traffic instead of the pod
+/// crash-looping and liveness killing it mid-initialisation.
+pub(crate) fn spawn_simulation(config: Config) -> (mpsc::Sender<Command>, Arc<AtomicBool>) {
     const MAX_MESSAGE_COUNT: usize = 100;
     let (tx, rx) = mpsc::channel(MAX_MESSAGE_COUNT);
+    let ready = Arc::new(AtomicBool::new(false));
+
+    let ready_signal = ready.clone();
+    let tx_for_tasks = tx.clone();
+    tokio::spawn(async move {
+        match initialise(config, rx, tx_for_tasks).await {
+            Ok(()) => {
+                ready_signal.store(true, Ordering::SeqCst);
+                log::info!("simulation initialised; service is ready");
+            }
+            Err(e) => {
+                log::error!("simulation initialisation failed; service stays unready: {e:#}");
+            }
+        }
+    });
+
+    (tx, ready)
+}
+
+async fn initialise(
+    config: Config,
+    rx: mpsc::Receiver<Command>,
+    tx: mpsc::Sender<Command>,
+) -> Result<()> {
     let persistence = MongoPersistence::connect(config.persistence())
         .await
         .context("connecting persistence layer".to_string())?;
@@ -79,7 +115,7 @@ pub(crate) async fn start_simulation(config: Config) -> Result<mpsc::Sender<Comm
     tokio::spawn(periodic_move(tx.clone(), movement_interval));
     tokio::spawn(periodic_combat_tick(tx.clone(), combat_tick_interval));
 
-    Ok(tx)
+    Ok(())
 }
 
 pub(crate) fn openapi() -> utoipa::openapi::OpenApi {

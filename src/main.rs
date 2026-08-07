@@ -10,6 +10,8 @@ mod services;
 mod simulation;
 mod tasks;
 
+use std::sync::atomic::Ordering;
+
 use actix_identity::IdentityMiddleware;
 use actix_session::{SessionMiddleware, storage::CookieSessionStore};
 use actix_web::{App, HttpResponse, HttpServer, middleware::Logger, web};
@@ -49,10 +51,11 @@ async fn main() -> std::io::Result<()> {
     let resources = config.resources().cloned().collect::<Vec<_>>();
     let server_address = config.server_address();
 
-    let tx = app::start_simulation(config).await.map_err(|e| {
-        log::error!("{:#}", e);
-        std::io::Error::other(e)
-    })?;
+    // Start the simulation in the background and bind the HTTP server
+    // immediately, so liveness/readiness probes are served during the
+    // potentially slow initialisation instead of the pod being killed before it
+    // ever listens.
+    let (tx, ready) = app::spawn_simulation(config);
 
     HttpServer::new(move || {
         let logger = Logger::default();
@@ -71,10 +74,28 @@ async fn main() -> std::io::Result<()> {
             .service(scope::scope("/api").configure(routes::configure))
             .openapi_service(|api| SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", api))
             .into_app()
-            // Liveness/readiness probe. The server only binds after the
-            // simulation has finished initialising, so a 200 here means the app
-            // is up and serving.
+            // Liveness: the process is up and serving HTTP. Available
+            // immediately, even while the simulation is still initialising.
             .route("/healthz", web::get().to(|| async { HttpResponse::Ok().finish() }))
+            // Readiness: 200 only once the simulation has finished initialising
+            // (Mongo connected, seeds registered, command loop running); 503
+            // until then so no traffic is routed to a half-initialised instance.
+            .route(
+                "/readyz",
+                web::get().to({
+                    let ready = ready.clone();
+                    move || {
+                        let ready = ready.clone();
+                        async move {
+                            if ready.load(Ordering::SeqCst) {
+                                HttpResponse::Ok().finish()
+                            } else {
+                                HttpResponse::ServiceUnavailable().finish()
+                            }
+                        }
+                    }
+                }),
+            )
     })
     .bind(server_address)?
     .run()
