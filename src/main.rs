@@ -12,7 +12,7 @@ mod tasks;
 
 use actix_identity::IdentityMiddleware;
 use actix_session::{SessionMiddleware, storage::CookieSessionStore};
-use actix_web::{App, HttpServer, middleware::Logger, web};
+use actix_web::{App, HttpResponse, HttpServer, middleware::Logger, web};
 use anyhow::Context;
 use utoipa_actix_web::{AppExt, scope};
 use utoipa_swagger_ui::SwaggerUi;
@@ -71,6 +71,10 @@ async fn main() -> std::io::Result<()> {
             .service(scope::scope("/api").configure(routes::configure))
             .openapi_service(|api| SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", api))
             .into_app()
+            // Liveness/readiness probe. The server only binds after the
+            // simulation has finished initialising, so a 200 here means the app
+            // is up and serving.
+            .route("/healthz", web::get().to(|| async { HttpResponse::Ok().finish() }))
     })
     .bind(server_address)?
     .run()
