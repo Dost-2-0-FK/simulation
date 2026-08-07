@@ -1739,19 +1739,19 @@ position = { x = 30.975, y = 52.434 }
 placement_id = "placement-1-a-1-w-2"
 payment = [{ financierId = "B9tC-3wFy-H6jM-q1Ze", share = 0.35 }]
 prioritized = true
-initial_units = 1000
+initial_units = 250
 
 [[base]]
 placement_id = "placement-1-b-4-w-1"
 payment = [{ financierId = "dRBH-9hys-VTbV-tyhj", share = 0.3 }]
 prioritized = true
-initial_units = 1000
+initial_units = 250
 
 [[base]]
 placement_id = "placement-1-b-16-w-1"
 payment = [{ financierId = "DS5Q-jb9H-6ncE-WSHO", share = 0.4 }]
 prioritized = true
-initial_units = 1000
+initial_units = 250
 
 [[base]]
 placement_id = "placement-0-0-w-2"
@@ -1762,7 +1762,7 @@ initial_units = 0
 placement_id = "placement-5-3-w-3"
 payment = [{ financierId = "B9tC-3wFy-H6jM-q1Ze", share = 0.35 }]
 prioritized = true
-initial_units = 1000
+initial_units = 250
 
 [[base]]
 placement_id = "placement-1-a-3-w-1"
@@ -1774,19 +1774,19 @@ initial_units = 0
 placement_id = "placement-1-a-5-e-2"
 payment = [{ financierId = "T6hW-n3Gb-Y9sA-7QeF", share = 0.35 }]
 prioritized = true
-initial_units = 1000
+initial_units = 250
 
 [[base]]
 placement_id = "placement-1-b-11-e-1"
 payment = [{ financierId = "5XeZ-elqC-DYLA-AU17", share = 0.3 }]
 prioritized = true
-initial_units = 1000
+initial_units = 250
 
 [[base]]
 placement_id = "placement-0-1-e-2"
 payment = [{ financierId = "CzCh-jnoo-sxew-K9qp", share = 0.4 }]
 prioritized = true
-initial_units = 1000
+initial_units = 250
 
 [[base]]
 placement_id = "placement-5-3-e-3"
@@ -1797,7 +1797,7 @@ initial_units = 0
 placement_id = "placement-5-7-e-2"
 payment = [{ financierId = "U28f-pogA-HZSP-4v6u", share = 0.3 }]
 prioritized = true
-initial_units = 1000
+initial_units = 250
 
 [[trust]]
 placement_id = "placement-5-3-w-1"
