@@ -360,11 +360,15 @@ impl Combat {
             .await
             .expect("we should be in a combat with a structure");
 
-        assert_ne!(
-            structure_bloc,
-            self.units.keys().next().expect("we have exactly 1 bloc").clone(),
-            "we cannot be in a state where units of a bloc attack their own structure"
-        );
+        if structure_bloc == *self.units.keys().next().expect("we have exactly 1 bloc") {
+            log::warn!(
+                "combat {:?} at position {:?} only contains units of bloc {structure_bloc:?} attacking their own structure, ending it",
+                self.id,
+                self.position
+            );
+            self.state = CombatState::Ended;
+            return CombatEvent::None;
+        }
 
         let destruction_threshold = self
             .structure
@@ -705,5 +709,18 @@ mod tests {
         assert_eq!(units.len(), 4);
         assert_eq!(units.iter().map(UnitKilled::killed).collect::<HashSet<_>>().len(), 4);
         assert_eq!(units.iter().map(UnitKilled::killer).collect::<HashSet<_>>().len(), 4);
+    }
+
+    #[tokio::test]
+    async fn combat_ends_when_only_the_structure_blocs_own_units_remain() {
+        let position = Point::new(NotNan::new(0.0).unwrap(), NotNan::new(0.0).unwrap());
+        let bloc_a_base = base("bloc-a", position);
+        let attacker = unit(bloc_a_base.clone(), position);
+        let mut combat = Combat::new(CombatParameters::Base(attacker, bloc_a_base, 1)).await;
+
+        let event = combat.tick().await;
+
+        assert!(matches!(event, CombatEvent::None));
+        assert_eq!(combat.state(), CombatState::Ended);
     }
 }
